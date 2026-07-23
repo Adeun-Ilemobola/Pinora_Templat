@@ -154,6 +154,10 @@ impl<'d> Lidar<'d> {
                             priority: LogPriority::High,
                         }));
                     }
+                     emit::event(ModuleEvent::Lidar(LidarEvent::PointMap { id:self.id().clone(), 
+                        map: self.point_map.clone()
+                    } 
+                    ));
                     return;
                 }
                 next_point.y -= 1;
