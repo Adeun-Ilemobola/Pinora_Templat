@@ -1,0 +1,11 @@
+{
+  "project_name": "template",
+  "firmware_path": "/Users/adeun/Documents/Pinora_Project/Pinora_Templat/Firmware_Templates",
+  "ui_path": "/Users/adeun/Documents/Pinora_Project/Pinora_Templat/UI_Templates",
+  "id": "65476b2c-65e0-40f2-8b05-2c54cb57a201",
+  "build_command": "source ~/export-esp.sh && cargo build",
+  "flash_command": "cargo flash --monitor --port /dev/ttyUSB0",
+  "install_components": [
+   
+  ]
+}

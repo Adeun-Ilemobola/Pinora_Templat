@@ -1,0 +1,55 @@
+[package]
+name = "Firmware_Templates"
+version = "0.1.0"
+authors = ["“Adeun” <adeunilemobola@gmail.com>"]
+edition = "2021"
+resolver = "2"
+rust-version = "1.82"
+
+[[bin]]
+name = "Firmware_Templates"
+harness = false # do not use the built-in cargo test harness -> resolve rust-analyzer errors
+
+[profile.release]
+opt-level = "s"
+
+[profile.dev]
+debug = true    # Symbols are nice, and they don't increase the size on Flash
+opt-level = "z"
+[patch.crates-io]
+esp-idf-sys = { git = "https://github.com/esp-rs/esp-idf-sys.git" }
+esp-idf-hal = { git = "https://github.com/esp-rs/esp-idf-hal.git" }
+esp-idf-svc = { git = "https://github.com/esp-rs/esp-idf-svc.git" }
+
+[dependencies]
+uuid = { version = "1.24.0", features = ["v4"] }
+log = "0.4.33"
+
+# This handles the core functionalities like GPIO pins, I2C, and definition and types of those type of things, and also methods to use.
+esp-idf-svc = { version = "0.52.1", features = ["critical-section", "embassy-time-driver", "embassy-sync"] }
+
+
+
+
+embedded-hal-bus = { version = "0.3", features = ["std"] }
+
+
+
+embedded-hal-compat = "0.13"
+# Remove `generic-queue-8` if you plan to use `embassy-time` WITH `embassy-executor`
+embassy-time = { version = "0.5", features = ["generic-queue-8"] }
+
+# These two libraries handle serializations, basically converting objects to JSON, enums to JSON, deconstructing, serializing, copy, debug, and things of that caliber for each enums and objects that I decide on.
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.150"
+
+# General error handling.
+# Lets functions return anyhow::Result and attach readable context to errors.
+anyhow = "1.0.104"
+
+# Driver for the PCA9685 PWM controller used by the servo modules.
+pwm-pca9685 = "1.0.0" 
+vl53l1x-uld = "2.0.1"
+
+[build-dependencies]
+embuild = "0.33.2"

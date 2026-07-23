@@ -1,0 +1,43 @@
+# System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+Desktop.ini
+
+# Editors
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Frontend
+/UI_Templates/logs/
+/UI_Templates/*.log
+/UI_Templates/npm-debug.log*
+/UI_Templates/yarn-debug.log*
+/UI_Templates/yarn-error.log*
+/UI_Templates/pnpm-debug.log*
+/UI_Templates/lerna-debug.log*
+/UI_Templates/node_modules/
+/UI_Templates/dist/
+/UI_Templates/dist-ssr/
+/UI_Templates/*.local
+/UI_Templates/.vscode/*
+!/UI_Templates/.vscode/extensions.json
+
+# Tauri
+/UI_Templates/src-tauri/target/
+/UI_Templates/src-tauri/gen/schemas/
+/UI_Templates/src-tauri/.vscode/
+
+# Firmware
+/Firmware_Templates/.embuild/
+/Firmware_Templates/target/
+/Firmware_Templates/Cargo.lock
+/Firmware_Templates/.vscode/
+/Firmware_Templates/.github/**
