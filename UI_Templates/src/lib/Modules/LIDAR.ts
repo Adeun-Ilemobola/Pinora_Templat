@@ -52,6 +52,8 @@ export const LidarEventSchema = z.discriminatedUnion("event_type", [
   z.object({
     event_type: z.literal("PointMap"),
     id: z.string(),
+    max_chunk:z.number(),
+    curr_chunk:z.number(),
     map: z.array(RangePointSchema),
   }),
   z.object({
@@ -122,11 +124,24 @@ export function updateLidar(
       };
 
     case "PointMap":
+      console.debug(
+        `
+         ---------------------------
+        [ event_type : PointMap ]
+         size : ${event.map.length}
+         curr_chunk :${event.curr_chunk}
+         max_chunk :${event.max_chunk}
+         ---------------------------
+        `
+        ,
+        event.map
+      )
+      
       return {
         ...module,
         state: {
           ...module.state,
-          map: event.map.map(({ x, y, distant }) => ({ x, y, distant })),
+          map: [...module.state.map ,...event.map ]
         },
       };
 

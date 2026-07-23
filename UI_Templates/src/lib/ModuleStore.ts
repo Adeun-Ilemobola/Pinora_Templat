@@ -38,6 +38,7 @@ export const useModuleStore = create<ModuleStore>((set, get) => ({
     if (module_has) {
       return
     }
+    console.debug(`id :${registration.id} | module_type :${registration.module_type} | lool_up_id :${registration.lool_up_id}  | parent_id :${registration.parent_id}`)
 
 
     const module = createModule(registration);

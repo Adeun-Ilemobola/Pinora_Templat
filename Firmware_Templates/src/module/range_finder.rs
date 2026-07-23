@@ -151,12 +151,12 @@ impl<'d> Rangefinder<'d> {
 
         self.range_mm = distance;
 
-        // emit::event(ModuleEvent::Rangefinder(
-        //     RangefinderEvent::Range {
-        //         id: self.id().clone(),
-        //         millimeters: distance,
-        //     },
-        // ));
+        emit::event(ModuleEvent::Rangefinder(
+            RangefinderEvent::Range {
+                id: self.id().clone(),
+                millimeters: distance,
+            },
+        ));
     }
 
     pub fn start_ranging(&mut self) -> anyhow::Result<()> {

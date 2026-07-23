@@ -67,7 +67,12 @@ pub enum LidarEvent{
     min:Point,
     max:Point
    },
-   PointMap{id :String , map:Vec<RangPoint>},
+   PointMap { 
+        id: String, 
+        max_chunk:i32, 
+        curr_chunk:i32,
+        map: Vec<RangPoint> 
+    },
    Target{ id:String, point:Point },
    ScanState{ id:String, state:ScanState }
 }
