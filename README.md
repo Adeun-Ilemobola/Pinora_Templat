@@ -87,6 +87,11 @@ The system is divided into four main layers:
 Incoming serial messages are sent to the frontend after 250 messages or
 approximately 33 ms, whichever happens first.
 
+The Rust wire contract has one source of truth in the root
+[`protocol/`](protocol/) directory. Both the firmware and Tauri backend depend
+on the root `pinora-shared` crate; protocol types should not be copied into
+either consumer.
+
 ## Current capabilities
 
 - Discover serial ports and connect at a configurable baud rate
@@ -118,6 +123,9 @@ approximately 33 ms, whichever happens first.
 
 ```text
 .
+├── protocol/                     # Shared Rust wire-protocol definitions
+├── lib.rs                        # pinora-shared crate entry point
+├── Cargo.toml                    # Shared protocol crate manifest
 ├── UI_Templates/                 # Desktop application
 │   ├── src/                       # React + TypeScript frontend
 │   │   ├── components/            # Module controls and reusable UI
@@ -128,7 +136,6 @@ approximately 33 ms, whichever happens first.
 │   ├── src-tauri/                 # Native Tauri backend
 │   │   ├── capabilities/          # Tauri permissions
 │   │   ├── src/
-│   │   │   ├── protocol/          # Rust protocol definitions
 │   │   │   ├── shared_types/      # Serial runtime state
 │   │   │   └── lib.rs             # Commands and serial worker
 │   │   ├── Cargo.toml
@@ -142,7 +149,7 @@ approximately 33 ms, whichever happens first.
 │   ├── src/
 │   │   ├── core/                   # Module and hardware foundations
 │   │   ├── module/                 # Hardware module implementations
-│   │   ├── protocol/               # Commands, events, and registrations
+│   │   ├── protocol/               # Re-export of pinora-shared
 │   │   ├── utilities/              # Logging and math helpers
 │   │   └── main.rs                 # Firmware setup and main loop
 │   ├── Cargo.toml

@@ -2,19 +2,18 @@ pub mod core;
 pub mod module;
 pub mod protocol;
 pub mod utilities;
-use embedded_hal_bus::i2c::RcDevice;
 
 use crate::core::hardware::*;
 use crate::core::modulecore::Module;
 use crate::module::joystick::JoyStick;
-use crate::module::lidar::Lidar;
 use crate::protocol::command::IncomingCommand;
 // use crate::utilities::serdeprotocol::IncomingCommand;
-
+use crate::module::lidar::Lidar;
 use std::io;
 use std::io::{BufRead, ErrorKind};
 use std::sync::mpsc;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
+ use embedded_hal_bus::i2c::RcDevice;
 
 type ModuleHandle<'a> = Rc<RefCell<dyn Module + 'a>>;
 
@@ -65,7 +64,7 @@ fn main() -> anyhow::Result<()> {
     
 
     let hardware = HardwareContext::new(p.ledc.timer0,shared_i2c.clone())?;
-    // let rangefinder_i2c = RcDevice::new(hardware.i2c_bus.clone());
+    let rangefinder_i2c = RcDevice::new(hardware.i2c_bus.clone());
 
     // let rangefinder = Rc::new(RefCell::new(Rangefinder::new(
     //     p.i2c1,
@@ -78,20 +77,20 @@ fn main() -> anyhow::Result<()> {
     // modules.insert(rangefinder_id, rangefinder.clone());
     // print_welcome_message("not initialized", "not initialized");
 
-    // let lidar = Rc::new(RefCell::new(Lidar::new(
-    //     hardware.servo_pwm.clone(),
-    //     "lidar".to_string(),
-    //     rangefinder_i2c
-    // )?));
-    // let lidar_id = lidar.borrow().get_id();
-    // modules.insert(lidar_id, lidar.clone());
+    let lidar = Rc::new(RefCell::new(Lidar::new(
+        hardware.servo_pwm.clone(),
+        "lidar".to_string(),
+        rangefinder_i2c
+    )?));
+    let lidar_id = lidar.borrow().get_id();
+    modules.insert(lidar_id, lidar.clone());
 
-    let mut joystick = JoyStick::new(
-        p.pins.gpio25,
-        p.adc1,
-        p.pins.gpio34,
-        p.pins.gpio35,
-    )?;
+    // let mut joystick = JoyStick::new(
+    //     p.pins.gpio25,
+    //     p.adc1,
+    //     p.pins.gpio34,
+    //     p.pins.gpio35,
+    // )?;
 
     let (command_sender, command_receiver) = mpsc::channel::<IncomingCommand>();
     std::thread::spawn(move || {
@@ -100,8 +99,8 @@ fn main() -> anyhow::Result<()> {
 
     loop {
         // rangefinder.borrow_mut().tick();
-        // lidar.borrow_mut().tick();
-        joystick.tick()?;
+        lidar.borrow_mut().tick();
+        // joystick.tick()?;
 
         // if btu.poll()? {
         //     led_module.borrow_mut().toggle()?

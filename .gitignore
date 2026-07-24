@@ -14,7 +14,7 @@ Desktop.ini
 *.njsproj
 *.sln
 *.sw?
-
+target/
 # Frontend
 /UI_Templates/logs/
 /UI_Templates/*.log

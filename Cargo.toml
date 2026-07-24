@@ -1,0 +1,15 @@
+[package]
+name = "pinora-shared"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+description = "Shared wire protocol for Pinora firmware and desktop clients"
+
+[lib]
+path = "lib.rs"
+
+[dependencies]
+serde = { version = "1.0.229", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = "1.0.150"

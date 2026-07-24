@@ -1,14 +1,10 @@
+mod global_definition;
 mod shared_types;
-mod protocol;
-mod  global_definition;
 
-
-use crate::global_definition::{MAX_TIME_BETEEN, MAXBACTH, SerialParseError, SerialState};
+use crate::global_definition::{SerialParseError, SerialState, MAXBACTH, MAX_TIME_BETEEN};
 use crate::shared_types::state::SerialRuntime;
-use crate::{protocol::command::IncomingCommand, };
-use crate::protocol::registration::ProtocolMessage;
+use pinora_shared::protocol::{command::IncomingCommand, registration::ProtocolMessage};
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-
 
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -212,7 +208,7 @@ fn start_serial_listener(
                                 raw: line.to_string(),
                                 error: err.to_string(),
                             };
-                            
+
                             let _ = app.emit("serial_error", parse_error);
                             buf.clear();
                         }

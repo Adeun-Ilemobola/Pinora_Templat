@@ -9,7 +9,7 @@ firmware = "Firmware_Templates"
 ui = "UI_Templates"
 config = ".espConfig"
 
-[device]
-board = "esp32s3"
-port = "auto"
-baud_rate = 115200
+# [device]
+# board = "esp32s3"
+# port = "auto"
+# baud_rate = 115200

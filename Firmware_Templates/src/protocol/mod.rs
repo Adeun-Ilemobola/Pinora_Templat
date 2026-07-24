@@ -1,4 +1,1 @@
-pub mod module_event;
-pub mod registration;
-pub mod command;
-pub mod global_definitions;
+pub use pinora_shared::protocol::{command, global_definitions, module_event, registration};
