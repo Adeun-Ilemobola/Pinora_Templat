@@ -3,6 +3,7 @@ import { ServoCard } from "@/components/Modules/Servo"
 import { PointInput } from "@/components/PointInput"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { selectModule } from "@/lib/ModuleDefinitionSchema"
 import { PointSchema } from "@/lib/ModuleEven"
 import { useModuleStore } from "@/lib/ModuleStore"
 import { CubeIcon } from "@phosphor-icons/react"
@@ -17,6 +18,8 @@ export default function Dashboard() {
   const lidar = useModuleStore((state) => selectModule(state, "lidar", "Lidar"))
   const servoX = useModuleStore((state) => selectModule(state, "servo_x", "Servo"))
   const servoY = useModuleStore((state) => selectModule(state, "servo_y", "Servo"))
+  const rangefinder = useModuleStore((state) => selectModule(state, "rangefinder", "Rangefinder"))
+
   const sendCommand = useModuleStore((state) => state.sendCommand)
   const [pointMax, setPointMax] = useState<Point>(() =>
     lidar?.state.ROI.max ?? { x: 0, y: 0 },
@@ -36,7 +39,7 @@ export default function Dashboard() {
     lidar?.state.ROI.min.y,
   ])
 
-  if (!lidar || !servoX || !servoY) {
+  if (!lidar || !servoX || !servoY || !rangefinder) {
     return (
       <div className="mx-auto flex min-h-[calc(100svh-3rem)] w-full max-w-3xl items-center justify-center p-6">
         <Card className="w-full max-w-md text-center" size="sm">
@@ -55,7 +58,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex flex-col gap-2 h-full min-h-0 w-full p-1.5">
+    <div className="flex flex-col gap-2 h-full min-h-0 w-full p-1">
       <h1 className=' text-4xl'>Dashboard</h1>
 
       <div className=" flex flex-row gap-6 items-center p-4">
@@ -91,40 +94,51 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      <Card className="shrink-0">
-        <CardHeader>
-          RoI
-        </CardHeader>
-        <CardContent className="flex flex-wrap items-center gap-4">
+      <div className=" flex flex-row gap-1.5 items-center">
+        <Card className=" w-fit shrink-0">
+          <CardHeader>
+            RoI
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center gap-4">
 
-          <div className=" flex flex-col w-fit justify-center items-center">
-            <h2>
-              Max Pont
-            </h2>
-            <PointInput
-              disabled={lidar.state.state === "Scanning"}
-              point={pointMax}
-              Change={(v) => {
-                setPointMax(pre => ({ ...pre, ...v }))
-              }}
-            />
+            <div className=" flex flex-col w-fit justify-center items-center">
+              <h2>
+                Max Pont
+              </h2>
+              <PointInput
+                disabled={lidar.state.state === "Scanning"}
+                point={pointMax}
+                Change={(v) => {
+                  setPointMax(pre => ({ ...pre, ...v }))
+                }}
+              />
+            </div>
+
+
+            <div className=" flex flex-col w-fit justify-center items-center">
+              <h2>
+                Min
+              </h2>
+              <PointInput
+                disabled={lidar.state.state === "Scanning"}
+                point={pointMin}
+                Change={(v) => {
+                  setPointMin(pre => ({ ...pre, ...v }))
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className=" w-fit flex flex-col gap-2">
+          <h1>Range finder</h1>
+          <div className=" flex ">
+             <span className=" text-3xl"><span>{rangefinder.state.range_mm}</span>mm</span>
           </div>
+        </div>
 
+      </div>
 
-          <div className=" flex flex-col w-fit justify-center items-center">
-            <h2>
-              Min
-            </h2>
-            <PointInput
-              disabled={lidar.state.state === "Scanning"}
-              point={pointMin}
-              Change={(v) => {
-                setPointMin(pre => ({ ...pre, ...v }))
-              }}
-            />
-          </div>
-        </CardContent>
-      </Card>
 
 
       <div className=" flex  flex-row gap-3.5  items-center p-1">
@@ -168,14 +182,3 @@ export default function Dashboard() {
   )
 }
 
-function selectModule<T extends "Lidar" | "Servo">(
-  state: ReturnType<typeof useModuleStore.getState>,
-  lookupId: string,
-  moduleType: T,
-) {
-  const id = state.LookUp_ID_refTo_ID[lookupId]
-  const module = id ? state.modules[id] : undefined
-  return module?.module_type === moduleType
-    ? module as Extract<typeof module, { module_type: T }>
-    : undefined
-}

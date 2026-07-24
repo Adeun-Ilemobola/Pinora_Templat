@@ -251,6 +251,11 @@ export default function Grid({ setRoi, move_point, max, min, map }: GridProps) {
                 </div>
 
                 <div className="flex flex-row gap-3 p-1">
+                    <Button
+                    onClick={()=>{move_point({x:0 , y:0})}}
+                    >
+                        homing
+                    </Button>
                     <Button onClick={resetSelection}>Clear</Button>
                     <Button
                         disabled={selectionIsIncomplete}

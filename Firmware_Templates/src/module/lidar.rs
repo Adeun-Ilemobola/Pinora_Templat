@@ -33,7 +33,7 @@ pub struct Lidar<'d> {
     scan_time: Option<std::time::Instant>,
     point_map: Vec<RangPoint>,
 }
-const CHUNK_SIZE: usize = 128;
+// const CHUNK_SIZE: usize = 128;
 
 impl<'d> Lidar<'d> {
     pub fn new(

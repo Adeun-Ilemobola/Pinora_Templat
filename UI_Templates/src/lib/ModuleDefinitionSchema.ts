@@ -4,6 +4,7 @@ import { LedModule } from "./Modules/LED";
 import { LidarModule } from "./Modules/LIDAR";
 import { RangefinderModule } from "./Modules/RANGEFINDER";
 import { ServoModule } from "./Modules/SERVO";
+import { useModuleStore } from "./ModuleStore";
 
 export const moduleTypeIdentifier = z.enum([
   "Servo",
@@ -18,6 +19,7 @@ export const moduleTypeIdentifier = z.enum([
 
 export type TypeIdentifier = z.infer<typeof moduleTypeIdentifier>;
 
+type TypeIdentifier_module = Exclude<TypeIdentifier, "SysLog">;
 export const RegistrationSchema = z.object({
   id: z.string(),
   lool_up_id: z.string(),
@@ -44,3 +46,18 @@ export {
   RangefinderModule,
   ServoModule,
 };
+
+
+
+export function selectModule<T extends TypeIdentifier_module>(
+  state: ReturnType<typeof useModuleStore.getState>,
+  lookupId: string,
+  moduleType: T,
+) {
+  const id = state.LookUp_ID_refTo_ID[lookupId]
+  const module = id ? state.modules[id] : undefined
+  return module?.module_type === moduleType
+    ? module as Extract<typeof module, { module_type: T }>
+    : undefined
+}
+

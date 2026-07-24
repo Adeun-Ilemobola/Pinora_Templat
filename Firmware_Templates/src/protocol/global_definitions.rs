@@ -10,7 +10,8 @@ pub enum ModuleType {
     Button,
     Lidar,
     Rangefinder,
-     SysLog
+     SysLog,
+     JoyStick
 }
 
 

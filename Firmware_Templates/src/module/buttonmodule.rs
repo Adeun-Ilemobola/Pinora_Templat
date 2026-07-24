@@ -6,7 +6,7 @@ use crate::protocol::module_event::{ButtonEvent, ModuleEvent};
 use crate::protocol::registration::{ Registration};
 use esp_idf_svc::hal::gpio::Level;
 
-static BUTTON_MODULE_MAX_TIME: u64 = 150; // Maximum time in milliseconds to consider a button press valid
+static BUTTON_MODULE_MAX_TIME: u64 = 30; // Maximum time in milliseconds to consider a button press valid
 
 pub struct Buttonmodule<'d> {
     core: ModuleCore,
@@ -43,6 +43,7 @@ impl<'d> Buttonmodule<'d> {
     }
     pub fn update_state(&mut self) -> anyhow::Result<()> {
         let current_state = self.pin_driver.now()?;
+        println!("GPIO32: {:?}", current_state);
         let now = std::time::Instant::now();
 
         if current_state != self.last_state {

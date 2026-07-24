@@ -41,6 +41,26 @@ pub fn range_f32(
     (value - input_min) * (output_max - output_min) / (input_max - input_min) + output_min
 }
 
+pub fn range_i16(
+    value: i16,
+    input_min: i16,
+    input_max: i16,
+    output_min: i16,
+    output_max: i16,
+) -> i16 {
+    if input_max == input_min {
+        return output_min;
+    }
+
+    let value = i32::from(value);
+    let input_min = i32::from(input_min);
+    let input_max = i32::from(input_max);
+    let output_min = i32::from(output_min);
+    let output_max = i32::from(output_max);
+
+    (((value - input_min) * (output_max - output_min) / (input_max - input_min)) + output_min)
+        as i16
+}
 
 
 
