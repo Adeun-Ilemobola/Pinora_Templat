@@ -99,7 +99,7 @@ export default function PortSettings() {
                 setPortInfo({ port: val })
               })}
             >
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-45">
                 <SelectValue placeholder="ports" />
               </SelectTrigger>
               <SelectContent>

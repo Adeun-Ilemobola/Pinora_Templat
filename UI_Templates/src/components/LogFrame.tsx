@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,28 @@ import {
   InComingMessage,
   useListenStore,
 } from "@/lib/ListenStore";
+import {
+  Field,
+  FieldLabel,
+} from "@/components/ui/field"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+type logOptions = "Registration" | "ModuleEvent" | "SysLog" | "None";
+
+const items: { label: string, value: logOptions }[] = [
+  { label: "Choose departme", value: "None" },
+  { label: "Module Event", value: "ModuleEvent" },
+  { label: "Registration", value: "Registration" },
+  { label: "Sys Log", value: "SysLog" },
+]
+
+
 
 export default function LogFrame() {
   const logs = useListenStore((state) => state.activityLogs);
@@ -16,6 +38,7 @@ export default function LogFrame() {
   return <LogFramePage logs={logs} onClear={clearLogs} />;
 }
 
+
 function LogFramePage({
   logs,
   onClear,
@@ -23,19 +46,61 @@ function LogFramePage({
   logs: ActivityLogEntry[];
   onClear: () => void;
 }) {
+  const [filter, setFilter] = useState<logOptions>("None")
+  const filterLog = useMemo(() => {
+    switch (filter) {
+      case "ModuleEvent": {
+        return logs.filter(log => {
+          if (log.message.type === "ModuleEvent") {
+            return log
+          }
+        })
+
+      }
+      case "Registration": {
+        return logs.filter(log => {
+          if (log.message.type === "Registration") {
+            return log
+          }
+        })
+
+      }
+      case "SysLog": {
+        return logs.filter(log => {
+          if (log.message.payload.module_type === "SysLog") {
+            return log
+          }
+        })
+
+      }
+      case "None": {
+        return logs
+
+      }
+      default: {
+        return logs
+
+      }
+    }
+
+
+
+  }, [logs, filter])
   const parentRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
-    count: logs.length,
+    count: filterLog.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 82,
     overscan: 8,
   });
 
   useEffect(() => {
-    if (logs.length > 0) {
-      virtualizer.scrollToIndex(logs.length - 1, { align: "end" });
+    if (filterLog.length > 0) {
+      virtualizer.scrollToIndex(filterLog.length - 1, { align: "end" });
     }
-  }, [logs.length, virtualizer]);
+  }, [filterLog.length, virtualizer]);
+
+
 
   return (
     <main className="flex h-full min-h-0 w-full flex-col p-4">
@@ -46,21 +111,47 @@ function LogFramePage({
             Registrations and module events received from the device.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onClear}
-          disabled={logs.length === 0}
-        >
-          Clear
-        </Button>
+
+
+        <div className=" flex flex-row gap-2 items-center p-1">
+          <Field className=" w-fit">
+            <FieldLabel>filterm logOptions</FieldLabel>
+            <Select value={filter} defaultValue={"None"} onValueChange={val => setFilter(val as logOptions)} >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {items.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            {/* <FieldDescription>
+              Select your department or area of work.
+            </FieldDescription> */}
+          </Field>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onClear}
+            disabled={filterLog.length === 0}
+          >
+            Clear
+          </Button>
+        </div>
+
       </div>
 
       <div
         ref={parentRef}
         className="min-h-0 flex-1 overflow-auto rounded-lg border"
       >
-        {logs.length === 0 ? (
+        {filterLog.length === 0 ? (
           <div className="flex h-full min-h-48 items-center justify-center px-6 text-center text-sm text-muted-foreground">
             Device activity will appear here after you connect.
           </div>
@@ -73,7 +164,7 @@ function LogFramePage({
             }}
           >
             {virtualizer.getVirtualItems().map((virtualItem) => {
-              const log = logs[virtualItem.index];
+              const log = filterLog[virtualItem.index];
 
               return (
                 <div
@@ -105,24 +196,23 @@ function LogCard({ log }: { log: ActivityLogEntry }) {
   const isRegistration = log.message.type === "Registration";
 
   return (
-    <div className="flex gap-3 px-4 py-3">
+    <div className="flex gap-3 px-4 py-3 ring rounded-sm">
       <time className="w-24 shrink-0 pt-0.5 font-mono text-xs text-muted-foreground">
         {new Date(log.receivedAt).toLocaleTimeString()}
       </time>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span
-            className={`shrink-0 rounded px-2 py-0.5 text-xs font-semibold uppercase ${
-              isRegistration
-                ? "bg-green-500/15 text-green-600 dark:text-green-400"
-                : "bg-blue-500/15 text-blue-600 dark:text-blue-400"
-            }`}
+            className={`shrink-0 rounded px-2 py-0.5 text-xs font-semibold uppercase ${isRegistration
+              ? "bg-green-500/15 text-green-600 dark:text-green-400"
+              : "bg-blue-500/15 text-blue-600 dark:text-blue-400"
+              }`}
           >
             {label}
           </span>
           <span className="text-sm font-medium">{summary}</span>
         </div>
-        <p className="mt-1 break-words font-mono text-xs text-muted-foreground">
+        <p className="mt-1 wrap-break-word font-mono text-xs text-muted-foreground">
           {details}
         </p>
       </div>

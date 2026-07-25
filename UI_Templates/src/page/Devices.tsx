@@ -14,7 +14,7 @@ export default function Devices() {
   const sendCommand = useModuleStore((state) => state.sendCommand)
 
   return (
-    <div className=' flex flex-col h-[88dvh] gap-3 p-3 overflow-y-auto'>
+    <div className=' h-full min-h-0 w-full flex flex-row flex-wrap  gap-2.5 p-2 overflow-y-auto'>
       {Object.values(modules).map(item => {
         switch (item.module_type) {
           case "Led":

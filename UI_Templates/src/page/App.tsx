@@ -12,8 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useListenStore } from "@/lib/ListenStore";
-import { Point } from "@/components/Grid";
-import { PointInput } from "@/components/PointInput";
+
 
 
 function App() {
@@ -24,11 +23,7 @@ function App() {
 
   const [ports, setPort] = useState<string[]>([])
 
-  const [minPoint, setMinPoint] = useState<Point>({
-    x: 0,
-    y: 0
-  })
-
+ 
   useEffect(() => {
     const loadPorts = async () => {
       const data = await getPorts()
@@ -59,17 +54,6 @@ function App() {
           {ports.length} port{ports.length === 1 ? "" : "s"}
         </Badge>
       </div>
-      <PointInput
-      disabled ={false}
-        point={minPoint}
-        Change={(p) => {
-          setMinPoint(pre => ({
-            ...pre,
-            ...p
-          }))
-        }}
-      />
-
       <Card>
         <CardHeader>
           <CardTitle>Test Command</CardTitle>

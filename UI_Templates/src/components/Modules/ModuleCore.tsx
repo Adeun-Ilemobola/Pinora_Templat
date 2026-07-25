@@ -24,7 +24,7 @@ export default function ModuleCore({ children, id, manuel_id, moduletype }: Modu
 
     }
     return (
-        <Card >
+        <Card className='w-fit'  >
             <CardHeader className='flex flex-row gap-6' >
                 <div className=' flex flex-col gap-2.5'>
                     <div className=' flex flex-row items-center gap-5'>
@@ -47,7 +47,7 @@ export default function ModuleCore({ children, id, manuel_id, moduletype }: Modu
             </CardHeader>
             <Separator />
 
-            <CardContent className='flex'>
+            <CardContent className='flex w-fit'>
 
                 {children}
 

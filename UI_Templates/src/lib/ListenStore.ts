@@ -14,7 +14,7 @@ export const PortConnectionScheme = z.object({
   baudRate: z.coerce.number().int().positive("Must be a positive integer"),
 });
 export type PortConnectionType = z.infer<typeof PortConnectionScheme>;
-
+export const InComingMessageSchemaType = z.enum(["Registration" ,"ModuleEvent"])
 export const InComingMessageSchema = z.discriminatedUnion("type", [
     z.object({
         type: z.literal("Registration"),
