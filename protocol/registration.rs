@@ -15,4 +15,16 @@ pub struct Registration {
 pub enum ProtocolMessage {
     Registration(Registration),
     ModuleEvent(ModuleEvent),
+    System(SystemInfo),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SystemInfo {
+    pub esp_idf_version: String,
+    pub total_heap: String,
+    pub current_free_heap: String,
+    pub lowest_free_heap: String,
+    pub largest_allocation: String,
+    pub maximum_app_slot: String,
+    pub flash: String,
 }

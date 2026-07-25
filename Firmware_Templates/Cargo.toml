@@ -55,3 +55,5 @@ vl53l1x-uld = "2.0.1"
 
 [build-dependencies]
 embuild = "0.33.2"
+[[package.metadata.esp-idf-sys.extra_components]]
+bindings_header = "bindings/extra.h"

@@ -3,7 +3,7 @@ import { listen, UnlistenFn } from "@tauri-apps/api/event"
 import z from "zod"
 import { create } from "zustand"
 import { ModuleEventSchema } from "./ModuleEven"
-import { RegistrationSchema } from "./ModuleDefinitionSchema"
+import { RegistrationSchema, SystemInfoSchema, SystemInfoType } from "./ModuleDefinitionSchema"
 import { useModuleStore } from "./ModuleStore"
 
 
@@ -14,7 +14,7 @@ export const PortConnectionScheme = z.object({
   baudRate: z.coerce.number().int().positive("Must be a positive integer"),
 });
 export type PortConnectionType = z.infer<typeof PortConnectionScheme>;
-export const InComingMessageSchemaType = z.enum(["Registration" ,"ModuleEvent"])
+export const InComingMessageSchemaType = z.enum(["Registration" ,"ModuleEvent" ,"System"])
 export const InComingMessageSchema = z.discriminatedUnion("type", [
     z.object({
         type: z.literal("Registration"),
@@ -23,6 +23,10 @@ export const InComingMessageSchema = z.discriminatedUnion("type", [
     z.object({
         type: z.literal("ModuleEvent"),
         payload: ModuleEventSchema,
+    }),
+    z.object({
+        type: z.literal("System"),
+        payload: SystemInfoSchema,
     }),
 ])
 
@@ -43,7 +47,9 @@ let nextActivityLogId = 0
 
 
 interface ListenStore {
-    portInfo: PortConnectionType
+    portInfo: PortConnectionType,
+    SystemInfo:SystemInfoType |null,
+
     // listPorts: string[]
     commitTime: Date | null
     status: ConnectionStatus
@@ -79,6 +85,7 @@ interface ListenStore {
 
 export const useListenStore = create<ListenStore>((set, get) => ({
     portInfo: { port: "", baudRate: 115200 },
+    SystemInfo:null,
     commitTime: null,
     error: null,
     status: "",
@@ -200,6 +207,10 @@ export const useListenStore = create<ListenStore>((set, get) => ({
 
                     const message = parsedMessage.data;
 
+                    if (message.type === "Registration" && get().SystemInfo){
+                        return
+                    }
+
                     set((state) => ({
                         activityLogs: [
                             ...state.activityLogs,
@@ -214,6 +225,13 @@ export const useListenStore = create<ListenStore>((set, get) => ({
                         case "ModuleEvent":
                             moduleStore.dispatchModuleEvent(message.payload);
                             break;
+                        case "System":{
+                            set({
+                                SystemInfo:message.payload
+                            })
+
+                            break;
+                        }
                     }
                 }
             });

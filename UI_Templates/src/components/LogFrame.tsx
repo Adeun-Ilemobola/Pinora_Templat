@@ -20,12 +20,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-type logOptions = "Registration" | "ModuleEvent" | "SysLog" | "None";
+type logOptions = "Registration" | "ModuleEvent" | "System" | "SysLog" | "None";
 
 const items: { label: string, value: logOptions }[] = [
-  { label: "Choose departme", value: "None" },
+  { label: "All activity", value: "None" },
   { label: "Module Event", value: "ModuleEvent" },
   { label: "Registration", value: "Registration" },
+  { label: "System", value: "System" },
   { label: "Sys Log", value: "SysLog" },
 ]
 
@@ -65,12 +66,14 @@ function LogFramePage({
         })
 
       }
+      case "System": {
+        return logs.filter(log => log.message.type === "System")
+      }
       case "SysLog": {
-        return logs.filter(log => {
-          if (log.message.payload.module_type === "SysLog") {
-            return log
-          }
-        })
+        return logs.filter(log =>
+          log.message.type === "ModuleEvent"
+          && log.message.payload.module_type === "SysLog"
+        )
 
       }
       case "None": {
@@ -108,14 +111,14 @@ function LogFramePage({
         <div>
           <h1 className="text-lg font-semibold">Activity log</h1>
           <p className="text-sm text-muted-foreground">
-            Registrations and module events received from the device.
+            Registrations, system information, and module events received from the device.
           </p>
         </div>
 
 
         <div className=" flex flex-row gap-2 items-center p-1">
           <Field className=" w-fit">
-            <FieldLabel>filterm logOptions</FieldLabel>
+            <FieldLabel>Filter activity</FieldLabel>
             <Select value={filter} defaultValue={"None"} onValueChange={val => setFilter(val as logOptions)} >
               <SelectTrigger>
                 <SelectValue />
@@ -194,6 +197,7 @@ function LogFramePage({
 function LogCard({ log }: { log: ActivityLogEntry }) {
   const { label, summary, details } = describeMessage(log.message);
   const isRegistration = log.message.type === "Registration";
+  const isSystem = log.message.type === "System";
 
   return (
     <div className="flex gap-3 px-4 py-3 ring rounded-sm">
@@ -205,7 +209,9 @@ function LogCard({ log }: { log: ActivityLogEntry }) {
           <span
             className={`shrink-0 rounded px-2 py-0.5 text-xs font-semibold uppercase ${isRegistration
               ? "bg-green-500/15 text-green-600 dark:text-green-400"
-              : "bg-blue-500/15 text-blue-600 dark:text-blue-400"
+              : isSystem
+                ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                : "bg-blue-500/15 text-blue-600 dark:text-blue-400"
               }`}
           >
             {label}
@@ -227,6 +233,21 @@ function describeMessage(message: InComingMessage) {
       label: "Registration",
       summary: `${registration.module_type} module registered`,
       details: `id=${registration.id} · lookup=${registration.lool_up_id} · parent=${registration.parent_id}`,
+    };
+  }
+
+  if (message.type === "System") {
+    const system = message.payload;
+    return {
+      label: "System",
+      summary: `ESP-IDF ${system.esp_idf_version}`,
+      details: [
+        `heap=${system.current_free_heap}/${system.total_heap} free`,
+        `lowest=${system.lowest_free_heap}`,
+        `largest allocation=${system.largest_allocation}`,
+        `flash=${system.flash}`,
+        `maximum app slot=${system.maximum_app_slot}`,
+      ].join(" · "),
     };
   }
 

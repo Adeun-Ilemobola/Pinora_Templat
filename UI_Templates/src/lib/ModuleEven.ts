@@ -11,6 +11,10 @@ const SysLogEventSchema = z.object({
   priority: z.enum(["Low", "Medium", "High", "Critical"]),
 });
 
+
+
+
+
 export const ModuleEventSchema = z.discriminatedUnion("module_type", [
   z.object({ module_type: z.literal("Led"), event: LedEventSchema }),
   z.object({ module_type: z.literal("Servo"), event: ServoEventSchema }),
@@ -21,6 +25,7 @@ export const ModuleEventSchema = z.discriminatedUnion("module_type", [
     module_type: z.literal("Rangefinder"),
     event: RangefinderEventSchema,
   }),
+  
 ]);
 
 export type ModuleEventEnvelope = z.infer<typeof ModuleEventSchema>;

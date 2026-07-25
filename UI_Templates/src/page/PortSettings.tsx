@@ -33,20 +33,20 @@ export default function PortSettings() {
   // const listPorts = useListenStore((state) => state.listPorts)
   const getPorts = useListenStore((state) => state.getPorts)
   const setPortInfo = useListenStore((state) => state.setPortInfo)
-  const startConnectionTime =  useListenStore((state) => state.commitTime)
+  const startConnectionTime = useListenStore((state) => state.commitTime)
 
   const [elapsed, setElapsed] = useState(0)
-  const [ports , setPort] = useState<string[]>([])
+  const [ports, setPort] = useState<string[]>([])
 
   useEffect(() => {
-    const loadPorts = async ()=>{
+    const loadPorts = async () => {
       const data = await getPorts()
       setPort(data)
 
     }
 
     loadPorts()
-    
+
   }, [])
 
   useEffect(() => {
