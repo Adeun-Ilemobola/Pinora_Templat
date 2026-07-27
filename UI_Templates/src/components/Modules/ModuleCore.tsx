@@ -24,7 +24,7 @@ export default function ModuleCore({ children, id, manuel_id, moduletype }: Modu
 
     }
     return (
-        <Card className='w-fit'  >
+        <Card className='w-fit h-fit'  >
             <CardHeader className='flex flex-row gap-6' >
                 <div className=' flex flex-col gap-2.5'>
                     <div className=' flex flex-row items-center gap-5'>
@@ -36,7 +36,7 @@ export default function ModuleCore({ children, id, manuel_id, moduletype }: Modu
 
 
 
-                    <Button className=' w-fit' variant={"outline"} onClick={copyMid}>
+                    <Button className=' w-fit h-fit' variant={"outline"} onClick={copyMid}>
                         <Copy />{manuel_id}
                     </Button>
                 </div>

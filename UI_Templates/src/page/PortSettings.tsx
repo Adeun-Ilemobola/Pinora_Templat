@@ -2,8 +2,18 @@
 
 
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge';
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator';
 import {
   Select,
   SelectContent,
@@ -13,6 +23,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { PortConnectionScheme, useListenStore } from '@/lib/ListenStore';
+import {
+  CircuitryIcon,
+  HardDriveIcon,
+  MemoryIcon,
+} from '@phosphor-icons/react';
 
 import { useEffect, useState } from 'react'
 
@@ -30,7 +45,7 @@ export default function PortSettings() {
   const connect = useListenStore((state) => state.connect)
   const status = useListenStore((state) => state.status)
   const error = useListenStore((state) => state.error)
-  // const listPorts = useListenStore((state) => state.listPorts)
+  const systemInfo = useListenStore((state) => state.SystemInfo)
   const getPorts = useListenStore((state) => state.getPorts)
   const setPortInfo = useListenStore((state) => state.setPortInfo)
   const startConnectionTime = useListenStore((state) => state.commitTime)
@@ -170,6 +185,63 @@ export default function PortSettings() {
         </div>
       )}
 
+
+      {systemInfo && (
+        <Card className="mt-5 w-full max-w-2xl" size="sm">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="grid size-10 place-items-center rounded-lg bg-primary/10 text-primary">
+                <CircuitryIcon className="size-5" weight="duotone" />
+              </div>
+              <div>
+                <CardTitle>System information</CardTitle>
+                <CardDescription>Runtime details reported by the connected device.</CardDescription>
+              </div>
+            </div>
+            <CardAction>
+              <Badge variant="secondary">ESP-IDF {systemInfo.esp_idf_version}</Badge>
+            </CardAction>
+          </CardHeader>
+
+          <CardContent className="space-y-4">
+            <section>
+              <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                <MemoryIcon className="size-4" weight="duotone" />
+                Memory
+              </div>
+              <dl className="grid overflow-hidden rounded-lg border sm:grid-cols-2">
+                <SystemInfoItem label="Total heap" value={systemInfo.total_heap} />
+                <SystemInfoItem label="Currently free" value={systemInfo.current_free_heap} />
+                <SystemInfoItem label="Lowest free" value={systemInfo.lowest_free_heap} />
+                <SystemInfoItem label="Largest allocation" value={systemInfo.largest_allocation} />
+              </dl>
+            </section>
+
+            <Separator />
+
+            <section>
+              <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                <HardDriveIcon className="size-4" weight="duotone" />
+                Storage
+              </div>
+              <dl className="grid overflow-hidden rounded-lg border sm:grid-cols-2">
+                <SystemInfoItem label="Flash capacity" value={systemInfo.flash} />
+                <SystemInfoItem label="Maximum app slot" value={systemInfo.maximum_app_slot} />
+              </dl>
+            </section>
+          </CardContent>
+        </Card>
+      )}
+
+    </div>
+  )
+}
+
+function SystemInfoItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-b p-3 last:border-b-0 sm:border-r sm:nth-[2n]:border-r-0 sm:nth-last-[-n+2]:border-b-0">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-1 break-words font-mono text-sm font-medium">{value}</dd>
     </div>
   )
 }

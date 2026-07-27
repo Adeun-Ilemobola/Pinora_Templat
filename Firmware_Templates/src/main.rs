@@ -51,6 +51,7 @@ fn main() -> anyhow::Result<()> {
     esp_idf_svc::sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
     configure_console_uart()?;
+    print_esp_system_info();
     let mut modules: HashMap<String, ModuleHandle<'_>> = HashMap::new();
     let p = Peripherals::take()?;
     let i2c = I2cDriver::new(

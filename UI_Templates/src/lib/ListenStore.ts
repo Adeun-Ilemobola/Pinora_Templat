@@ -49,6 +49,7 @@ let nextActivityLogId = 0
 interface ListenStore {
     portInfo: PortConnectionType,
     SystemInfo:SystemInfoType |null,
+    
 
     // listPorts: string[]
     commitTime: Date | null
@@ -206,10 +207,12 @@ export const useListenStore = create<ListenStore>((set, get) => ({
                     }
 
                     const message = parsedMessage.data;
-
-                    if (message.type === "Registration" && get().SystemInfo){
-                        return
+                    if (message.type === "System" && get().SystemInfo){
+                        get().clearActivityLogs()
+                        useModuleStore.getState().reset()
                     }
+
+                    
 
                     set((state) => ({
                         activityLogs: [
@@ -233,6 +236,7 @@ export const useListenStore = create<ListenStore>((set, get) => ({
                             break;
                         }
                     }
+                    
                 }
             });
 

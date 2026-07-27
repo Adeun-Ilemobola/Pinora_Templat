@@ -25,6 +25,7 @@ type ModuleStore = {
   sendCommand: (command: Command) => Promise<void>;
 
   ModuleCount: () => number,
+  reset:()=>void
 };
 
 
@@ -91,6 +92,15 @@ export const useModuleStore = create<ModuleStore>((set, get) => ({
 
   ModuleCount: () => {
     return Object.values(get().modules).length
+  },
+
+  reset() {
+    set({
+      modules:{},
+      LookUp_ID_refTo_ID:{}
+
+    })
+    
   },
 }));
 
