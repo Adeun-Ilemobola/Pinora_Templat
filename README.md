@@ -2,16 +2,17 @@
 
 # Pinora
 
-### A desktop control surface and modular Rust firmware for ESP32 projects
+### An Electrobun desktop control surface and modular Rust firmware for ESP32 projects
 
 Connect. Discover. Monitor. Control.
 
 ![Version](https://img.shields.io/badge/version-0.1.0-7c3aed?style=for-the-badge)
 ![Status](https://img.shields.io/badge/status-PRE--ALPHA-f97316?style=for-the-badge)
-[![Tauri](https://img.shields.io/badge/Tauri-2-24C8D8?style=for-the-badge&logo=tauri&logoColor=white)](https://tauri.app/)
-[![React](https://img.shields.io/badge/React-19-149ECA?style=for-the-badge&logo=react&logoColor=white)](https://react.dev/)
+[![Electrobun](https://img.shields.io/badge/Electrobun-1.18-7c3aed?style=for-the-badge)](https://electrobun.dev/)
+[![React](https://img.shields.io/badge/React-18-149ECA?style=for-the-badge&logo=react&logoColor=white)](https://react.dev/)
+[![Bun](https://img.shields.io/badge/Bun-runtime-000000?style=for-the-badge&logo=bun&logoColor=white)](https://bun.sh/)
 [![ESP32](https://img.shields.io/badge/target-ESP32-E7352C?style=for-the-badge&logo=espressif&logoColor=white)](https://www.espressif.com/en/products/socs/esp32)
-[![Rust](https://img.shields.io/badge/language-Rust-000000?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![Rust firmware](https://img.shields.io/badge/firmware-Rust-000000?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 
 > [!WARNING]
 > **Pinora v0.1.0 is a pre-alpha prototype.** Its architecture, protocol, APIs,
@@ -27,7 +28,7 @@ Connect. Discover. Monitor. Control.
 Pinora is an experimental system for discovering, monitoring, and controlling
 hardware modules connected to an ESP32. It consists of two cooperating projects:
 
-- A Tauri desktop application built with React, TypeScript, and Rust
+- An Electrobun desktop application built with React, TypeScript, and Bun
 - Modular ESP32 firmware written in Rust
 
 The firmware registers its available modules at runtime and publishes their
@@ -37,7 +38,7 @@ sync, and sends typed commands back to the ESP32.
 
 The current firmware combines two servos and a VL53L1X time-of-flight sensor into
 a two-axis LiDAR scanner. The desktop application provides device controls,
-connection settings, activity logs, and an interactive LiDAR visualization.
+serial-port selection, and an interactive LiDAR visualization.
 
 ## Project status
 
@@ -48,7 +49,7 @@ connection settings, activity logs, and an interactive LiDAR visualization.
 | **Firmware target** | ESP32 / `xtensa-esp32-espidf` |
 | **ESP-IDF** | `v5.5.3` |
 | **Firmware edition** | Rust 2021 |
-| **Desktop stack** | Tauri 2, React 19, TypeScript, Vite |
+| **Desktop stack** | Electrobun 1.18, Bun, React 18, TypeScript, Vite |
 | **Device interface** | Newline-delimited JSON over UART |
 | **Default baud rate** | `115200` |
 
@@ -56,9 +57,10 @@ connection settings, activity logs, and an interactive LiDAR visualization.
 
 ```mermaid
 flowchart LR
-    UI["React interface"] <--> STATE["Zustand state + Zod validation"]
-    STATE <--> TAURI["Tauri serial runtime"]
-    TAURI <-->|"JSON lines over UART"| ESP["ESP32 firmware runtime"]
+    UI["React webview"] <--> STATE["Zustand module store"]
+    UI <-->|"Typed Electrobun RPC"| BUN["Electrobun Bun process"]
+    BUN --> VALIDATE["Zod protocol validation"]
+    BUN <-->|"JSON lines over UART"| ESP["ESP32 firmware runtime"]
 
     ESP --> REGISTRY["Module registry"]
     ESP --> HARDWARE["Shared hardware context"]
@@ -79,32 +81,28 @@ The system is divided into four main layers:
    registrations and events.
 2. **Serial protocol** carries one JSON object per line between the firmware and
    desktop application.
-3. **Tauri runtime** opens the serial port, reads and batches incoming data, and
-   writes commands.
-4. **React application** validates protocol data, maintains module state, and
-   renders controls and visualizations.
+3. **Electrobun Bun process** owns native serial-port access, validates incoming
+   messages with Zod, and exposes typed RPC requests and messages to the webview.
+4. **React webview** receives validated messages over Electrobun RPC, maintains
+   module state with Zustand, and renders controls and visualizations.
 
-Incoming serial messages are sent to the frontend after 250 messages or
-approximately 33 ms, whichever happens first.
-
-The Rust wire contract has one source of truth in the root
-[`protocol/`](protocol/) directory. Both the firmware and Tauri backend depend
-on the root `pinora-shared` crate; protocol types should not be copied into
-either consumer.
+The desktop boundary is entirely TypeScript: Electrobun runs the privileged Bun
+process and hosts the React UI in a webview. The Bun process handles
+`bun-serialport`; hardware access never runs inside the webview. Shared RPC and
+desktop protocol types live under `UI_Templates/src/shared/`.
 
 ## Current capabilities
 
-- Discover serial ports and connect at a configurable baud rate
+- Discover serial ports and connect at `115200` baud
 - Register modules dynamically when the ESP32 announces them
 - Track runtime UUIDs, readable lookup IDs, and parent-child relationships
 - Validate incoming messages before adding them to application state
-- Batch high-frequency sensor messages in the Tauri backend
+- Forward validated serial messages from the Bun process to the React webview
 - Display live module state and send hardware commands
 - Control two servos through a PCA9685 PWM controller
 - Read distance measurements from a VL53L1X sensor
 - Run a two-axis LiDAR scan over a selected region of interest
 - Visualize LiDAR distance data on an interactive 181 × 181 canvas
-- Inspect a rolling activity log of registrations and module events
 
 ### Module support
 
@@ -115,31 +113,29 @@ either consumer.
 | Servo | ✅ | ✅, as LiDAR children | Registration, events, and angle control |
 | LED | ✅ | ❌ | Registration, events, brightness, and toggle controls |
 | Button | ✅ | ❌ | Registration and read-only press state |
-| LED cluster | Partial | ❌ | Partial command schema |
+| LED cluster | Partial | ❌ | Identifier only |
 | IMU | Planned | ❌ | Identifier only |
-| System log | ✅ | ✅ | Activity log |
+| System log | ✅ | ✅ | Schema validation only; events are not yet stored |
 
 ## Folder structure
 
 ```text
 .
-├── protocol/                     # Shared Rust wire-protocol definitions
-├── lib.rs                        # pinora-shared crate entry point
-├── Cargo.toml                    # Shared protocol crate manifest
 ├── UI_Templates/                 # Desktop application
-│   ├── src/                       # React + TypeScript frontend
-│   │   ├── components/            # Module controls and reusable UI
-│   │   ├── lib/                   # Protocol schemas and state stores
-│   │   ├── page/                  # Application pages
-│   │   ├── Layout.tsx             # Application shell
-│   │   └── main.tsx               # Frontend entry point
-│   ├── src-tauri/                 # Native Tauri backend
-│   │   ├── capabilities/          # Tauri permissions
-│   │   ├── src/
-│   │   │   ├── shared_types/      # Serial runtime state
-│   │   │   └── lib.rs             # Commands and serial worker
-│   │   ├── Cargo.toml
-│   │   └── tauri.conf.json
+│   ├── src/
+│   │   ├── bun/
+│   │   │   └── index.ts           # Electrobun main process and serial I/O
+│   │   ├── mainview/               # React webview
+│   │   │   ├── Modules/            # Module schemas and controls
+│   │   │   ├── components/         # Reusable UI
+│   │   │   ├── electrobun.ts       # Webview-side RPC handlers
+│   │   │   └── main.tsx            # React entry point
+│   │   ├── Runtime/
+│   │   │   └── ModuleStore.ts      # Zustand module state
+│   │   └── shared/
+│   │       ├── Protocol/            # TypeScript wire schemas
+│   │       └── rpc.ts               # Shared typed RPC contract
+│   ├── electrobun.config.ts
 │   ├── package.json
 │   ├── vite.config.ts
 │   └── bun.lock
@@ -149,7 +145,7 @@ either consumer.
 │   ├── src/
 │   │   ├── core/                   # Module and hardware foundations
 │   │   ├── module/                 # Hardware module implementations
-│   │   ├── protocol/               # Re-export of pinora-shared
+│   │   ├── protocol/               # Rust wire-protocol definitions
 │   │   ├── utilities/              # Logging and math helpers
 │   │   └── main.rs                 # Firmware setup and main loop
 │   ├── Cargo.toml
@@ -165,9 +161,6 @@ either consumer.
 For the desktop application, install:
 
 - [Bun](https://bun.sh/)
-- [Rust](https://www.rust-lang.org/tools/install)
-- The [Tauri 2 system prerequisites](https://v2.tauri.app/start/prerequisites/)
-  for your operating system
 - A USB serial driver for the ESP32 board, if required
 
 For the firmware, install the ESP Rust development environment and ensure the
@@ -205,36 +198,36 @@ cargo build --release
 ```bash
 cd UI_Templates
 bun install
-bun run tauri dev
+bun run dev:hmr
 ```
 
 Then:
 
-1. Open **Port Settings**.
-2. Select the ESP32 serial port.
-3. Confirm the baud rate; the default is `115200`.
-4. Connect and wait for module registrations.
-5. Use **Devices**, **Dashboard**, and **Logs** to interact with the hardware.
+1. Select the ESP32 from the available serial ports.
+2. Connect and wait for module registrations.
+3. Use the generated module controls to interact with the hardware.
 
-To run only the browser frontend:
+The desktop serial runtime currently uses a fixed baud rate of `115200`.
+
+For Electrobun watch mode with bundled Vite assets instead of HMR:
 
 ```bash
 cd UI_Templates
 bun run dev
 ```
 
-Serial features require the Tauri runtime and do not work in a regular browser
-tab.
+Serial features run in Electrobun's Bun process and are reached from the React
+webview through typed RPC. They do not work when the Vite UI is opened as a
+standalone browser tab.
 
 ### Build the desktop application
 
 ```bash
 cd UI_Templates
-bun run tauri build
+bun run build:canary
 ```
 
-Tauri writes platform-specific bundles beneath
-`UI_Templates/src-tauri/target/release/bundle/`.
+This runs the Vite production build and then creates an Electrobun canary build.
 
 ## Hardware
 
@@ -276,9 +269,8 @@ Pinora uses one newline-terminated JSON object per message:
   desktop application.
 - Each module receives a runtime UUID when the firmware starts.
 
-The firmware definitions in `Firmware_Templates/src/protocol/` and desktop
-definitions in `UI_Templates/src/lib/` and
-`UI_Templates/src-tauri/src/protocol/` must remain aligned.
+The Rust definitions in `Firmware_Templates/src/protocol/` and TypeScript/Zod
+definitions in `UI_Templates/src/shared/Protocol/` must remain aligned.
 
 ### Register a module
 
@@ -350,9 +342,9 @@ Set a region of interest:
 - UART is the only firmware transport.
 - The scan loop advances from firmware ticks rather than confirmed servo
   settling.
-- Completed point maps are not emitted at the end of a scan.
 - Reconnect and device hot-plug behavior are basic.
-- Some protocol definitions are duplicated between Rust and TypeScript.
+- Protocol definitions are duplicated between the Rust firmware and TypeScript
+  desktop application.
 - Some low-level firmware operations still need safer error recovery.
 - Automated unit, integration, and hardware-in-the-loop tests are not yet
   included.
@@ -364,7 +356,7 @@ Run the desktop checks:
 
 ```bash
 cd UI_Templates
-bun run build
+bun run build:canary
 ```
 
 Run the firmware checks:

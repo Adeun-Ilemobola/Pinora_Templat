@@ -16,19 +16,27 @@ Desktop.ini
 *.sw?
 target/
 # Frontend
-/UI_Templates/logs/
-/UI_Templates/*.log
-/UI_Templates/npm-debug.log*
-/UI_Templates/yarn-debug.log*
-/UI_Templates/yarn-error.log*
-/UI_Templates/pnpm-debug.log*
-/UI_Templates/lerna-debug.log*
+# /UI_Templates/logs/
+# /UI_Templates/*.log
+# /UI_Templates/npm-debug.log*
+# /UI_Templates/yarn-debug.log*
+# /UI_Templates/yarn-error.log*
+# /UI_Templates/pnpm-debug.log*
+# /UI_Templates/lerna-debug.log*
+# /UI_Templates/node_modules/
+# /UI_Templates/dist/
+# /UI_Templates/dist-ssr/
+# /UI_Templates/*.local
+# /UI_Templates/.vscode/*
+# !/UI_Templates/.vscode/extensions.json
+
+
 /UI_Templates/node_modules/
+/UI_Templates/build/
 /UI_Templates/dist/
-/UI_Templates/dist-ssr/
-/UI_Templates/*.local
-/UI_Templates/.vscode/*
-!/UI_Templates/.vscode/extensions.json
+/UI_Templates/artifacts/
+/UI_Templates/*.tsbuildinfo
+
 
 # Tauri
 /UI_Templates/src-tauri/target/

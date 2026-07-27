@@ -5,7 +5,7 @@ pub mod utilities;
 
 use crate::core::hardware::*;
 use crate::core::modulecore::Module;
-use crate::module::joystick::JoyStick;
+// use crate::module::joystick::JoyStick;
 use crate::protocol::command::IncomingCommand;
 // use crate::utilities::serdeprotocol::IncomingCommand;
 use crate::module::lidar::Lidar;

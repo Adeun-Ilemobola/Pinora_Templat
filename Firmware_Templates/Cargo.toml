@@ -23,7 +23,7 @@ esp-idf-svc = { git = "https://github.com/esp-rs/esp-idf-svc.git" }
 
 
 [dependencies]
-pinora-shared = { path = ".." }
+# pinora-shared = { path = ".." }
 uuid = { version = "1.24.0", features = ["v4"] }
 log = "0.4.33"
 

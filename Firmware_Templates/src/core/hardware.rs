@@ -13,11 +13,11 @@ pub use esp_idf_svc::hal::uart::UartDriver;
 pub use esp_idf_svc::hal::units::*;
 pub use esp_idf_svc::partition::*;
 use esp_idf_svc::sys;
-use pinora_shared::protocol::registration::SystemInfo;
 use pwm_pca9685::{Address, Pca9685};
 use std::{ffi::CStr, ptr};
 
 use crate::core::modulecore::emit;
+use crate::protocol::registration::SystemInfo;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;

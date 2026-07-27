@@ -1,7 +1,0 @@
-{
-  "rust-analyzer.linkedProjects": [
-    "./Cargo.toml",
-    "./Firmware_Templates/Cargo.toml",
-    "./UI_Templates/src-tauri/Cargo.toml"
-  ]
-}
