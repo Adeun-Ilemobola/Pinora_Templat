@@ -2,6 +2,7 @@ import type { RPCSchema } from "electrobun/bun";
 import { InComingMessageSchema } from "./Protocol/ModuleDefinitionSchema";
 import z from "zod";
 import { Commandtype } from "./Protocol/ModuleCommand";
+ type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error" | '';
 
 export type SerialDeviceInfo = {
   path: string;
@@ -40,6 +41,11 @@ export type AppRPC = {
     messages: {
       incomingMessage:{
         message:z.infer<typeof InComingMessageSchema>
+      },
+      PortStatus:{
+        status:ConnectionStatus,
+        path:string
+
       }
     };
   }>;

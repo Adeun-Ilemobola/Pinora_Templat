@@ -1,11 +1,12 @@
 import { create } from "zustand";
-import { Commandtype } from "src/shared/Protocol/ModuleCommand";
-import { ModuleEventEnvelope } from "src/shared/Protocol/ModuleEven";
+import { Commandtype } from "../shared/Protocol/ModuleCommand";
+import { ModuleEventEnvelope } from "../shared/Protocol/ModuleEven";
 import {
   ModuleDefinitionType,
   Registration,
   SystemInfoType,
-} from "src/shared/Protocol/ModuleDefinitionSchema";
+  TypeIdentifier,
+} from "../shared/Protocol/ModuleDefinitionSchema";
 import { buttonInitialBuild, updateButton } from "../mainview/Modules/button/definition";
 import { ledInitialBuild, updateLed } from "../mainview/Modules/led/definition";
 import { lidarInitialBuild, updateLidar } from "../mainview/Modules/Lidar/definition";
@@ -19,6 +20,14 @@ import { electroview } from "@/electrobun";
 
 export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error" | '';
 
+type ModuleDefinitionTypeSim = {
+  id: string,
+  lookUpId: string,
+  module_type: TypeIdentifier,
+  parent_id: string,
+  has_parent: boolean
+
+}
 
 type ModuleStore = {
   modules: Record<string, ModuleDefinitionType>;
@@ -34,6 +43,11 @@ type ModuleStore = {
   registerModule: (registration: Registration) => void;
   dispatchModuleEvent: (event: ModuleEventEnvelope) => void;
   sendCommand: (command: Commandtype) => Promise<void>;
+
+  ModuleFilterCategory: () => {
+    StandAlone: ModuleDefinitionTypeSim[],
+    Grouping: ModuleDefinitionTypeSim[],
+  },
 
   ModuleCount: () => number,
   reset: () => void
@@ -133,6 +147,37 @@ export const useModuleStore = create<ModuleStore>((set, get) => ({
       LookUp_ID_refTo_ID: {}
 
     })
+
+  },
+
+  ModuleFilterCategory() {
+    const List = Object.values(get().modules)
+    return {
+      StandAlone: List.filter(item => item.parent_id.length > 10)
+        .map(item => ({
+
+          id: item.id,
+          lookUpId: item.lool_up_id,
+          module_type: item.module_type,
+          has_parent: item.parent_id.length > 10,
+          parent_id: item.parent_id,
+
+
+        }))
+      ,
+
+      Grouping:List.filter(item => item.parent_id.length >= 0)
+        .map(item => ({
+
+          id: item.id,
+          lookUpId: item.lool_up_id,
+          module_type: item.module_type,
+          has_parent: item.parent_id.length > 10,
+          parent_id: item.parent_id,
+
+
+        }))
+    }
 
   },
 }));

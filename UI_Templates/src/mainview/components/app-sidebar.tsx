@@ -1,4 +1,9 @@
 import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from "@/components/ui/collapsible"
+import {
     Sidebar,
     SidebarContent,
     SidebarFooter,
@@ -8,27 +13,81 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    SidebarGroupLabel,
+    SidebarGroupAction,
+
+
+
+    SidebarMenuSub,
+    SidebarMenuSubItem,
+    SidebarMenuSubButton,
+    SidebarMenuBadge,
 } from "@/components/ui/sidebar"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
 
 
     Mail,
     Moon,
     Plus,
-    Sun, Zap, X
+    Sun, Zap, X,
+    ChevronRight,
+    Cpu,
+    Logs
 } from "lucide-react"
 import { Button } from "./ui/button"
 import { Separator } from "./ui/separator"
 import { useModuleStore } from "../../Runtime/ModuleStore"
+import { Badge } from "./ui/badge"
 
 
 
 export function AppSidebar() {
     const [dark, setDark] = useState(true)
-    const moduleCount = useModuleStore(
-        (state) => Object.keys(state.modules).length,
+    const count = useModuleStore(
+        (state) => Object.keys(state.modules).length
     )
+
+    const modules = useModuleStore(
+        (state) => state.modules
+    )
+
+
+    const data = useMemo(() => {
+        const List = Object.values(modules)
+        const StandAlone = List.filter(item => item.parent_id.length != 0)
+            .map(item => ({
+
+                id: item.id,
+                lookUpId: item.lool_up_id,
+                module_type: item.module_type,
+                has_parent: item.parent_id.length > 10,
+                parent_id: item.parent_id,
+
+
+            }))
+
+
+        const Grouping = List.filter(item => item.parent_id.length === 0)
+            .map(item => ({
+
+                id: item.id,
+                lookUpId: item.lool_up_id,
+                module_type: item.module_type,
+                has_parent: item.parent_id.length > 10,
+                parent_id: item.parent_id,
+
+
+            }))
+
+        return {
+            StandAlone,
+            Grouping
+
+        }
+
+    }, [modules])
+
 
 
     useEffect(() => { document.documentElement.classList.toggle("dark", dark) }, [dark])
@@ -48,6 +107,8 @@ export function AppSidebar() {
                         {dark ? <Sun /> : <Moon />}
                     </Button>
                 </div>
+
+                <Badge size={"lg"} variant={"outline"}>modules :{count}</Badge>
                 <Separator />
 
 
@@ -55,36 +116,86 @@ export function AppSidebar() {
 
             </SidebarHeader>
             <SidebarContent>
-                <SidebarGroup>
-                    <SidebarGroupContent className="flex flex-col gap-2">
+                <SidebarMenu>
+                    <Collapsible className="group/standalone">
+                        <SidebarMenuItem>
+                            <CollapsibleTrigger
+                                render={
+                                    <SidebarMenuButton tooltip="Stand Alone Modules" />
+                                }
+                            >
+                                <Cpu />
+                                <span>Stand Alone Modules</span>
 
-                        <SidebarMenu>
+                                <ChevronRight
+                                    className="
+          ml-auto transition-transform
+          group-data-[state=open]/standalone:rotate-90
+        "
+                                />
+                            </CollapsibleTrigger>
 
-                            <SidebarMenuItem >
-                                <SidebarMenuButton tooltip={"overview"}>
-                                    <X />
-                                    <span>{"Overview"}</span>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
+                            <CollapsibleContent>
+                                <SidebarMenuSub>
+                                    {data.StandAlone.map((item) => (
+                                        <SidebarMenuSubItem key={item.id}>
+                                            <SidebarMenuSubButton>
+                                                {item.lookUpId}
+                                            </SidebarMenuSubButton>
+                                        </SidebarMenuSubItem>
+                                    ))}
+                                </SidebarMenuSub>
+                            </CollapsibleContent>
+                        </SidebarMenuItem>
+                    </Collapsible>
 
-                            <SidebarMenuItem >
-                                <SidebarMenuButton tooltip={"devices"}>
-                                    <X />
-                                    <span>{"Devices"}</span>
-                                    <span>{moduleCount}</span>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
 
-                            <SidebarMenuItem >
-                                <SidebarMenuButton tooltip={"logs"}>
-                                    <X />
-                                    <span>{"Logs"}</span>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
+                    <Collapsible className="group/grouping">
+                        <SidebarMenuItem>
+                            <CollapsibleTrigger
+                                render={
+                                    <SidebarMenuButton tooltip="Grouping Modules" />
+                                }
+                            >
+                                <Cpu />
+                                <span>Grouping Modules</span>
 
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
+                                <ChevronRight
+                                    className="
+          ml-auto transition-transform
+          group-data-[state=open]/grouping:rotate-90
+        "
+                                />
+                            </CollapsibleTrigger>
+
+                            <CollapsibleContent>
+                                <SidebarMenuSub>
+                                    {data.Grouping.map((item) => (
+                                        <SidebarMenuSubItem key={item.id}>
+                                            <SidebarMenuSubButton>
+                                                {item.lookUpId}
+                                            </SidebarMenuSubButton>
+                                        </SidebarMenuSubItem>
+                                    ))}
+                                </SidebarMenuSub>
+                            </CollapsibleContent>
+                        </SidebarMenuItem>
+                    </Collapsible>
+                </SidebarMenu>
+
+                <SidebarMenu>
+                    <SidebarMenuItem >
+                        <SidebarMenuButton >
+                            <Logs />
+
+                            <span>Logs</span>
+
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+
+
+
 
             </SidebarContent>
             {/* <SidebarFooter /> */}

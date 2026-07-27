@@ -58,6 +58,10 @@ export const rpc = BrowserView.defineRPC<AppRPC>({
       async openPort({ port }) {
         try {
           // Bun/ElectroBun main process
+          mainWindow.webview.rpc?.send.PortStatus({
+              path:port,
+              status:"connecting"
+            })
           espPort = new SerialPort({
             path: port,
             baudRate: 115200,
@@ -66,16 +70,28 @@ export const rpc = BrowserView.defineRPC<AppRPC>({
 
           espPort.on("open", () => {
             console.log("Serial port opened");
+            mainWindow.webview.rpc?.send.PortStatus({
+              path:port,
+              status:"connected"
+            })
           });
 
           espPort.on("error", (error: Error) => {
             espPort = null
             console.error("Serial port error:", error);
+            mainWindow.webview.rpc?.send.PortStatus({
+              path:port,
+              status:"error"
+            })
           });
 
           espPort.on("close", () => {
             espPort = null
             console.log("Serial port closed");
+            mainWindow.webview.rpc?.send.PortStatus({
+              path:port,
+              status:"disconnected"
+            })
           });
 
           const parser = espPort.pipe(
@@ -121,6 +137,10 @@ export const rpc = BrowserView.defineRPC<AppRPC>({
         } catch (error) {
           console.error(error)
           espPort = null
+          mainWindow.webview.rpc?.send.PortStatus({
+              path:port,
+              status:"error"
+            })
           throw new Error("Something went wrong" + error,);
 
 

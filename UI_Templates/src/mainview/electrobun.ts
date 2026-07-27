@@ -28,6 +28,12 @@ const rpc = Electroview.defineRPC<AppRPC>({
                         break
                 }
             },
+            PortStatus({status ,path}){
+                useModuleStore.getState().setPort(path , status)
+                if (status === "disconnected"){
+                    useModuleStore.getState().reset()
+                }
+            }
 
         }
 

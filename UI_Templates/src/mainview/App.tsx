@@ -9,7 +9,7 @@ import Layout from "./lib/Layout"
 import { Label } from "./components/ui/label"
 import { electroview } from "./electrobun";
 import { toast } from "sonner"
-import { SerialDeviceInfo } from "src/shared/rpc"
+import { SerialDeviceInfo } from "../shared/rpc"
 import { Button } from "./components/ui/button"
 import { useModuleStore } from "../Runtime/ModuleStore"; 
 import Liddar from "./Modules/Lidar/view"
@@ -18,6 +18,7 @@ import Liddar from "./Modules/Lidar/view"
 function App() {
 	const [ports , setPorts] = useState<SerialDeviceInfo[]>([])
 	const [openedPort , setOpenedPort] = useState(false)
+	const portinfo =useModuleStore((state)=>state.portInfo)
 	
 
 
@@ -48,17 +49,17 @@ function App() {
 	
 
 	return (
-		<Layout>
-			<div className=" flex flex-col gap-2 flex-1 h-full w-full bg-amber-200/55">
+		
+			<div className=" flex flex-col gap-2 flex-1 h-full w-full">
 
 
-				<div className=" grid grid-cols-2 gap-3.5 p-3.5 bg-blue-200/55">
+				<div className=" grid grid-cols-2 gap-3.5 p-3.5 ">
 
 					<Card className=" shrink-0">
 						<CardHeader>
 							<div className="flex flex-row flex-wrap items-center gap-3">
 								<h1 className=" text-3xl">Available port</h1>
-								<Badge variant={openedPort? "secondary": "destructive"}> ESP {openedPort ? "connected" : "not connected"}</Badge>
+								<Badge variant={portinfo.status === "connected" ? "default": "destructive"}> ESP {portinfo.status === "connected" ? "connected" : "not connected"}</Badge>
 								 <Separator orientation="vertical" />
 								 <div className=" flex-1 flex flex-col gap-0.5 p-1">
 									<Label>Time</Label>
@@ -85,7 +86,7 @@ function App() {
 						<CardHeader>
 							<div className="flex flex-row flex-wrap items-center gap-3">
 								<h1 className=" text-3xl">ESP-32 info</h1>
-								<Badge variant={"destructive"}> ESP not connected</Badge>
+								<Badge variant={portinfo.status === "connected" ? "default": "destructive"}> ESP {portinfo.status === "connected" ? "connected" : "not connected"}</Badge>
 							</div>
 							<Separator/>
 						</CardHeader>
@@ -106,8 +107,6 @@ function App() {
 
 			</div>
 
-
-		</Layout>
 	)
 
 }
