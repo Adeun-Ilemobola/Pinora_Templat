@@ -5,7 +5,7 @@ use crate::protocol::{
     global_definitions::{Point, RangPoint},
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 #[serde(tag = "module_type", content = "event")]
 pub enum ModuleEvent {
     Led(LedEvent),
@@ -14,6 +14,7 @@ pub enum ModuleEvent {
     Button(ButtonEvent),
     SysLog(SysLogEvent),
     Rangefinder(RangefinderEvent),
+    StepperMotor(StepperMotorEvent)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -106,4 +107,12 @@ pub enum RangefinderEvent {
         id: String,
         status: String,
     },
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
+#[serde(tag = "event_type")]
+pub  enum  StepperMotorEvent {
+     GetAngle { id: String, angle: f32 },
+
 }

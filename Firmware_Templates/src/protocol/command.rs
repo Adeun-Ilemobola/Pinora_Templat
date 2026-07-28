@@ -17,6 +17,7 @@ pub enum ModuleCommand {
     Servo(ServoCommandPayload),
     Lidar(LidarCommandPayload),
     Rangefinder(RangefinderCommandPayload),
+    StepperMotor(StepperMotorCommandPayload)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -68,4 +69,12 @@ pub enum RangefinderCommandPayload {
     StopRanging,
     SetTimingBudget { milliseconds: u16 },
     SetDistanceMode { mode: RangefinderDistanceMode },
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "command")]
+pub enum StepperMotorCommandPayload {
+    SetPositionAngle{angle: i32},
+    SetPositionSequences
 }

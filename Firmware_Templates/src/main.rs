@@ -5,15 +5,17 @@ pub mod utilities;
 
 use crate::core::hardware::*;
 use crate::core::modulecore::Module;
+use crate::module::stepper::StepperMotor;
 // use crate::module::joystick::JoyStick;
 use crate::protocol::command::IncomingCommand;
 // use crate::utilities::serdeprotocol::IncomingCommand;
 use crate::module::lidar::Lidar;
+use crate::protocol::global_definitions::StepperPins;
+use embedded_hal_bus::i2c::RcDevice;
 use std::io;
 use std::io::{BufRead, ErrorKind};
 use std::sync::mpsc;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
- use embedded_hal_bus::i2c::RcDevice;
 
 type ModuleHandle<'a> = Rc<RefCell<dyn Module + 'a>>;
 
@@ -45,8 +47,6 @@ fn configure_console_uart() -> anyhow::Result<()> {
     Ok(())
 }
 
-
-
 fn main() -> anyhow::Result<()> {
     esp_idf_svc::sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
@@ -54,18 +54,17 @@ fn main() -> anyhow::Result<()> {
     print_esp_system_info();
     let mut modules: HashMap<String, ModuleHandle<'_>> = HashMap::new();
     let p = Peripherals::take()?;
-    let i2c = I2cDriver::new(
-        p.i2c0,
-        p.pins.gpio21,
-        p.pins.gpio22,
-        &I2cConfig::new().baudrate(400.kHz().into()),
-    )?;
+    // let i2c = I2cDriver::new(
+    //     p.i2c0,
+    //     p.pins.gpio21,
+    //     p.pins.gpio22,
+    //     &I2cConfig::new().baudrate(400.kHz().into()),
+    // )?;
 
-    let shared_i2c = Rc::new(RefCell::new(i2c));
-    
+    // let shared_i2c = Rc::new(RefCell::new(i2c));
 
-    let hardware = HardwareContext::new(p.ledc.timer0,shared_i2c.clone())?;
-    let rangefinder_i2c = RcDevice::new(hardware.i2c_bus.clone());
+    // let hardware = HardwareContext::new(p.ledc.timer0, shared_i2c.clone())?;
+    // let rangefinder_i2c = RcDevice::new(hardware.i2c_bus.clone());
 
     // let rangefinder = Rc::new(RefCell::new(Rangefinder::new(
     //     p.i2c1,
@@ -78,13 +77,27 @@ fn main() -> anyhow::Result<()> {
     // modules.insert(rangefinder_id, rangefinder.clone());
     // print_welcome_message("not initialized", "not initialized");
 
-    let lidar = Rc::new(RefCell::new(Lidar::new(
-        hardware.servo_pwm.clone(),
-        "lidar".to_string(),
-        rangefinder_i2c
+    // let lidar = Rc::new(RefCell::new(Lidar::new(
+    //     hardware.servo_pwm.clone(),
+    //     "lidar".to_string(),
+    //     rangefinder_i2c,
+    // )?));
+    // let lidar_id = lidar.borrow().get_id();
+    // modules.insert(lidar_id, lidar.clone());
+
+    let stepper = Rc::new(RefCell::new(StepperMotor::new(
+        StepperPins {
+            in1: OutputPinCore::new(p.pins.gpio16)?,//33
+            in2: OutputPinCore::new(p.pins.gpio17)?,//32
+            in3: OutputPinCore::new(p.pins.gpio5)?,//31
+            in4: OutputPinCore::new(p.pins.gpio18)?,//30
+        },
+        "stepper".to_string(),
+        None,
     )?));
-    let lidar_id = lidar.borrow().get_id();
-    modules.insert(lidar_id, lidar.clone());
+
+    let stepper_id = stepper.borrow().id().clone();
+    modules.insert(stepper_id.clone(), stepper.clone());
 
     // let mut joystick = JoyStick::new(
     //     p.pins.gpio25,
@@ -99,8 +112,9 @@ fn main() -> anyhow::Result<()> {
     });
 
     loop {
+        let _  = stepper.borrow_mut().tick();
         // rangefinder.borrow_mut().tick();
-        lidar.borrow_mut().tick();
+        // lidar.borrow_mut().tick();
         // joystick.tick()?;
 
         // if btu.poll()? {
@@ -118,7 +132,7 @@ fn main() -> anyhow::Result<()> {
                 );
             }
         }
-        sleep_ms(10);
+        rtos_sleep_ms(1);
     }
 }
 

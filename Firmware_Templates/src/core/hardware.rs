@@ -86,11 +86,52 @@ impl<'d> OutputPinCore<'d> {
     }
 }
 
-pub fn sleep_time(ms: u32) {
+pub fn rtos_sleep_ms(ms: u32) {
     FreeRtos::delay_ms(ms);
 }
-pub fn sleep_ms(ms: u64) {
+pub fn thread_sleep_ms(ms: u64) {
     std::thread::sleep(Duration::from_millis(ms));
+}
+pub fn now_us() -> i64 {
+    unsafe { sys::esp_timer_get_time() }
+}
+
+pub struct TimerState {
+    period_us: i64,
+    next_deadline_us: i64,
+}
+
+impl TimerState {
+    pub fn from_ms(period_ms: u64) -> Self {
+        let period_us = period_ms as i64 * 1_000;
+        let now = now_us();
+
+        Self {
+            period_us,
+            next_deadline_us: now + period_us,
+        }
+    }
+
+    pub fn ready(&mut self) -> bool {
+        let now = now_us();
+
+        if now < self.next_deadline_us {
+            return false;
+        }
+
+        self.next_deadline_us += self.period_us;
+
+        // Do not rapidly replay hundreds of missed timer intervals.
+        if self.next_deadline_us <= now {
+            self.next_deadline_us = now + self.period_us;
+        }
+
+        true
+    }
+
+    pub fn reset(&mut self) {
+        self.next_deadline_us = now_us() + self.period_us;
+    }
 }
 
 pub type I2cBus<'d> = Rc<RefCell<I2cDriver<'d>>>;

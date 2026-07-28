@@ -4,7 +4,7 @@ import * as React from "react"
 import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 import { cva, type VariantProps } from "class-variance-authority"
-
+import { Slot } from "@radix-ui/react-slot"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -500,60 +500,63 @@ const sidebarMenuButtonVariants = cva(
   }
 )
 
-function SidebarMenuButton({
-  render,
-  isActive = false,
-  variant = "default",
-  size = "default",
-  tooltip,
-  className,
-  ...props
-}: useRender.ComponentProps<"button"> &
+const SidebarMenuButton = React.forwardRef<
+  HTMLButtonElement,
   React.ComponentProps<"button"> & {
+    asChild?: boolean
     isActive?: boolean
     tooltip?: string | React.ComponentProps<typeof TooltipContent>
-  } & VariantProps<typeof sidebarMenuButtonVariants>) {
-  const { isMobile, state } = useSidebar()
-  const comp = useRender({
-    defaultTagName: "button",
-    props: mergeProps<"button">(
-      {
-        className: cn(sidebarMenuButtonVariants({ variant, size }), className),
-      },
-      props
-    ),
-    render: !tooltip ? render : <TooltipTrigger render={render} />,
-    state: {
-      slot: "sidebar-menu-button",
-      sidebar: "menu-button",
-      size,
-      active: isActive,
+  } & VariantProps<typeof sidebarMenuButtonVariants>
+>(
+  (
+    {
+      asChild = false,
+      isActive = false,
+      variant = "default",
+      size = "default",
+      tooltip,
+      className,
+      ...props
     },
-  })
+    ref
+  ) => {
+    const Comp = asChild ? Slot : "button"
 
-  if (!tooltip) {
-    return comp
-  }
-
-  if (typeof tooltip === "string") {
-    tooltip = {
-      children: tooltip,
-    }
-  }
-
-  return (
-    <Tooltip>
-      {comp}
-      <TooltipContent
-        side="right"
-        align="center"
-        hidden={state !== "collapsed" || isMobile}
-        {...tooltip}
+    const button = (
+      <Comp
+        ref={ref}
+        data-slot="sidebar-menu-button"
+        data-sidebar="menu-button"
+        data-size={size}
+        data-active={isActive}
+        className={cn(
+          sidebarMenuButtonVariants({ variant, size }),
+          className
+        )}
+        {...props}
       />
-    </Tooltip>
-  )
-}
+    )
 
+    if (!tooltip) {
+      return button
+    }
+
+    return (
+      <Tooltip>
+        <TooltipTrigger render={button} />
+        <TooltipContent
+          side="right"
+          align="center"
+          hidden={false}
+        >
+          {typeof tooltip === "string" ? tooltip : tooltip.children}
+        </TooltipContent>
+      </Tooltip>
+    )
+  }
+)
+
+SidebarMenuButton.displayName = "SidebarMenuButton"
 function SidebarMenuAction({
   className,
   render,

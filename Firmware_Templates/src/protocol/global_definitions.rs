@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::core::hardware::OutputPinCore;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ModuleType {
     Servo,
@@ -11,6 +13,7 @@ pub enum ModuleType {
     Rangefinder,
     SysLog,
     JoyStick,
+    StepperMotor
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -36,4 +39,18 @@ pub struct ServoCapability {
     pub max_pivot: i32,
     pub pulse_min: i32,
     pub pulse_max: i32,
+}
+
+pub struct StepperPins<'d> {
+    pub in1: OutputPinCore<'d>,
+    pub in2: OutputPinCore<'d>,
+    pub in3: OutputPinCore<'d>,
+    pub in4: OutputPinCore<'d>,
+}
+
+
+pub  enum StepperState {
+    Idle,
+    Moving,
+    Homing,
 }

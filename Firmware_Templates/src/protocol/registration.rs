@@ -10,7 +10,7 @@ pub struct Registration {
     pub parent_id: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 #[serde(tag = "type", content = "payload")]
 pub enum ProtocolMessage {
     Registration(Registration),
