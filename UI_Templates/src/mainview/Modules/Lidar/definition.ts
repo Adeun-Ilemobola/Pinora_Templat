@@ -1,5 +1,5 @@
 import z from "zod";
-import type { ModuleDefinitionType } from "src/shared/Protocol/ModuleDefinitionSchema"; 
+import type { ModuleDefinitionType } from "../../../shared/Protocol/ModuleDefinitionSchema"; 
 
 export const PointSchema = z.object({
   x: z.number().int().min(-90).max(90),
@@ -156,23 +156,37 @@ export function updateLidar(
   }
 }
 
-const lidarHeatmapColors = [
-  "#173F8A", // 0
-  "#1769C2", // 1
-  "#1598D4", // 2
-  "#18C6C8", // 3
-  "#27B878", // 4
-  "#66C94A", // 5
-  "#B5D93D", // 6
-  "#F2D63A", // 7
-  "#F59A32", // 8
-  "#ED5938", // 9
-  "#D93658", // 10
+export const lidarHeatmapColors = [
+  "#30123B", // closest / minimum depth
+  "#4145AB",
+  "#466BE3",
+  "#3E8EED",
+  "#2FA7D8",
+  "#1BB9C4",
+  "#18C7A3",
+  "#2DD080",
+  "#55D45F",
+  "#7BD64A",
+  "#A2D83D",
+  "#C7D83B",
+  "#E4D63A",
+  "#F5CE38",
+  "#FBC234",
+  "#FBAE32",
+  "#F89430",
+  "#F4772E",
+  "#EC5B2D",
+  "#E34232",
+  "#D62F3D",
+  "#C5264D",
+  "#AA2058",
+  "#861D59",
+  "#5D174F", // farthest / maximum depth
 ];
 
-export const roiBorder = "#000000";
-export const GRID_BACKGROUND_COLOUR = "#18181b";
-export const DEFAULT_CELL_COLOUR = "#3f3f46";
+export const roiBorder = "#FFFFFF";
+export const GRID_BACKGROUND_COLOUR = "#101014";
+export const DEFAULT_CELL_COLOUR = "#29292F";
 export const MAX_LIDAR_DISTANCE_MM = 4000;
 
 export function distanceToColour(mm: number): string {

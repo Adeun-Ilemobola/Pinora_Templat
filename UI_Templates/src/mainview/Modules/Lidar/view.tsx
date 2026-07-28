@@ -4,7 +4,7 @@ import { PointInput } from "@/components/PointInput"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { selectModule } from "../../../shared/Protocol/ModuleDefinitionSchema" 
-import { PointSchema } from "./definition" 
+import { PointSchema , RangePointSchema } from "./definition" 
 import { useModuleStore } from "../../../Runtime/ModuleStore" 
 import { useEffect, useState } from "react"
 import z from "zod"
@@ -12,6 +12,8 @@ import { Box } from "lucide-react"
 
 
 type Point = z.infer<typeof PointSchema>;
+type PointMapp = z.infer<typeof RangePointSchema>;
+
 
 
 export default function Liddar() {
@@ -27,16 +29,21 @@ export default function Liddar() {
   const [pointMin, setPointMin] = useState<Point>(() =>
     lidar?.state.ROI.min ?? { x: 0, y: 0 },
   )
+  const [pointMap, setPointMap] = useState<PointMapp[]>(() =>
+    lidar?.state.map ?? []
+  )
 
   useEffect(() => {
     if (!lidar) return
     setPointMax(lidar.state.ROI.max)
     setPointMin(lidar.state.ROI.min)
+    setPointMap(lidar.state.map)
   }, [
     lidar?.state.ROI.max.x,
     lidar?.state.ROI.max.y,
     lidar?.state.ROI.min.x,
     lidar?.state.ROI.min.y,
+    lidar?.state.map
   ])
 
   if (!lidar || !servoX || !servoY || !rangefinder) {
@@ -148,6 +155,10 @@ export default function Liddar() {
       </div>
 
       <Grid
+      resetPointMap={()=>{
+        setPointMap([])
+
+      }}
         move_point={(p) => {
           sendCommand({
             id: lidar.id,
@@ -161,7 +172,7 @@ export default function Liddar() {
         }}
         max={pointMax}
         min={pointMin}
-        map={lidar.state.map}
+        map={pointMap}
         setRoi={(nextMin, nextMax) => {
           setPointMin(nextMin)
           setPointMax(nextMax)

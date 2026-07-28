@@ -55,6 +55,7 @@ impl<'d> ServoModule<'d> {
             s.set_angle(f)?;
           
         }
+         s.set_angle(0)?;
 
         Ok(s)
     }
@@ -87,6 +88,7 @@ impl<'d> ServoModule<'d> {
             (self.offset + pivotrang).clamp(self.config.min_angle, self.config.max_angle);
 
          self.angle = raw_rang;
+         
 
         let pulse = range_i32(
             self.angle.clone(),
@@ -98,7 +100,12 @@ impl<'d> ServoModule<'d> {
         self.pwm
             .borrow_mut()
             .set_channel_on_off(self.channel, 0, pulse_us_to_tick(pulse))
-            .unwrap();
+            .map_err(|error| {
+                anyhow::anyhow!(
+                    " Servo Module pwm id: [{:?}]  initialization failed: {error:?}"
+                    ,self.core.manuel_id.clone()
+                )
+            })?;
 
         emit::event(ModuleEvent::Servo(ServoEvent::GetAngle { id:self.id().clone(), angle: pivotrang.clone() } ));
    

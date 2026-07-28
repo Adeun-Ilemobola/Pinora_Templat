@@ -41,6 +41,7 @@ type GridProps = {
     min: Point
     max: Point
     map: RangePoint[]
+    resetPointMap:()=>void
 }
 
 function pivotToGrid(point: Point): GridCoordinate {
@@ -102,7 +103,7 @@ function drawRoiBoundary(
     }
 }
 
-export default function Grid({ setRoi, move_point, max, min, map }: GridProps) {
+export default function Grid({ setRoi, move_point , resetPointMap, max, min, map }: GridProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const lastHoveredCell = useRef<string | null>(null)
     const [hoveredCell, setHoveredCell] = useState<HoveredCell | null>(null)
@@ -226,6 +227,7 @@ export default function Grid({ setRoi, move_point, max, min, map }: GridProps) {
             p1: { point: min, selected: false },
             p2: { point: max, selected: false },
         })
+        resetPointMap()
     }
 
     const hoveredIndex = hoveredCell ? pivotToIndex(hoveredCell.pivot) : null

@@ -103,12 +103,13 @@ export const rpc = BrowserView.defineRPC<AppRPC>({
 
           parser.on("data", (line: string) => {
             // console.log("ESP32:", line);
-            if (line.startsWith("I (422) main_task: Calling app_main()")) {
-              start = true;
-            }
+            // if (line.startsWith("I (422) main_task: Calling app_main()")) {
+            //   start = true;
+            // }
+            console.log("-- ESP32 :", line)
             if (isValidJSON(line)) {
               const data = JSON.parse(line)
-              // console.log("ESP32:", data);
+              ;
               const parsedMessage = InComingMessageSchema.safeParse(data);
 
               if (!parsedMessage.success) {
@@ -153,6 +154,7 @@ export const rpc = BrowserView.defineRPC<AppRPC>({
         try {
           console.log("new command :", params)
           if (!espPort) {
+            console.error("no Port available")
             throw new Error("no Port available");
           }
           const sendData = `${JSON.stringify(params)}\n`;

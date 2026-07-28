@@ -14,7 +14,7 @@ use crate::utilities::logger::SysLog;
 use embedded_hal_bus::i2c::RcDevice;
 use embedded_hal_compat::ReverseCompat;
 use pwm_pca9685::Channel;
-
+const POINTS_PER_CHUNK: usize = 128;
 pub struct Lidar<'d> {
     core: ModuleCore,
 
@@ -32,6 +32,9 @@ pub struct Lidar<'d> {
     x_d: i32,
     scan_time: Option<std::time::Instant>,
     point_map: Vec<RangPoint>,
+
+    current_chunk: u32,
+    total_chunks: u32,
 }
 // const CHUNK_SIZE: usize = 128;
 
@@ -98,6 +101,8 @@ impl<'d> Lidar<'d> {
             scan_time: None,
             rangefinder,
             point_map: vec![],
+            current_chunk: 1,
+            total_chunks: 0,
         };
         emit::registration(Registration {
             id: new_lidar.id().clone(),
@@ -109,6 +114,8 @@ impl<'d> Lidar<'d> {
         new_lidar.curr_point = new_lidar.max_point.clone();
         new_lidar.move_to_point();
         new_lidar.curr_point = new_lidar.min_point.clone();
+        new_lidar.move_to_point();
+        new_lidar.curr_point = Point { x: 0, y: 0 };
         new_lidar.move_to_point();
         new_lidar.curr_point = Point { x: 0, y: 0 };
         new_lidar.move_to_point();
@@ -124,64 +131,73 @@ impl<'d> Lidar<'d> {
 
     pub fn tick(&mut self) {
         self.rangefinder.tick();
-        if self.curr_scan_mode == ScanState::Scanning {
-            let mut next_point = Point {
-                x: self.curr_point.x + (self.step as i32 * self.x_d),
-                y: self.curr_point.y,
-            };
 
-            if (self.curr_point.x) == self.limit_point.x {
-                if self.limit_point.x == self.max_point.x {
-                    self.limit_point.x = self.min_point.x
-                } else {
-                    self.limit_point.x = self.max_point.x;
-                }
-                self.x_d *= -1;
-                if self.curr_point.y == self.limit_point.y {
-                    self.curr_scan_mode = ScanState::Idol;
-                    emit::event(ModuleEvent::Lidar(LidarEvent::ScanState {
-                        id: self.id().clone(),
-                        state: self.curr_scan_mode.clone(),
-                    }));
-                    if let Some(start) = self.scan_time {
-                        // log::debug!("write_all took {:?}", start.elapsed());
-                        emit::event(ModuleEvent::SysLog(SysLogEvent {
-                            text: format!("Full Scan time {:?}", start.elapsed()),
-                            raw_err: None,
-                            priority: LogPriority::High,
-                        }));
-                    }
-                    const POINTS_PER_CHUNK: usize = 128;
-                    let mut current_chunk = 1;
-                    let total_chunks = self.point_map.len().div_ceil(POINTS_PER_CHUNK);
-                    // let mut start = 0;
-                    // let mut end = POINTS_PER_CHUNK;
+        if self.curr_scan_mode != ScanState::Scanning {
+            return;
+        }
 
-                    for chunk in self.point_map.chunks(POINTS_PER_CHUNK) {
-                        // process this chunk
-                        emit::event(ModuleEvent::Lidar(LidarEvent::PointMap {
-                            id: self.id().clone(),
-                            curr_chunk: current_chunk.clone(),
-                            max_chunk: total_chunks.clone() as i32,
-                            map: std::mem::take(&mut chunk.to_vec()),
-                        }));
-                        current_chunk +=1;
-                    }
+        let row_finished = self.curr_point.x == self.limit_point.x;
 
-                    return;
-                }
-                next_point.y -= 1;
+        if row_finished {
+            // Entire scan is finished.
+            if self.curr_point.y == self.limit_point.y {
+                self.flush_point_map();
+
+                self.curr_scan_mode = ScanState::Idol;
+
+                emit::event(ModuleEvent::Lidar(LidarEvent::ScanState {
+                    id: self.id().clone(),
+                    state: self.curr_scan_mode.clone(),
+                }));
+
+                return;
             }
 
-            self.point_map.push(RangPoint {
-                x: next_point.x.clone(),
-                y: next_point.y.clone(),
-                distant: self.rangefinder.range_mm.clone(),
-            });
-            self.curr_point = next_point;
+            // Send only after a completed row and after reaching the target size.
+            if self.point_map.len() >= POINTS_PER_CHUNK {
+                self.flush_point_map();
+            }
 
-            self.move_to_point();
+            // Reverse the horizontal direction.
+            self.x_d *= -1;
+
+            self.limit_point.x = if self.limit_point.x == self.max_point.x {
+                self.min_point.x
+            } else {
+                self.max_point.x
+            };
+
+            // Start the next row at the same X edge.
+            self.curr_point.y -= 1;
+        } else {
+            // Continue horizontally through the current row.
+            self.curr_point.x += self.step as i32 * self.x_d;
         }
+
+        self.move_to_point();
+
+        self.point_map.push(RangPoint {
+            x: self.curr_point.x,
+            y: self.curr_point.y,
+            distant: self.rangefinder.range_mm,
+        });
+    }
+
+    fn flush_point_map(&mut self) {
+        if self.point_map.is_empty() {
+            return;
+        }
+
+        let map = std::mem::take(&mut self.point_map);
+
+        emit::event(ModuleEvent::Lidar(LidarEvent::PointMap {
+            id: self.id().clone(),
+            curr_chunk: self.current_chunk as i32,
+            max_chunk: self.total_chunks as i32,
+            map,
+        }));
+
+        self.current_chunk += 1;
     }
 
     pub fn move_to_point(&mut self) {
@@ -239,6 +255,10 @@ impl<'d> Module for Lidar<'d> {
                     );
                     self.min_point = min.clone();
                     self.max_point = max.clone();
+                    let total_points = (max.x.abs() as u32 * 2) * (min.y.abs() as u32 * 2);
+
+                    self.total_chunks = total_points.div_ceil(POINTS_PER_CHUNK as u32);
+
                     emit::event(ModuleEvent::Lidar(LidarEvent::Roi {
                         id: self.id().clone(),
                         min: self.min_point.clone(),
@@ -254,6 +274,7 @@ impl<'d> Module for Lidar<'d> {
                     self.scan_time = Some(std::time::Instant::now());
                     SysLog::info("LiDAR received StartScan".to_string(), None);
                     self.point_map.clear();
+                    self.current_chunk = 1;
 
                     self.curr_point = self.max_point.clone();
                     self.limit_point = self.min_point.clone();

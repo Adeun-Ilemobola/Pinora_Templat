@@ -139,56 +139,56 @@ function App() {
 	}
 	return (
 		<div className=" flex flex-col gap-2 flex-1 h-full w-full">
-{/* 
-			<div className=" grid grid-cols-2 gap-3.5 p-3.5 ">
 
-				<Card className=" shrink-0">
-					<CardHeader>
-						<div className="flex flex-row flex-wrap items-center gap-3">
-							<h1 className=" text-3xl">Available port</h1>
-							<Badge variant={portinfo.status === "connected" ? "default" : "destructive"}> ESP {portinfo.status === "connected" ? "connected" : "not connected"}</Badge>
-							<Separator orientation="vertical" />
-							<div className=" flex-1 flex flex-col gap-0.5 p-1">
-								<Label>Time</Label>
-								<span>00:00:00</span>
-							</div>
-						</div>
-						<Separator />
-					</CardHeader>
-					<CardContent>
-						<div className=" flex flex-col gap-2.5  h-72 overflow-hidden overflow-y-auto ">
-							{ports.map((p, i) => {
-								return (
-									<Button variant={"outline"} className={" w-full"} key={i} onClick={() => { StartConnection(p.path) }}>
-										{p.path}
-									</Button>
-								)
-							})}
+			 <div className=" grid grid-cols-2 gap-3.5 p-3.5 ">
 
-						</div>
-					</CardContent>
-				</Card>
+			 	<Card className=" shrink-0">
+			 		<CardHeader>
+			 			<div className="flex flex-row flex-wrap items-center gap-3">
+			 				<h1 className=" text-3xl">Available port</h1>
+			 				<Badge variant={portinfo.status === "connected" ? "default" : "destructive"}> ESP {portinfo.status === "connected" ? "connected" : "not connected"}</Badge>
+			 				<Separator orientation="vertical" />
+			 				<div className=" flex-1 flex flex-col gap-0.5 p-1">
+			 					<Label>Time</Label>
+			 					<span>00:00:00</span>
+			 				</div>
+			 			</div>
+			 			<Separator />
+			 		</CardHeader>
+			 		<CardContent>
+			 			<div className=" flex flex-col gap-2.5  h-72 overflow-hidden overflow-y-auto ">
+			 				{ports.map((p, i) => {
+			 					return (
+			 						<Button variant={"outline"} className={" w-full"} key={i} onClick={() => { StartConnection(p.path) }}>
+			 							{p.path}
+			 						</Button>
+			 					)
+			 				})}
 
-				<Card className="shrink-0">
-					<CardHeader>
-						<div className="flex flex-row flex-wrap items-center gap-3">
-							<h1 className=" text-3xl">ESP-32 info</h1>
-							<Badge variant={portinfo.status === "connected" ? "default" : "destructive"}> ESP {portinfo.status === "connected" ? "connected" : "not connected"}</Badge>
-						</div>
-						<Separator />
-					</CardHeader>
-					<CardContent>
-						<div className="shrink-0 flex flex-col gap-2.5 justify-center h-72   overflow-hidden overflow-y-auto">
+			 			</div>
+			 		</CardContent>
+			 	</Card>
 
-						</div>
-					</CardContent>
-				</Card>
+			 	<Card className="shrink-0">
+			 		<CardHeader>
+			 			<div className="flex flex-row flex-wrap items-center gap-3">
+			 				<h1 className=" text-3xl">ESP-32 info</h1>
+			 				<Badge variant={portinfo.status === "connected" ? "default" : "destructive"}> ESP {portinfo.status === "connected" ? "connected" : "not connected"}</Badge>
+			 			</div>
+			 			<Separator />
+			 		</CardHeader>
+			 		<CardContent>
+			 			<div className="shrink-0 flex flex-col gap-2.5 justify-center h-72   overflow-hidden overflow-y-auto">
 
-			</div> */}
+			 			</div>
+			 		</CardContent>
+			 	</Card>
 
-			{/* <Liddar/> */}
+			 </div> 
 
-			<div className=" flex flex-row gap-2 p-2 items-center justify-centerring rounded-xl">
+			<Liddar/>
+
+			{/* <div className=" flex flex-row gap-2 p-2 items-center justify-centerring rounded-xl">
 				<Button variant={roundOption === "none" ? "default" :"outline"} onClick={()=>setRoundOption("none")}>
 					none
 				</Button>
@@ -241,31 +241,9 @@ function App() {
 			</h1>
 			<h1 className=" text-xl">
 				Sequence Point :{processSequence}
-			</h1>
+			</h1> */}
 
-			<div className=" flex flex-row gap-2.5 flex-wrap h-100 items-center justify-center overflow-y-auto overflow-hidden  ring ring-blue-500 rounded p-4 ">
-				{processSequence.map((item , i)=>{
-					return(
-						<Badge key={i}>
-							{item.join(" - ")}
-						</Badge>
-					)
-				})}
-
-				{/* <div className="flex relative items-center justify-center ring ring-emerald-500  rounded-full h-60 w-60">
-					<MoveUp
-					style={{
-						transform:`rotate(${resultRoundOption.degreesPer}deg)`
-					}}
-					className=" absolute stroke-blue-800 "
-					
-					/>
-
-				</div> */}
-
-
-
-			</div>
+			
 
 
 
