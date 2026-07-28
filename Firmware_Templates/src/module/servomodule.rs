@@ -1,3 +1,5 @@
+use std::sync::mpsc::SyncSender;
+
 use crate::core::hardware::{ SharedPwm};
 use crate::core::modulecore::{Module, ModuleCore, emit};
 use crate::protocol::command::{ModuleCommand , ServoCommandPayload};
@@ -28,9 +30,10 @@ impl<'d> ServoModule<'d> {
         channel: Channel,
         config: ServoCapability,
         cluster_id: Option<String>,
+        sender:SyncSender<ModuleEvent>
     ) -> anyhow::Result<ServoModule<'d>> {
         let mut s = ServoModule {
-            core: ModuleCore::new(ModuleType::Servo, &manuel_id),
+            core: ModuleCore::new(ModuleType::Servo, &manuel_id , sender),
             pwm,
             config: config.clone(),
             offset: config.offset,
@@ -73,8 +76,8 @@ impl<'d> ServoModule<'d> {
             .set_channel_on_off(self.channel, 0, pulse_us_to_tick(pulse))
             .unwrap();
 
-        emit::event(ModuleEvent::Servo(ServoEvent::GetOffset { 
-            id:self.id().clone(),
+        self.emit(ModuleEvent::Servo(ServoEvent::GetOffset { 
+            id:self.id().to_string(),
             angle: self.offset.clone() 
         }));
 
@@ -107,7 +110,7 @@ impl<'d> ServoModule<'d> {
                 )
             })?;
 
-        emit::event(ModuleEvent::Servo(ServoEvent::GetAngle { id:self.id().clone(), angle: pivotrang.clone() } ));
+        self.emit(ModuleEvent::Servo(ServoEvent::GetAngle { id:self.id().to_string(), angle: pivotrang.clone() } ));
    
         Ok(())
     }
@@ -121,29 +124,22 @@ impl<'d> ServoModule<'d> {
 
     pub fn set_min_pivot(&mut self, min_pivot: i32) {
         self.min_pivot = min_pivot.min(self.max_pivot);
-        emit::event(ModuleEvent::Servo(ServoEvent::GetMinPivot { id:self.id().clone(), min_pivot }));
+        self.emit(ModuleEvent::Servo(ServoEvent::GetMinPivot { id:self.id().to_string(), min_pivot }));
 
        
     }
 
     pub fn set_max_pivot(&mut self, max_pivot: i32) {
         self.max_pivot = max_pivot.max(self.min_pivot);
-        emit::event(ModuleEvent::Servo(ServoEvent::GetMaxPivot { id:self.id().clone(), max_pivot }));
+        self.emit(ModuleEvent::Servo(ServoEvent::GetMaxPivot { id:self.id().to_string(), max_pivot }));
     }
 
    
 }
 
 impl<'d> Module for ServoModule<'d> {
-    fn id(&self) -> &String {
-        &self.core.id
-    }
-
     fn core(&self) -> &ModuleCore {
         &self.core
-    }
-    fn get_module_type(&self) -> &ModuleType {
-        &self.core.module_type
     }
     fn handle_command(&mut self, command: &ModuleCommand) -> anyhow::Result<()> {
         match command {

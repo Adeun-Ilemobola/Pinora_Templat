@@ -5,12 +5,12 @@ pub mod utilities;
 
 use crate::core::hardware::*;
 use crate::core::modulecore::{Module, emit};
-use crate::module::stepper::StepperMotor;
+// use crate::module::stepper::StepperMotor;
 // use crate::module::joystick::JoyStick;
 use crate::protocol::command::IncomingCommand;
 // use crate::utilities::serdeprotocol::IncomingCommand;
 use crate::module::lidar::Lidar;
-use crate::protocol::global_definitions::StepperPins;
+// use crate::protocol::global_definitions::StepperPins;
 use embedded_hal_bus::i2c::RcDevice;
 use std::io;
 use std::io::{BufRead, ErrorKind};
@@ -66,7 +66,7 @@ fn main() -> anyhow::Result<()> {
 
     let hardware = HardwareContext::new(p.ledc.timer0, shared_i2c.clone())?;
     let rangefinder_i2c = RcDevice::new(hardware.i2c_bus.clone());
-    let _sync_sender=emit::start_event_emitter();
+    let sync_sender=emit::start_event_emitter();
 
     // let rangefinder = Rc::new(RefCell::new(Rangefinder::new(
     //     p.i2c1,
@@ -83,6 +83,7 @@ fn main() -> anyhow::Result<()> {
         hardware.servo_pwm.clone(),
         "lidar".to_string(),
         rangefinder_i2c,
+        sync_sender.clone()
     )?));
     let lidar_id = lidar.borrow().get_id();
     modules.insert(lidar_id, lidar.clone());

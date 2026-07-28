@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{sync::mpsc::SyncSender, time::Instant};
 
 use crate::{
     core::{
@@ -23,16 +23,16 @@ const POSITIVE_SEQUENCE: [[u8; 4]; 8] = [
     [1, 0, 0, 1],
 ];
 
-const NEGATIVE_SEQUENCE: [[u8; 4]; 8] = [
-    [1, 0, 0, 1],
-    [0, 0, 0, 1],
-    [0, 0, 1, 1],
-    [0, 0, 1, 0],
-    [0, 1, 1, 0],
-    [0, 1, 0, 0],
-    [1, 1, 0, 0],
-    [1, 0, 0, 0],
-];
+// const NEGATIVE_SEQUENCE: [[u8; 4]; 8] = [
+//     [1, 0, 0, 1],
+//     [0, 0, 0, 1],
+//     [0, 0, 1, 1],
+//     [0, 0, 1, 0],
+//     [0, 1, 1, 0],
+//     [0, 1, 0, 0],
+//     [1, 1, 0, 0],
+//     [1, 0, 0, 0],
+// ];
 
 pub struct StepperMotor<'d> {
     core: ModuleCore,
@@ -49,9 +49,10 @@ impl<'d> StepperMotor<'d> {
         pins_bus: StepperPins<'d>,
         manuel_id: String,
         cluster_id: Option<String>,
+        sender:SyncSender<ModuleEvent>
     ) -> anyhow::Result<StepperMotor<'d>> {
         let mut motor = StepperMotor {
-            core: ModuleCore::new(ModuleType::StepperMotor, &manuel_id),
+            core: ModuleCore::new(ModuleType::StepperMotor, &manuel_id , sender),
             pins: pins_bus,
             step_timer: TimerState::from_ms(1),
             target_step: 0,
@@ -64,7 +65,7 @@ impl<'d> StepperMotor<'d> {
         let angle = motor.step as f32 * 360.0 / 4096.0;
 
         emit::event(ModuleEvent::StepperMotor(StepperMotorEvent::GetAngle {
-            id: motor.id().clone(),
+            id: motor.id().to_string(),
             angle,
         }));
 
@@ -135,7 +136,7 @@ impl<'d> StepperMotor<'d> {
             let angle = self.step as f32 * 360.0 / 4096.0;
 
             emit::event(ModuleEvent::StepperMotor(StepperMotorEvent::GetAngle {
-                id: self.id().clone(),
+                id: self.id().to_string(),
                 angle,
             }));
         }
@@ -143,10 +144,6 @@ impl<'d> StepperMotor<'d> {
 }
 
 impl<'d> Module for StepperMotor<'d> {
-    fn id(&self) -> &String {
-        &self.core.id
-    }
-
     fn core(&self) -> &ModuleCore {
         &self.core
     }

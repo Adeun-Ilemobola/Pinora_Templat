@@ -1,3 +1,5 @@
+use std::sync::mpsc::SyncSender;
+
 use crate::core::hardware::I2cDriver;
 use crate::core::modulecore::emit;
 use crate::core::{
@@ -43,8 +45,9 @@ impl<'d> Lidar<'d> {
         pwm: SharedPwm<'d>,
         manuel_id: String,
         rangefinder_i2c: RcDevice<I2cDriver<'d>>,
+        sender:SyncSender<ModuleEvent>
     ) -> anyhow::Result<Lidar<'d>> {
-        let mc = ModuleCore::new(ModuleType::Lidar, &manuel_id);
+        let mc = ModuleCore::new(ModuleType::Lidar, &manuel_id ,sender.clone());
         let config = ServoCapability {
             max_angle: 180,
             min_angle: 0,
@@ -60,7 +63,8 @@ impl<'d> Lidar<'d> {
             "servo_x".to_string(),
             Channel::C0,
             config.clone(),
-            Some(mc.get_id().to_string()),
+            Some(mc.id.clone()),
+            sender.clone()
         )?;
 
         let servo_y = ServoModule::new(
@@ -68,24 +72,17 @@ impl<'d> Lidar<'d> {
             "servo_y".to_string(),
             Channel::C1,
             config.clone(),
-            Some(mc.get_id().to_string()),
+            Some(mc.id.clone()),
+            sender.clone()
         )?;
 
-        let mut rangefinder = Rangefinder::new(
+        let  rangefinder = Rangefinder::new(
             rangefinder_i2c.reverse(),
             "rangefinder".to_string(),
-            Some(mc.get_id().to_string()),
+            Some(mc.id.clone()),
+            sender.clone()
         )?;
-        match rangefinder.start_ranging() {
-            Ok(_) => {}
-            Err(err) => {
-                emit::event(ModuleEvent::SysLog(SysLogEvent {
-                    text: format!("start_ranging in lidar has fail : {:?}", err),
-                    raw_err: None,
-                    priority: LogPriority::High,
-                }));
-            }
-        }
+       
 
         let mut new_lidar = Lidar {
             core: mc,
@@ -104,8 +101,19 @@ impl<'d> Lidar<'d> {
             current_chunk: 1,
             total_chunks: 0,
         };
+
+         match new_lidar.rangefinder.start_ranging() {
+            Ok(_) => {}
+            Err(err) => {
+                new_lidar.emit(ModuleEvent::SysLog(SysLogEvent {
+                    text: format!("start_ranging in lidar has fail : {:?}", err),
+                    raw_err: None,
+                    priority: LogPriority::High,
+                }));
+            }
+        }
         emit::registration(Registration {
-            id: new_lidar.id().clone(),
+            id: new_lidar.id().to_string(),
             lool_up_id: manuel_id.clone(),
             module_type: ModuleType::Lidar,
             parent_id: String::new(),
@@ -119,8 +127,8 @@ impl<'d> Lidar<'d> {
         new_lidar.move_to_point();
         new_lidar.curr_point = Point { x: 0, y: 0 };
         new_lidar.move_to_point();
-        emit::event(ModuleEvent::Lidar(LidarEvent::Roi {
-            id: new_lidar.id().clone(),
+        new_lidar.emit(ModuleEvent::Lidar(LidarEvent::Roi {
+            id: new_lidar.id().to_string(),
             min: new_lidar.min_point.clone(),
             max: new_lidar.max_point.clone(),
         }));
@@ -145,8 +153,8 @@ impl<'d> Lidar<'d> {
 
                 self.curr_scan_mode = ScanState::Idol;
 
-                emit::event(ModuleEvent::Lidar(LidarEvent::ScanState {
-                    id: self.id().clone(),
+                self.emit(ModuleEvent::Lidar(LidarEvent::ScanState {
+                    id: self.id().to_string(),
                     state: self.curr_scan_mode.clone(),
                 }));
 
@@ -190,8 +198,8 @@ impl<'d> Lidar<'d> {
 
         let map = std::mem::take(&mut self.point_map);
 
-        emit::event(ModuleEvent::Lidar(LidarEvent::PointMap {
-            id: self.id().clone(),
+        self.emit(ModuleEvent::Lidar(LidarEvent::PointMap {
+            id: self.id().to_string(),
             curr_chunk: self.current_chunk as i32,
             max_chunk: self.total_chunks as i32,
             map,
@@ -213,14 +221,12 @@ impl<'d> Lidar<'d> {
     }
 
     pub fn get_id(&self) -> String {
-        self.id().clone()
+        self.id().to_string()
     }
 }
 
 impl<'d> Module for Lidar<'d> {
-    fn id(&self) -> &String {
-        &self.core.id
-    }
+   
 
     fn core(&self) -> &ModuleCore {
         &self.core
@@ -259,8 +265,8 @@ impl<'d> Module for Lidar<'d> {
 
                     self.total_chunks = total_points.div_ceil(POINTS_PER_CHUNK as u32);
 
-                    emit::event(ModuleEvent::Lidar(LidarEvent::Roi {
-                        id: self.id().clone(),
+                    self.emit(ModuleEvent::Lidar(LidarEvent::Roi {
+                        id: self.id().to_string(),
                         min: self.min_point.clone(),
                         max: self.max_point.clone(),
                     }));
@@ -281,8 +287,8 @@ impl<'d> Module for Lidar<'d> {
                     self.x_d = -1;
                     self.move_to_point();
                     self.curr_scan_mode = ScanState::Scanning;
-                    emit::event(ModuleEvent::Lidar(LidarEvent::ScanState {
-                        id: self.id().clone(),
+                    self.emit(ModuleEvent::Lidar(LidarEvent::ScanState {
+                        id: self.id().to_string(),
                         state: self.curr_scan_mode.clone(),
                     }));
                 }
@@ -290,8 +296,8 @@ impl<'d> Module for Lidar<'d> {
                 LidarCommandPayload::StopScan => {
                     SysLog::info("LiDAR received StopScan".to_string(), None);
                     self.curr_scan_mode = ScanState::StopScan;
-                    emit::event(ModuleEvent::Lidar(LidarEvent::ScanState {
-                        id: self.id().clone(),
+                    self.emit(ModuleEvent::Lidar(LidarEvent::ScanState {
+                        id: self.id().to_string(),
                         state: self.curr_scan_mode.clone(),
                     }));
                 }

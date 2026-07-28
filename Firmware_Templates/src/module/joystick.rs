@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, sync::mpsc::SyncSender};
 
 use esp_idf_svc::hal::adc::{
     attenuation,
@@ -7,7 +7,7 @@ use esp_idf_svc::hal::adc::{
 };
 use esp_idf_svc::hal::gpio::ADCPin;
 
-use crate::core::hardware::InputPin;
+use crate::{core::hardware::InputPin, protocol::module_event::ModuleEvent};
 use crate::core::modulecore::{Module, ModuleCore};
 use crate::module::buttonmodule::Buttonmodule;
 use crate::protocol::command::ModuleCommand;
@@ -39,7 +39,7 @@ where
     X: AdcChannel<AdcUnit = U>,
     Y: AdcChannel<AdcUnit = U>,
 {
-    pub fn new<MB, ADC, AX, AY>(mb: MB, adc: ADC, ax: AX, ay: AY) -> anyhow::Result<Self>
+    pub fn new<MB, ADC, AX, AY>(mb: MB, adc: ADC, ax: AX, ay: AY , sender:SyncSender<ModuleEvent>) -> anyhow::Result<Self>
     where
         MB: InputPin + 'd,
         ADC: Adc<AdcUnit = U> + 'd,
@@ -53,8 +53,8 @@ where
         };
 
         Ok(Self {
-            core: ModuleCore::new(ModuleType::JoyStick, "JoyStick"),
-            button: Buttonmodule::new(mb, "mb".to_string())?,
+            core: ModuleCore::new(ModuleType::JoyStick, "JoyStick" , sender.clone()),
+            button: Buttonmodule::new(mb, "mb".to_string() , sender.clone())?,
             x_channel: AdcChannelDriver::new(adc.clone(), ax, &config)?,
             y_channel: AdcChannelDriver::new(adc, ay, &config)?,
             x_value_raw: 0,
@@ -115,9 +115,6 @@ where
     X: AdcChannel<AdcUnit = U>,
     Y: AdcChannel<AdcUnit = U>,
 {
-    fn id(&self) -> &String {
-        &self.core.id
-    }
 
     fn core(&self) -> &ModuleCore {
         &self.core

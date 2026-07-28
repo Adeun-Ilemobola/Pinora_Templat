@@ -1,3 +1,5 @@
+use std::sync::mpsc::SyncSender;
+
 use crate::core::hardware::{
      RangefinderI2c,
 };
@@ -37,6 +39,7 @@ impl<'d> Rangefinder<'d> {
          rangefinder_i2c: RangefinderI2c<'d>,
         manual_id: String,
         cluster_id: Option<String>,
+        sender:SyncSender<ModuleEvent>
     ) -> anyhow::Result<Rangefinder<'d>>
    {
     
@@ -69,6 +72,7 @@ impl<'d> Rangefinder<'d> {
             core: ModuleCore::new(
                 ModuleType::Rangefinder,
                 &manual_id,
+                sender
             ),
             sensor,
             range_mm: 0,
@@ -79,7 +83,7 @@ impl<'d> Rangefinder<'d> {
         };
 
         emit::registration(Registration {
-            id: rangefinder.id().clone(),
+            id: rangefinder.id().to_string(),
             module_type: ModuleType::Rangefinder,
             lool_up_id: manual_id,
             parent_id: cluster_id.unwrap_or_default(),
@@ -139,9 +143,9 @@ impl<'d> Rangefinder<'d> {
         }
 
         if status != RangeStatus::Valid {
-            emit::event(ModuleEvent::Rangefinder(
+            self.emit(ModuleEvent::Rangefinder(
                 RangefinderEvent::InvalidMeasurement {
-                    id: self.id().clone(),
+                    id: self.id().to_string(),
                     status: format!("{status:?}"),
                 },
             ));
@@ -151,9 +155,9 @@ impl<'d> Rangefinder<'d> {
 
         self.range_mm = distance;
 
-        emit::event(ModuleEvent::Rangefinder(
+        self.emit(ModuleEvent::Rangefinder(
             RangefinderEvent::Range {
-                id: self.id().clone(),
+                id: self.id().to_string(),
                 millimeters: distance,
             },
         ));
@@ -174,9 +178,9 @@ impl<'d> Rangefinder<'d> {
 
         self.is_ranging = true;
 
-        emit::event(ModuleEvent::Rangefinder(
+        self.emit(ModuleEvent::Rangefinder(
             RangefinderEvent::RangingState {
-                id: self.id().clone(),
+                id: self.id().to_string(),
                 is_ranging: true,
             },
         ));
@@ -199,9 +203,9 @@ impl<'d> Rangefinder<'d> {
 
         self.is_ranging = false;
 
-        emit::event(ModuleEvent::Rangefinder(
+        self.emit(ModuleEvent::Rangefinder(
             RangefinderEvent::RangingState {
-                id: self.id().clone(),
+                id: self.id().to_string(),
                 is_ranging: false,
             },
         ));
@@ -211,18 +215,10 @@ impl<'d> Rangefinder<'d> {
 }
 
 impl<'d> Module for Rangefinder<'d> {
-    fn id(&self) -> &String {
-        &self.core.id
-    }
-
+   
     fn core(&self) -> &ModuleCore {
         &self.core
     }
-
-    fn get_module_type(&self) -> &ModuleType {
-        &self.core.module_type
-    }
-
     fn handle_command(
         &mut self,
         command: &ModuleCommand,
@@ -253,9 +249,9 @@ impl<'d> Module for Rangefinder<'d> {
 
                 self.timing_budget_ms = *milliseconds;
 
-                emit::event(ModuleEvent::Rangefinder(
+                self.emit(ModuleEvent::Rangefinder(
                     RangefinderEvent::TimingBudget {
-                        id: self.id().clone(),
+                        id: self.id().to_string(),
                         milliseconds: *milliseconds,
                     },
                 ));
@@ -285,10 +281,10 @@ impl<'d> Module for Rangefinder<'d> {
 
                 self.distance_mode = sensor_mode;
 
-                emit::event(ModuleEvent::Rangefinder(
+                self.emit(ModuleEvent::Rangefinder(
                     RangefinderEvent::DistanceMode {
-                        id: self.id().clone(),
-                        mode: mode.clone(),
+                        id: self.id().to_string(),
+                        mode: mode.to_owned(),
                     },
                 ));
             }

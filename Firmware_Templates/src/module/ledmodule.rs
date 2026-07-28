@@ -1,3 +1,5 @@
+use std::sync::mpsc::SyncSender;
+
 use crate::core::hardware::{ledc, LedTimer, OutputPin};
 use crate::core::modulecore::{Module, ModuleCore, emit};
 use crate::protocol::command::{ModuleCommand  , LedCommandPayload};
@@ -19,6 +21,7 @@ impl<'d> Ledmodule<'d> {
         manuel_id: String,
         timer: &LedTimer<'d>,
         cluster_id: Option<String>,
+        sender:SyncSender<ModuleEvent>
     ) -> anyhow::Result<Ledmodule<'d>>
     where
         T: OutputPin + 'd,
@@ -27,7 +30,7 @@ impl<'d> Ledmodule<'d> {
         let pwm = ledc::LedcDriver::new(channel, timer, pin)?;
 
         let  ledmodule = Ledmodule {
-            core: ModuleCore::new(ModuleType::Led, &manuel_id),
+            core: ModuleCore::new(ModuleType::Led, &manuel_id , sender),
             state: 0,
             pwm,
         };
@@ -48,7 +51,7 @@ impl<'d> Ledmodule<'d> {
         let p = range_u32(state, 0, 100, 0, self.pwm.get_max_duty());
         self.pwm.set_duty(p)?;
         self.state = state;
-        emit::event(ModuleEvent::Led(LedEvent::Brightness { id:self.id().clone(), level: state }));
+        self.emit(ModuleEvent::Led(LedEvent::Brightness { id:self.id().to_string(), level: state }));
     
 
         Ok(())
@@ -69,10 +72,6 @@ impl<'d> Ledmodule<'d> {
 }
 
 impl<'d> Module for Ledmodule<'d> {
-    fn id(&self) -> &String {
-        &self.core.id
-    }
-
     fn core(&self) -> &ModuleCore {
         &self.core
     }

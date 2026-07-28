@@ -1,36 +1,44 @@
+use std::sync::mpsc::SyncSender;
+
 use uuid::Uuid;
 
-use crate::protocol::{command::ModuleCommand, global_definitions::ModuleType};
+use crate::protocol::{command::ModuleCommand, global_definitions::ModuleType, module_event::ModuleEvent};
 
 #[derive(Debug, Clone)]
 pub struct ModuleCore {
     pub id: String,
     pub module_type: ModuleType,
     pub manuel_id: String,
+    event_sender: SyncSender<ModuleEvent>,
+
 }
 
 impl ModuleCore {
-    pub fn new(module_type: ModuleType, manuel_id: &str) -> Self {
+    pub fn new(module_type: ModuleType, manuel_id: &str , sender:SyncSender<ModuleEvent>) -> Self {
         Self {
             id: Uuid::new_v4().to_string(),
             module_type: module_type,
             manuel_id: manuel_id.to_string(),
+            event_sender:sender
         }
     }
 
-    pub fn get_id(&self) -> &str {
-        &self.id
-    }
-
-    pub fn get_module_type(&self) -> &ModuleType {
-        &self.module_type
-    }
 }
 
 pub trait Module {
     fn core(&self) -> &ModuleCore;
-    fn id(&self) -> &String;
-    fn get_module_type(&self) -> &ModuleType;
+
+    fn id(&self) -> &str {
+        &self.core().id
+    }
+
+    fn get_module_type(&self) -> &ModuleType {
+        &self.core().module_type
+    }
+
+    fn emit(&self, event: ModuleEvent) {
+        let _ =self.core().event_sender.send(event);
+    }
     fn handle_command(&mut self, command: &ModuleCommand) -> anyhow::Result<()>;
 }
 
@@ -64,7 +72,7 @@ pub mod emit {
         // Send serialized data through USB, UART, WebSocket, etc.
         println!("{serialized}");
 
-        Ok(())
+        Ok(())  
     }
 
     pub fn registration(data: Registration) {

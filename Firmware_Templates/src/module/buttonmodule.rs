@@ -1,3 +1,5 @@
+use std::sync::mpsc::SyncSender;
+
 use crate::core::hardware::{InputPin, InputPinCore, Pull};
 use crate::core::modulecore::{Module, ModuleCore, emit};
 use crate::protocol::command::ModuleCommand;
@@ -18,12 +20,12 @@ pub struct Buttonmodule<'d> {
 }
 
 impl<'d> Buttonmodule<'d> {
-    pub fn new<T>(pin: T , lool_up_id:String) -> anyhow::Result<Buttonmodule<'d>>
+    pub fn new<T>(pin: T , lool_up_id:String , sender:SyncSender<ModuleEvent>) -> anyhow::Result<Buttonmodule<'d>>
     where
         T: InputPin + 'd,
     {
         let  buttonmodule = Buttonmodule {
-            core: ModuleCore::new(ModuleType::Button, &lool_up_id),
+            core: ModuleCore::new(ModuleType::Button, &lool_up_id , sender),
             state: Level::High,
             pin_driver: InputPinCore::new(pin, Pull::Up)?,
             last_state: Level::High,
@@ -61,7 +63,7 @@ impl<'d> Buttonmodule<'d> {
         if self.state != self.prev_state {
             let pressed = self.state == Level::Low;
             self.prev_state = self.state;
-            emit::event(ModuleEvent::Button(ButtonEvent::Ckick{ id:self.id().clone()}));
+            self.emit(ModuleEvent::Button(ButtonEvent::Ckick{ id:self.id().to_string()}));
             return Ok(pressed);
         }
         Ok(false)
@@ -69,10 +71,6 @@ impl<'d> Buttonmodule<'d> {
     
 }
 impl<'d> Module for Buttonmodule<'d> {
-    fn id(&self) -> &String {
-        &self.core.id
-    }
-
     fn core(&self) -> &ModuleCore {
         &self.core
     }

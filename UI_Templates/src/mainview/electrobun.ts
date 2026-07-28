@@ -15,6 +15,7 @@ const rpc = Electroview.defineRPC<AppRPC>({
         messages: {
             incomingMessage({message}) {
                 const store = useModuleStore.getState()
+                const SystemInitialized = useModuleStore.getState().portInfo
 
                 switch (message.type) {
                     case "Registration":
@@ -24,6 +25,9 @@ const rpc = Electroview.defineRPC<AppRPC>({
                         store.dispatchModuleEvent(message.payload)
                         break
                     case "System":
+                        if (SystemInitialized.status  == "connected"){
+                            useModuleStore.getState().reset()
+                        }
                         store.setSystemInfo(message.payload)
                         break
                 }
