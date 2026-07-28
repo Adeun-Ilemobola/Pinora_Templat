@@ -54,6 +54,8 @@ fn main() -> anyhow::Result<()> {
     print_esp_system_info();
     let mut modules: HashMap<String, ModuleHandle<'_>> = HashMap::new();
     let p = Peripherals::take()?;
+    let mut loop_count = 0_u32;
+    let mut last_yield_us = now_us();
     // let i2c = I2cDriver::new(
     //     p.i2c0,
     //     p.pins.gpio21,
@@ -87,10 +89,10 @@ fn main() -> anyhow::Result<()> {
 
     let stepper = Rc::new(RefCell::new(StepperMotor::new(
         StepperPins {
-            in1: OutputPinCore::new(p.pins.gpio16)?,//33
-            in2: OutputPinCore::new(p.pins.gpio17)?,//32
-            in3: OutputPinCore::new(p.pins.gpio5)?,//31
-            in4: OutputPinCore::new(p.pins.gpio18)?,//30
+            in1: OutputPinCore::new(p.pins.gpio16)?, //33
+            in2: OutputPinCore::new(p.pins.gpio17)?, //32
+            in3: OutputPinCore::new(p.pins.gpio5)?,  //31
+            in4: OutputPinCore::new(p.pins.gpio18)?, //30
         },
         "stepper".to_string(),
         None,
@@ -112,7 +114,7 @@ fn main() -> anyhow::Result<()> {
     });
 
     loop {
-        let _  = stepper.borrow_mut().tick();
+        let _ = stepper.borrow_mut().tick();
         // rangefinder.borrow_mut().tick();
         // lidar.borrow_mut().tick();
         // joystick.tick()?;
@@ -132,7 +134,13 @@ fn main() -> anyhow::Result<()> {
                 );
             }
         }
-        rtos_sleep_ms(1);
+        let now = now_us();
+
+        if now - last_yield_us >= 1_000_000  {
+            // About once every 100 ms, give FreeRTOS one scheduler tick.
+            rtos_sleep_ms(1);
+            last_yield_us = now_us();
+        }
     }
 }
 

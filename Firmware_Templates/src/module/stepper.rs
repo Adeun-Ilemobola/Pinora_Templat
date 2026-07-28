@@ -97,7 +97,7 @@ impl<'d> StepperMotor<'d> {
                     let end  = self.test_time.elapsed();
                     println!("
                     \n
-                    main sleep : 7 
+                    main sleep : 0 
                     [0 -> 360] : {:?}
                     \n
                     ",end)
