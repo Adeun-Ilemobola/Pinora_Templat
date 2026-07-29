@@ -4,7 +4,6 @@ import { LedModule } from "@modules/led/definition";
 import { LidarModule } from "@modules/Lidar/definition";
 import { RangefinderModule } from "@modules/rangefinder/definition";
 import { ServoModule } from "@modules/servo/definition";
-import { useModuleStore } from "@runtime/ModuleStore";
 import { ModuleEventSchema } from "./ModuleEven";
 
 export const moduleTypeIdentifier = z.enum([
@@ -79,8 +78,13 @@ export const InComingMessageSchemaType = z.enum(["Registration" ,"ModuleEvent" ,
 
 
 
+type ModuleSelectionState = {
+  LookUp_ID_refTo_ID: Record<string, string>;
+  modules: Record<string, ModuleDefinitionType>;
+};
+
 export function selectModule<T extends TypeIdentifier_module>(
-  state: ReturnType<typeof useModuleStore.getState>,
+  state: ModuleSelectionState,
   lookupId: string,
   moduleType: T,
 ) {

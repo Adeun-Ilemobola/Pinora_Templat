@@ -41,7 +41,6 @@ export default {
 			entrypoint: "src/bun/index.ts",
 			external: ["serialport"],
 			plugins: [aliasPlugin],
-			root: projectRoot,
 			tsconfig,
 		},
 		// Vite builds to dist/, we copy from there
@@ -49,10 +48,10 @@ export default {
 			"dist/index.html": "views/mainview/index.html",
 			"dist/assets": "views/mainview/assets",
 			"node_modules/serialport":
-				"app/node_modules/serialport",
+				"node_modules/serialport",
 
 			"node_modules/@serialport":
-				"app/node_modules/@serialport",
+				"node_modules/@serialport",
 
 		},
 		// external: ["serialport"],

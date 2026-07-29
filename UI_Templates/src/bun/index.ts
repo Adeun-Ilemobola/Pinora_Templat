@@ -1,14 +1,18 @@
 import { BrowserWindow, BrowserView } from "electrobun/bun";
 import type { AppRPC, SerialDeviceInfo } from "@shared/rpc";
-import {
-  SerialPort,
-  list,
-  readlineParser,
-} from "bun-serialport";
 import z from "zod";
 import { InComingMessageSchema } from "@shared/Protocol/ModuleDefinitionSchema";
+
+type SerialLibrary = typeof import("bun-serialport");
+
 let espPort: any = null;
-let start = false;
+let serialLibrary: Promise<SerialLibrary> | undefined;
+
+function loadSerialLibrary(): Promise<SerialLibrary> {
+  serialLibrary ??= import("bun-serialport");
+  return serialLibrary;
+}
+
 const DEV_SERVER_URL = "http://localhost:5173";
 function isValidJSON(text: string) {
   try {
@@ -43,6 +47,7 @@ export const rpc = BrowserView.defineRPC<AppRPC>({
       async getAvailablePorts(): Promise<SerialDeviceInfo[]> {
         console.log("Loading serialport...");
 
+        const { list } = await loadSerialLibrary();
         const ports = await list();
 
         return ports.map((port: any) => ({
@@ -57,6 +62,8 @@ export const rpc = BrowserView.defineRPC<AppRPC>({
       },
       async openPort({ port }) {
         try {
+          const { SerialPort, readlineParser } = await loadSerialLibrary();
+
           // Bun/ElectroBun main process
           mainWindow.webview.rpc?.send.PortStatus({
               path:port,
