@@ -9,6 +9,8 @@ import { useModuleStore } from "@runtime/ModuleStore"
 import { useEffect, useState } from "react"
 import z from "zod"
 import { Box } from "lucide-react"
+import { Separator } from "@/components/ui/separator"
+import { formatSeconds } from "@/lib/utils"
 
 
 type Point = z.infer<typeof PointSchema>;
@@ -108,7 +110,7 @@ export default function Liddar() {
         </Button>
       </div>
 
-      <div className=" flex flex-row gap-1.5 items-center">
+      <div className=" flex flex-row gap-10 items-center">
         <Card className=" w-fit shrink-0">
           <CardHeader>
             RoI
@@ -144,10 +146,19 @@ export default function Liddar() {
           </CardContent>
         </Card>
 
-        <div className=" w-fit flex flex-col gap-2">
+        <div className=" w-28 flex flex-col gap-2 p-1">
           <h1>Range finder</h1>
           <div className=" flex ">
              <span className=" text-3xl"><span>{rangefinder.state.range_mm}</span>mm</span>
+          </div>
+        </div>
+        <Separator orientation="vertical" />
+
+
+         <div className=" w-28 flex flex-col gap-2 p-1">
+          <h1>Scan Time</h1>
+          <div className=" flex ">
+             <span className="text-3xl">{formatSeconds(lidar.state.scanTime)}</span>
           </div>
         </div>
 
@@ -161,6 +172,7 @@ export default function Liddar() {
       </div>
 
       <Grid
+        disabled={lidar.state.state === "Scanning"}
       resetPointMap={()=>{
         setPointMap([])
         updateLidar({

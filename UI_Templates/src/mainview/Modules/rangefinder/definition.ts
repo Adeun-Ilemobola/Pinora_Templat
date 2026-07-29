@@ -63,6 +63,7 @@ export const RangefinderModule = z.object({
     timing_budget_ms: z.number().int().nonnegative(),
     distance_mode: RangefinderDistanceModeSchema,
     last_invalid_status: z.string().nullable(),
+    
   }),
   mutableStateFields: z.tuple([]),
  

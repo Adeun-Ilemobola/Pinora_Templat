@@ -1,6 +1,6 @@
 use std::sync::mpsc::SyncSender;
 
-use crate::core::hardware::I2cDriver;
+use crate::core::hardware::{I2cDriver, TimerState};
 use crate::core::modulecore::emit;
 use crate::core::{
     hardware::SharedPwm,
@@ -16,7 +16,7 @@ use crate::utilities::logger::SysLog;
 use embedded_hal_bus::i2c::RcDevice;
 use embedded_hal_compat::ReverseCompat;
 use pwm_pca9685::Channel;
-const POINTS_PER_CHUNK: usize = 128;
+const POINTS_PER_CHUNK: usize = 100;
 pub struct Lidar<'d> {
     core: ModuleCore,
 
@@ -32,7 +32,8 @@ pub struct Lidar<'d> {
     step: u32,
     curr_scan_mode: ScanState,
     x_d: i32,
-    scan_time: Option<std::time::Instant>,
+    scan_time: std::time::Instant,
+    step_timer: TimerState,
     point_map: Vec<RangPoint>,
 
     current_chunk: u32,
@@ -45,9 +46,9 @@ impl<'d> Lidar<'d> {
         pwm: SharedPwm<'d>,
         manuel_id: String,
         rangefinder_i2c: RcDevice<I2cDriver<'d>>,
-        sender:SyncSender<ModuleEvent>
+        sender: SyncSender<ModuleEvent>,
     ) -> anyhow::Result<Lidar<'d>> {
-        let mc = ModuleCore::new(ModuleType::Lidar, &manuel_id ,sender.clone());
+        let mc = ModuleCore::new(ModuleType::Lidar, &manuel_id, sender.clone());
         let config = ServoCapability {
             max_angle: 180,
             min_angle: 0,
@@ -64,7 +65,7 @@ impl<'d> Lidar<'d> {
             Channel::C0,
             config.clone(),
             Some(mc.id.clone()),
-            sender.clone()
+            sender.clone(),
         )?;
 
         let servo_y = ServoModule::new(
@@ -73,16 +74,15 @@ impl<'d> Lidar<'d> {
             Channel::C1,
             config.clone(),
             Some(mc.id.clone()),
-            sender.clone()
+            sender.clone(),
         )?;
 
-        let  rangefinder = Rangefinder::new(
+        let rangefinder = Rangefinder::new(
             rangefinder_i2c.reverse(),
             "rangefinder".to_string(),
             Some(mc.id.clone()),
-            sender.clone()
+            sender.clone(),
         )?;
-       
 
         let mut new_lidar = Lidar {
             core: mc,
@@ -95,14 +95,15 @@ impl<'d> Lidar<'d> {
             curr_scan_mode: ScanState::Idol,
             x_d: 1,
             limit_point: Point { x: -90, y: 90 },
-            scan_time: None,
+            scan_time: std::time::Instant::now(),
+            step_timer: TimerState::from_ms(25),
             rangefinder,
             point_map: vec![],
             current_chunk: 1,
             total_chunks: 0,
         };
 
-         match new_lidar.rangefinder.start_ranging() {
+        match new_lidar.rangefinder.start_ranging() {
             Ok(_) => {}
             Err(err) => {
                 new_lidar.emit(ModuleEvent::SysLog(SysLogEvent {
@@ -144,29 +145,40 @@ impl<'d> Lidar<'d> {
             return;
         }
 
+        if !self.step_timer.ready() {
+            return;
+        }
+
+        // Record the position where the servo has already been resting.
+        self.point_map.push(RangPoint {
+            x: self.curr_point.x,
+            y: self.curr_point.y,
+            distant: self.rangefinder.range_mm,
+        });
+
         let row_finished = self.curr_point.x == self.limit_point.x;
+        let scan_finished = row_finished && self.curr_point.y == self.limit_point.y;
+
+        if scan_finished {
+            self.flush_point_map();
+            self.curr_scan_mode = ScanState::Idol;
+
+            self.emit(ModuleEvent::Lidar(LidarEvent::ScanState {
+                id: self.id().to_string(),
+                state: self.curr_scan_mode.clone(),
+                scan_time: self.scan_time.elapsed().as_secs_f32(),
+            }));
+            self.sync_all();
+            
+
+            return;
+        }
 
         if row_finished {
-            // Entire scan is finished.
-            if self.curr_point.y == self.limit_point.y {
-                self.flush_point_map();
-
-                self.curr_scan_mode = ScanState::Idol;
-
-                self.emit(ModuleEvent::Lidar(LidarEvent::ScanState {
-                    id: self.id().to_string(),
-                    state: self.curr_scan_mode.clone(),
-                }));
-
-                return;
-            }
-
-            // Send only after a completed row and after reaching the target size.
             if self.point_map.len() >= POINTS_PER_CHUNK {
                 self.flush_point_map();
             }
 
-            // Reverse the horizontal direction.
             self.x_d *= -1;
 
             self.limit_point.x = if self.limit_point.x == self.max_point.x {
@@ -175,20 +187,13 @@ impl<'d> Lidar<'d> {
                 self.max_point.x
             };
 
-            // Start the next row at the same X edge.
-            self.curr_point.y -= 1;
+            self.curr_point.y -= self.step as i32;
         } else {
-            // Continue horizontally through the current row.
             self.curr_point.x += self.step as i32 * self.x_d;
         }
 
         self.move_to_point();
-
-        self.point_map.push(RangPoint {
-            x: self.curr_point.x,
-            y: self.curr_point.y,
-            distant: self.rangefinder.range_mm,
-        });
+        self.step_timer.reset();
     }
 
     fn flush_point_map(&mut self) {
@@ -212,12 +217,16 @@ impl<'d> Lidar<'d> {
         // const X_DIRECTION: i32 = -1;
         // const Y_DIRECTION: i32 = 1;
 
-        let _ = self.servo_x.set_angle(self.curr_point.x.clone());
-        let _ = self.servo_y.set_angle(self.curr_point.y.clone());
+        let _ = self.servo_x.set_angle_silent(self.curr_point.x.clone());
+        let _ = self.servo_y.set_angle_silent(self.curr_point.y.clone());
         self.curr_point = Point {
             x: self.servo_x.pivot_angle(),
             y: self.servo_y.pivot_angle(),
         };
+    }
+    pub fn sync_all(&mut self){
+        self.servo_x.sync();
+         self.servo_y.sync();
     }
 
     pub fn get_id(&self) -> String {
@@ -226,8 +235,6 @@ impl<'d> Lidar<'d> {
 }
 
 impl<'d> Module for Lidar<'d> {
-   
-
     fn core(&self) -> &ModuleCore {
         &self.core
     }
@@ -273,11 +280,10 @@ impl<'d> Module for Lidar<'d> {
                 }
                 LidarCommandPayload::SetStep { step } => {
                     SysLog::info(format!("LiDAR received SetStep: step={}", step), None);
-                    self.scan_time = None;
                     self.step = *step;
                 }
                 LidarCommandPayload::StartScan => {
-                    self.scan_time = Some(std::time::Instant::now());
+                    self.scan_time = std::time::Instant::now();
                     SysLog::info("LiDAR received StartScan".to_string(), None);
                     self.point_map.clear();
                     self.current_chunk = 1;
@@ -285,11 +291,13 @@ impl<'d> Module for Lidar<'d> {
                     self.curr_point = self.max_point.clone();
                     self.limit_point = self.min_point.clone();
                     self.x_d = -1;
+                    self.step_timer.reset();
                     self.move_to_point();
                     self.curr_scan_mode = ScanState::Scanning;
                     self.emit(ModuleEvent::Lidar(LidarEvent::ScanState {
                         id: self.id().to_string(),
                         state: self.curr_scan_mode.clone(),
+                        scan_time: 0.0,
                     }));
                 }
 
@@ -299,6 +307,7 @@ impl<'d> Module for Lidar<'d> {
                     self.emit(ModuleEvent::Lidar(LidarEvent::ScanState {
                         id: self.id().to_string(),
                         state: self.curr_scan_mode.clone(),
+                        scan_time: self.scan_time.elapsed().as_secs_f32(),
                     }));
                 }
                 LidarCommandPayload::Test => {

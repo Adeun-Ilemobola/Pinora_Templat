@@ -54,7 +54,7 @@ pub enum ScanState {
     StopScan,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq,)]
 #[serde(tag = "event_type")]
 pub enum LidarEvent {
     Roi {
@@ -75,6 +75,7 @@ pub enum LidarEvent {
     ScanState {
         id: String,
         state: ScanState,
+        scan_time:f32
     },
 }
 

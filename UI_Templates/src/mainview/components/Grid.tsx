@@ -42,6 +42,7 @@ type GridProps = {
     max: Point
     map: RangePoint[]
     resetPointMap:()=>void
+    disabled?: boolean
 }
 
 function pivotToGrid(point: Point): GridCoordinate {
@@ -103,7 +104,15 @@ function drawRoiBoundary(
     }
 }
 
-export default function Grid({ setRoi, move_point , resetPointMap, max, min, map }: GridProps) {
+export default function Grid({
+    setRoi,
+    move_point,
+    resetPointMap,
+    max,
+    min,
+    map,
+    disabled = false,
+}: GridProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const lastHoveredCell = useRef<string | null>(null)
     const [hoveredCell, setHoveredCell] = useState<HoveredCell | null>(null)
@@ -254,18 +263,22 @@ export default function Grid({ setRoi, move_point , resetPointMap, max, min, map
 
                 <div className="flex flex-row gap-3 p-1">
                     <Button
-                    onClick={()=>{move_point({x:0 , y:0})}}
+                        disabled={disabled}
+                        onClick={()=>{move_point({x:0 , y:0})}}
                     >
                         homing
                     </Button>
-                    <Button onClick={resetSelection}>Clear</Button>
+                    <Button disabled={disabled} onClick={resetSelection}>Clear</Button>
                     <Button
-                        disabled={selectionIsIncomplete}
+                        disabled={disabled || selectionIsIncomplete}
                         onClick={() => setRoi(normalizedRoi.min, normalizedRoi.max)}
                     >
                         Set ROI
                     </Button>
-                    <Button onClick={() => move_point(selectedPoint.p1.point)}>
+                    <Button
+                        disabled={disabled}
+                        onClick={() => move_point(selectedPoint.p1.point)}
+                    >
                         Move to point
                     </Button>
                 </div>
