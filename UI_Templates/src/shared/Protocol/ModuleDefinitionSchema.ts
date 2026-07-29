@@ -1,10 +1,10 @@
 import z from "zod";
-import { ButtonModule } from "../../mainview/Modules/button/definition";
-import { LedModule } from "../../mainview/Modules/led/definition";
-import { LidarModule } from "../../mainview/Modules/Lidar/definition"; 
-import { RangefinderModule } from "../../mainview/Modules/rangefinder/definition"; 
-import { ServoModule } from "../../mainview/Modules/servo/definition"; 
-import { useModuleStore } from "../../Runtime/ModuleStore"; 
+import { ButtonModule } from "@modules/button/definition";
+import { LedModule } from "@modules/led/definition";
+import { LidarModule } from "@modules/Lidar/definition";
+import { RangefinderModule } from "@modules/rangefinder/definition";
+import { ServoModule } from "@modules/servo/definition";
+import { useModuleStore } from "@runtime/ModuleStore";
 import { ModuleEventSchema } from "./ModuleEven";
 
 export const moduleTypeIdentifier = z.enum([
@@ -20,7 +20,7 @@ export const moduleTypeIdentifier = z.enum([
 
 export type TypeIdentifier = z.infer<typeof moduleTypeIdentifier>;
 
-type TypeIdentifier_module = Exclude<TypeIdentifier, "SysLog">;
+export type TypeIdentifier_module = Exclude<TypeIdentifier, "SysLog">;
 export const RegistrationSchema = z.object({
   id: z.string(),
   lool_up_id: z.string(),

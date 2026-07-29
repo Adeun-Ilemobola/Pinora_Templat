@@ -1,5 +1,5 @@
 import z from "zod";
-import type { ModuleDefinitionType } from "src/shared/Protocol/ModuleDefinitionSchema"; 
+import type { ModuleDefinitionType } from "@shared/Protocol/ModuleDefinitionSchema";
 
 export const LedCommandTypeSchema = z.discriminatedUnion("command", [
   z.object({
@@ -27,7 +27,7 @@ export const LedModule = z.object({
   state: z.object({
     brightness: z.number(),
   }),
-});
+mutableStateFields: z.tuple([]),});
 
 export function ledInitialBuild(
   id: string,
@@ -42,6 +42,7 @@ export function ledInitialBuild(
     state: {
       brightness: 0,
     },
+    mutableStateFields: [] as const,
   };
 }
 

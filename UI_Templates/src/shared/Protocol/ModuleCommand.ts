@@ -1,11 +1,11 @@
 import z from "zod";
-import { LedCommandTypeSchema } from "../../mainview/Modules/led/definition"; 
-import { LidarCommandTypeSchema } from "../../mainview/Modules/Lidar/definition";
+import { LedCommandTypeSchema } from "@modules/led/definition";
+import { LidarCommandTypeSchema } from "@modules/Lidar/definition";
 import {
   RangefinderCommandTypeSchema,
   RangefinderDistanceModeSchema,
-} from "../../mainview/Modules/rangefinder/definition";
-import { ServoCommandTypeSchema } from "../../mainview/Modules/servo/definition"; 
+} from "@modules/rangefinder/definition";
+import { ServoCommandTypeSchema } from "@modules/servo/definition";
 
 export const ModuleCommandSchema = z.discriminatedUnion("module_type", [
   z.object({
@@ -45,4 +45,3 @@ export {
   RangefinderDistanceModeSchema,
   ServoCommandTypeSchema,
 };
-

@@ -1,5 +1,5 @@
 import z from "zod";
-import type { ModuleDefinitionType } from "../../../shared/Protocol/ModuleDefinitionSchema"; 
+import type { ModuleDefinitionType } from "@shared/Protocol/ModuleDefinitionSchema";
 
 export const PointSchema = z.object({
   x: z.number().int().min(-90).max(90),
@@ -52,8 +52,8 @@ export const LidarEventSchema = z.discriminatedUnion("event_type", [
   z.object({
     event_type: z.literal("PointMap"),
     id: z.string(),
-    max_chunk:z.number(),
-    curr_chunk:z.number(),
+    max_chunk: z.number(),
+    curr_chunk: z.number(),
     map: z.array(RangePointSchema),
   }),
   z.object({
@@ -81,6 +81,9 @@ export const LidarModule = z.object({
       max: PointSchema,
     }),
   }),
+  mutableStateFields: z.tuple([
+    z.literal("map"),
+  ]),
 });
 
 export type Point = z.infer<typeof PointSchema>;
@@ -104,6 +107,9 @@ export function lidarInitialBuild(
         max: { x: 0, y: 0 },
       },
     },
+    mutableStateFields: [
+      "map"
+    ] as const,
   };
 }
 
@@ -136,12 +142,12 @@ export function updateLidar(
         ,
         event.map
       )
-      
+
       return {
         ...module,
         state: {
           ...module.state,
-          map: [...module.state.map ,...event.map ]
+          map: [...module.state.map, ...event.map]
         },
       };
 

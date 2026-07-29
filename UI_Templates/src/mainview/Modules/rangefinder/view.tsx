@@ -4,7 +4,7 @@ import { RangefinderModule } from "./definition";
 import { memo, useEffect, useState } from "react";
 import z from "zod";
 import ModuleCore from "@/components/ModuleCore";
-import type { Commandtype as Command } from "src/shared/Protocol/ModuleCommand";
+import type { Commandtype as Command } from "@shared/Protocol/ModuleCommand";
 type RangefinderCardProps = {
   module: z.infer<typeof RangefinderModule>;
   sendCommand: (command: Command) => Promise<void>;

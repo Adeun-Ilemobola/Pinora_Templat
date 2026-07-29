@@ -1,4 +1,4 @@
-use std::sync::mpsc::SyncSender;
+use std::sync::mpsc::{SyncSender, TrySendError};
 
 use uuid::Uuid;
 
@@ -37,7 +37,17 @@ pub trait Module {
     }
 
     fn emit(&self, event: ModuleEvent) {
-        let _ =self.core().event_sender.send(event);
+        match self.core().event_sender.try_send(event) {
+            Ok(()) => {}
+
+            Err(TrySendError::Full(_)) => {
+                log::warn!("Event queue is full for module {}", self.id().to_string());
+            }
+
+            Err(TrySendError::Disconnected(_)) => {
+                log::error!("Event emitter is disconnected");
+            }
+        }
     }
     fn handle_command(&mut self, command: &ModuleCommand) -> anyhow::Result<()>;
 }

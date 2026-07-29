@@ -1,8 +1,8 @@
 // src/mainview/electrobun.ts
 
 import { Electroview } from "electrobun/view";
-import type { AppRPC } from "../shared/rpc";
-import { useModuleStore } from "../Runtime/ModuleStore";
+import type { AppRPC } from "@shared/rpc";
+import { useModuleStore } from "@runtime/ModuleStore";
 
 
 const rpc = Electroview.defineRPC<AppRPC>({

@@ -1,9 +1,9 @@
 import z from "zod";
-import { ButtonEventSchema } from "../../mainview/Modules/button/definition";
-import { LedEventSchema } from "../../mainview/Modules/led/definition";
-import { LidarEventSchema ,PointSchema } from "../../mainview/Modules/Lidar/definition"; 
-import { RangefinderEventSchema  } from "../../mainview/Modules/rangefinder/definition"; 
-import { ServoEventSchema } from "../../mainview/Modules/servo/definition"; 
+import { ButtonEventSchema } from "@modules/button/definition";
+import { LedEventSchema } from "@modules/led/definition";
+import { LidarEventSchema ,PointSchema } from "@modules/Lidar/definition";
+import { RangefinderEventSchema  } from "@modules/rangefinder/definition";
+import { ServoEventSchema } from "@modules/servo/definition";
 
 const SysLogEventSchema = z.object({
   text: z.string(),

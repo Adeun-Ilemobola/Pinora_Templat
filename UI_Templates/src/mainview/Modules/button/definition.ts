@@ -1,5 +1,5 @@
 import z from "zod";
-import type { ModuleDefinitionType } from "src/shared/Protocol/ModuleDefinitionSchema"; 
+import type { ModuleDefinitionType } from "@shared/Protocol/ModuleDefinitionSchema";
 
 export const ButtonEventSchema = z.discriminatedUnion("event_type", [
   z.object({
@@ -16,7 +16,7 @@ export const ButtonModule = z.object({
   state: z.object({
     on: z.boolean(),
   }),
-});
+mutableStateFields: z.tuple([]),});
 
 export function buttonInitialBuild(
   id: string,
@@ -31,6 +31,7 @@ export function buttonInitialBuild(
     state: {
       on: false,
     },
+    mutableStateFields: [] ,
   };
 }
 

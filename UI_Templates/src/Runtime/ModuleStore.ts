@@ -1,22 +1,46 @@
 import { create } from "zustand";
-import { Commandtype } from "../shared/Protocol/ModuleCommand";
-import { ModuleEventEnvelope } from "../shared/Protocol/ModuleEven";
+import { Commandtype } from "@shared/Protocol/ModuleCommand";
+import { ModuleEventEnvelope } from "@shared/Protocol/ModuleEven";
 import {
   ModuleDefinitionType,
   Registration,
   SystemInfoType,
   TypeIdentifier,
-} from "../shared/Protocol/ModuleDefinitionSchema";
-import { buttonInitialBuild, updateButton } from "../mainview/Modules/button/definition";
-import { ledInitialBuild, updateLed } from "../mainview/Modules/led/definition";
-import { lidarInitialBuild, updateLidar } from "../mainview/Modules/Lidar/definition";
+  TypeIdentifier_module,
+} from "@shared/Protocol/ModuleDefinitionSchema";
+import { buttonInitialBuild, updateButton } from "@modules/button/definition";
+import { ledInitialBuild, updateLed } from "@modules/led/definition";
+import { lidarInitialBuild, updateLidar } from "@modules/Lidar/definition";
 import {
   rangefinderInitialBuild,
   updateRangefinder,
-} from "../mainview/Modules/rangefinder/definition";
-import { servoInitialBuild, updateServo } from "../mainview/Modules/servo/definition";
+} from "@modules/rangefinder/definition";
+import { servoInitialBuild, updateServo } from "@modules/servo/definition";
 import { electroview } from "@/electrobun";
 
+type ModuleByType<T extends TypeIdentifier_module> = Extract<
+  ModuleDefinitionType,
+  { module_type: T }
+>;
+
+type MutableStatePatchByType<T extends TypeIdentifier_module> =
+  ModuleByType<T> extends infer TModule
+    ? TModule extends ModuleDefinitionType
+      ? TModule["mutableStateFields"] extends readonly (infer TKey)[]
+        ? Partial<
+            Pick<
+              TModule["state"],
+              Extract<TKey, keyof TModule["state"]>
+            >
+          >
+        : never
+      : never
+    : never;
+
+type CreateModuleStateUpdater = <T extends TypeIdentifier_module>(
+  moduleType: T,
+  id: string,
+) => (patch: MutableStatePatchByType<T>) => void;
 
 export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error" | '';
 
@@ -48,7 +72,7 @@ type ModuleStore = {
     StandAlone: ModuleDefinitionTypeSim[],
     Grouping: ModuleDefinitionTypeSim[],
   },
-
+  createModuleStateUpdater: CreateModuleStateUpdater;
   ModuleCount: () => number,
   reset: () => void
 };
@@ -166,7 +190,7 @@ export const useModuleStore = create<ModuleStore>((set, get) => ({
         }))
       ,
 
-      Grouping:List.filter(item => item.parent_id.length >= 0)
+      Grouping: List.filter(item => item.parent_id.length >= 0)
         .map(item => ({
 
           id: item.id,
@@ -180,6 +204,57 @@ export const useModuleStore = create<ModuleStore>((set, get) => ({
     }
 
   },
+  createModuleStateUpdater: ((
+    moduleType: TypeIdentifier_module,
+    id: string,
+  ) => {
+    return (patch: Record<string, unknown>) => {
+      set((state) => {
+        const module = state.modules[id];
+
+        if (!module) {
+          return {};
+        }
+
+        if (module.module_type !== moduleType) {
+          console.error(
+            `Module "${id}" is "${module.module_type}", not "${moduleType}".`,
+          );
+          return {};
+        }
+
+        const mutableFields = new Set(
+          module.mutableStateFields as readonly string[],
+        );
+
+        const invalidField = Object.keys(patch).find(
+          (field) => !mutableFields.has(field),
+        );
+
+        if (invalidField) {
+          console.error(
+            `State field "${invalidField}" is not mutable on module "${moduleType}".`,
+          );
+          return {};
+        }
+
+        const updatedModule = {
+          ...module,
+          state: {
+            ...module.state,
+            ...patch,
+          },
+        } as ModuleDefinitionType;
+
+        return {
+          modules: {
+            ...state.modules,
+            [id]: updatedModule,
+          },
+        };
+      });
+    };
+  }) as CreateModuleStateUpdater,
 }));
 
 function applyModuleEvent(

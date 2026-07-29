@@ -19,10 +19,24 @@
 		"noUnusedLocals": true,
 		"noUnusedParameters": true,
 		"noFallthroughCasesInSwitch": true,
-		// "baseUrl": ".",
 		"paths": {
 			"@/*": [
 				"./src/mainview/*"
+			],
+			"@app/*": [
+				"./src/mainview/*"
+			],
+			"@modules/*": [
+				"./src/mainview/Modules/*"
+			],
+			"@runtime/*": [
+				"./src/Runtime/*"
+			],
+			"@shared/*": [
+				"./src/shared/*"
+			],
+			"@src/*": [
+				"./src/*"
 			]
 		}
 	},

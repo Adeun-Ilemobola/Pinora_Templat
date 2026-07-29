@@ -35,10 +35,10 @@ import {
     Cpu,
     Logs
 } from "lucide-react"
-import { Button } from "./ui/button"
-import { Separator } from "./ui/separator"
-import { useModuleStore } from "../../Runtime/ModuleStore"
-import { Badge } from "./ui/badge"
+import { Button } from "@/components/ui/button"
+import { Separator } from "@/components/ui/separator"
+import { useModuleStore } from "@runtime/ModuleStore"
+import { Badge } from "@/components/ui/badge"
 
 
 

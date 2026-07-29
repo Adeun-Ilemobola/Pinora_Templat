@@ -5,15 +5,15 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 
 import { Separator } from "@/components/ui/separator"
 
-import Layout from "./lib/Layout"
-import { Label } from "./components/ui/label"
-import { electroview } from "./electrobun";
+import Layout from "@/lib/Layout"
+import { Label } from "@/components/ui/label"
+import { electroview } from "@/electrobun";
 import { toast } from "sonner"
-import { SerialDeviceInfo } from "../shared/rpc"
-import { Button } from "./components/ui/button"
-import { useModuleStore } from "../Runtime/ModuleStore";
-import Liddar from "./Modules/Lidar/view"
-import { Input } from "./components/ui/input"
+import { SerialDeviceInfo } from "@shared/rpc"
+import { Button } from "@/components/ui/button"
+import { useModuleStore } from "@runtime/ModuleStore";
+import Liddar from "@modules/Lidar/view"
+import { Input } from "@/components/ui/input"
 import { MoveUp } from "lucide-react"
 
 const sequence = [

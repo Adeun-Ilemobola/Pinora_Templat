@@ -1,11 +1,11 @@
 import Grid from "@/components/Grid" 
-import { ServoCard } from "../servo/view" 
+import { ServoCard } from "@modules/servo/view"
 import { PointInput } from "@/components/PointInput" 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { selectModule } from "../../../shared/Protocol/ModuleDefinitionSchema" 
+import { selectModule } from "@shared/Protocol/ModuleDefinitionSchema"
 import { PointSchema , RangePointSchema } from "./definition" 
-import { useModuleStore } from "../../../Runtime/ModuleStore" 
+import { useModuleStore } from "@runtime/ModuleStore"
 import { useEffect, useState } from "react"
 import z from "zod"
 import { Box } from "lucide-react"
@@ -21,6 +21,7 @@ export default function Liddar() {
   const servoX = useModuleStore((state) => selectModule(state, "servo_x", "Servo"))
   const servoY = useModuleStore((state) => selectModule(state, "servo_y", "Servo"))
   const rangefinder = useModuleStore((state) => selectModule(state, "rangefinder", "Rangefinder"))
+
 
   const sendCommand = useModuleStore((state) => state.sendCommand)
   const [pointMax, setPointMax] = useState<Point>(() =>
@@ -64,6 +65,11 @@ export default function Liddar() {
       </div>
     )
   }
+    const updateLidar =useModuleStore.getState().createModuleStateUpdater("Lidar", lidar.id);
+
+
+
+
 
   return (
     <div className="flex flex-col gap-2 h-full min-h-0 w-full p-1">
@@ -157,6 +163,9 @@ export default function Liddar() {
       <Grid
       resetPointMap={()=>{
         setPointMap([])
+        updateLidar({
+          map:[]
+        })
 
       }}
         move_point={(p) => {
@@ -193,4 +202,3 @@ export default function Liddar() {
     </div>
   )
 }
-

@@ -1,5 +1,5 @@
 import z from "zod";
-import type { ModuleDefinitionType } from "src/shared/Protocol/ModuleDefinitionSchema"; 
+import type { ModuleDefinitionType } from "@shared/Protocol/ModuleDefinitionSchema";
 
 export const RangefinderDistanceModeSchema = z.enum(["Short", "Long"]);
 
@@ -64,6 +64,8 @@ export const RangefinderModule = z.object({
     distance_mode: RangefinderDistanceModeSchema,
     last_invalid_status: z.string().nullable(),
   }),
+  mutableStateFields: z.tuple([]),
+ 
 });
 
 export function rangefinderInitialBuild(
@@ -83,6 +85,7 @@ export function rangefinderInitialBuild(
       distance_mode: "Long",
       last_invalid_status: null,
     },
+    mutableStateFields: [] as const,
   };
 }
 

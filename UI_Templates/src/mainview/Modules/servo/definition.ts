@@ -1,5 +1,5 @@
 import z from "zod";
-import type { ModuleDefinitionType } from "src/shared/Protocol/ModuleDefinitionSchema"; 
+import type { ModuleDefinitionType } from "@shared/Protocol/ModuleDefinitionSchema";
 
 export const ServoCommandTypeSchema = z.discriminatedUnion("command", [
   z.object({
@@ -47,6 +47,7 @@ export const ServoModule = z.object({
   state: z.object({
     angle: z.number(),
   }),
+  mutableStateFields: [] as const,
 });
 
 export function servoInitialBuild(
@@ -62,6 +63,7 @@ export function servoInitialBuild(
     state: {
       angle: 0,
     },
+    mutableStateFields: z.tuple([]),
   };
 }
 

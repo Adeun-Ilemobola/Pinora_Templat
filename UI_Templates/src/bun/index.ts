@@ -1,12 +1,12 @@
 import { BrowserWindow, BrowserView } from "electrobun/bun";
-import type { AppRPC, SerialDeviceInfo } from "../shared/rpc";
+import type { AppRPC, SerialDeviceInfo } from "@shared/rpc";
 import {
   SerialPort,
   list,
   readlineParser,
 } from "bun-serialport";
 import z from "zod";
-import { InComingMessageSchema } from "../shared/Protocol/ModuleDefinitionSchema";
+import { InComingMessageSchema } from "@shared/Protocol/ModuleDefinitionSchema";
 let espPort: any = null;
 let start = false;
 const DEV_SERVER_URL = "http://localhost:5173";
