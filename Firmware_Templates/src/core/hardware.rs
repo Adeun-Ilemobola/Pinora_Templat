@@ -92,18 +92,18 @@ pub fn rtos_sleep_ms(ms: u32) {
 pub fn thread_sleep_ms(ms: u64) {
     std::thread::sleep(Duration::from_millis(ms));
 }
-pub fn now_us() -> i64 {
-    unsafe { sys::esp_timer_get_time() }
+pub fn now_us() -> f64 {
+    unsafe { sys::esp_timer_get_time() as f64 }
 }
 
 pub struct TimerState {
-    period_us: i64,
-    next_deadline_us: i64,
+    period_us: f64,
+    next_deadline_us: f64,
 }
 
 impl TimerState {
-    pub fn from_ms(period_ms: u64) -> Self {
-        let period_us = period_ms as i64 * 1_000;
+    pub fn from_ms(period_ms: f64) -> Self {
+        let period_us = period_ms  * 1_000.0;
         let now = now_us();
 
         Self {
@@ -111,6 +111,8 @@ impl TimerState {
             next_deadline_us: now + period_us,
         }
     }
+
+   
 
     pub fn ready(&mut self) -> bool {
         let now = now_us();

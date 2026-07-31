@@ -13,7 +13,7 @@ pub enum ModuleType {
     Rangefinder,
     SysLog,
     JoyStick,
-    StepperMotor
+    StepperMotor,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -48,9 +48,46 @@ pub struct StepperPins<'d> {
     pub in4: OutputPinCore<'d>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
 
-pub  enum StepperState {
+pub enum StepperState {
     Idle,
     Moving,
     Homing,
+    Pivot,
+}
+
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PivotPoint {
+    Min,
+    Max,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct PivotLimits {
+    pub min: f32,
+    pub max: f32,
+}
+
+impl PivotLimits {
+    pub fn new(min: f32, max: f32) -> Self {
+        Self { min, max }
+    }
+
+    pub fn value(&self, point: PivotPoint) -> f32 {
+        match point {
+            PivotPoint::Min => self.min,
+            PivotPoint::Max => self.max,
+        }
+    }
+
+    pub fn opposite(&self, point: PivotPoint) -> PivotPoint {
+        match point {
+            PivotPoint::Min => PivotPoint::Max,
+            PivotPoint::Max => PivotPoint::Min,
+        }
+    }
+    pub fn update_max(&mut self , n:f32){ self.max = n}
+    pub fn update_min(&mut self , n:f32){ self.min = n}
 }

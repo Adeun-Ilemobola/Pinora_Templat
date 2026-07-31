@@ -96,7 +96,7 @@ impl<'d> Lidar<'d> {
             x_d: 1,
             limit_point: Point { x: -90, y: 90 },
             scan_time: std::time::Instant::now(),
-            step_timer: TimerState::from_ms(25),
+            step_timer: TimerState::from_ms(25.0),
             rangefinder,
             point_map: vec![],
             current_chunk: 1,
