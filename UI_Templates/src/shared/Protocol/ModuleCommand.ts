@@ -6,6 +6,7 @@ import {
   RangefinderDistanceModeSchema,
 } from "@modules/rangefinder/definition";
 import { ServoCommandTypeSchema } from "@modules/servo/definition";
+import { StepperMotorCommandTypeSchema } from "@modules/stepper/definition";
 
 export const ModuleCommandSchema = z.discriminatedUnion("module_type", [
   z.object({
@@ -33,6 +34,11 @@ export const ModuleCommandSchema = z.discriminatedUnion("module_type", [
     module_type: z.literal("Rangefinder"),
     payload: RangefinderCommandTypeSchema,
   }),
+  z.object({
+    id: z.string(),
+    module_type: z.literal("StepperMotor"),
+    payload: StepperMotorCommandTypeSchema,
+  }),
 ]);
 
 export type Commandtype = z.infer<typeof ModuleCommandSchema>;
@@ -44,4 +50,5 @@ export {
   RangefinderCommandTypeSchema,
   RangefinderDistanceModeSchema,
   ServoCommandTypeSchema,
+  StepperMotorCommandTypeSchema
 };

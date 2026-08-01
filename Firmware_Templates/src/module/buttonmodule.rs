@@ -5,7 +5,7 @@ use crate::core::modulecore::{Module, ModuleCore, emit};
 use crate::protocol::command::ModuleCommand;
 use crate::protocol::global_definitions::ModuleType;
 use crate::protocol::module_event::{ButtonEvent, ModuleEvent};
-use crate::protocol::registration::{ Registration};
+use crate::protocol::registration::{ ProtocolMessage, Registration};
 use esp_idf_svc::hal::gpio::Level;
 
 static BUTTON_MODULE_MAX_TIME: u64 = 30; // Maximum time in milliseconds to consider a button press valid
@@ -20,7 +20,7 @@ pub struct Buttonmodule<'d> {
 }
 
 impl<'d> Buttonmodule<'d> {
-    pub fn new<T>(pin: T , lool_up_id:String , sender:SyncSender<ModuleEvent>) -> anyhow::Result<Buttonmodule<'d>>
+    pub fn new<T>(pin: T , lool_up_id:String , sender:SyncSender<ProtocolMessage>) -> anyhow::Result<Buttonmodule<'d>>
     where
         T: InputPin + 'd,
     {

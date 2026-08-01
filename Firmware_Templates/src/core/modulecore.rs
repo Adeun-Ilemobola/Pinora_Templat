@@ -2,19 +2,19 @@ use std::sync::mpsc::{SyncSender, TrySendError};
 
 use uuid::Uuid;
 
-use crate::protocol::{command::ModuleCommand, global_definitions::ModuleType, module_event::ModuleEvent};
+use crate::protocol::{command::ModuleCommand, global_definitions::ModuleType, module_event::ModuleEvent, registration::{ProtocolMessage, Registration}};
 
 #[derive(Debug, Clone)]
 pub struct ModuleCore {
     pub id: String,
     pub module_type: ModuleType,
     pub manuel_id: String,
-    event_sender: SyncSender<ModuleEvent>,
+    event_sender: SyncSender<ProtocolMessage>,
 
 }
 
 impl ModuleCore {
-    pub fn new(module_type: ModuleType, manuel_id: &str , sender:SyncSender<ModuleEvent>) -> Self {
+    pub fn new(module_type: ModuleType, manuel_id: &str , sender:SyncSender<ProtocolMessage>) -> Self {
         Self {
             id: Uuid::new_v4().to_string(),
             module_type: module_type,
@@ -37,7 +37,21 @@ pub trait Module {
     }
 
     fn emit(&self, event: ModuleEvent) {
-        match self.core().event_sender.try_send(event) {
+        match self.core().event_sender.try_send(ProtocolMessage::ModuleEvent(event)) {
+            Ok(()) => {}
+
+            Err(TrySendError::Full(_)) => {
+                log::warn!("Event queue is full for module {}", self.id().to_string());
+            }
+
+            Err(TrySendError::Disconnected(_)) => {
+                log::error!("Event emitter is disconnected");
+            }
+        }
+    }
+
+    fn Registration(&self, registration: Registration) {
+        match self.core().event_sender.try_send(ProtocolMessage::Registration(registration)) {
             Ok(()) => {}
 
             Err(TrySendError::Full(_)) => {
@@ -54,15 +68,14 @@ pub trait Module {
 
 pub mod emit {
     use crate::protocol::{
-        module_event::ModuleEvent,
         registration::{ProtocolMessage, Registration, SystemInfo},
     };
     use std::{
         sync::mpsc::{self, SyncSender},
         thread,
     };
-    pub fn start_event_emitter() -> SyncSender<ModuleEvent> {
-        let (sender, receiver) = mpsc::sync_channel::<ModuleEvent>(128);
+    pub fn start_event_emitter() -> SyncSender<ProtocolMessage> {
+        let (sender, receiver) = mpsc::sync_channel::<ProtocolMessage>(128);
 
         thread::spawn(move || {
             while let Ok(event) = receiver.recv() {
@@ -75,9 +88,8 @@ pub mod emit {
         sender
     }
 
-    fn emit_event(event: ModuleEvent) -> Result<(), String> {
-        let message = ProtocolMessage::ModuleEvent(event);
-        let serialized = serde_json::to_string(&message).map_err(|error| error.to_string())?;
+    fn emit_event(event: ProtocolMessage) -> Result<(), String> {
+        let serialized = serde_json::to_string(&event).map_err(|error| error.to_string())?;
 
         // Send serialized data through USB, UART, WebSocket, etc.
         println!("{serialized}");
@@ -87,12 +99,16 @@ pub mod emit {
 
     pub fn registration(data: Registration) {
         // serialize and send registration
-        serde_json::to_string(&ProtocolMessage::Registration(data))
-            .map(|s| println!("{}", s))
-            .unwrap_or_else(|e| println!("Failed to serialize JSON: {}", e));
+        match emit_event(ProtocolMessage::Registration(data)) {
+            Ok(_)=>{}
+            Err(err)=>{
+                println!("Failed to serialize JSON: {}", err)
+            }
+            
+        };
     }
 
-    pub fn event(data: ModuleEvent) {
+    pub fn event(data: ProtocolMessage) {
         // serialize and send event
         match emit_event(data) {
             Ok(_)=>{}
@@ -103,9 +119,14 @@ pub mod emit {
         };
     }
     pub fn system_info(data: SystemInfo) {
-        serde_json::to_string(&ProtocolMessage::System(data))
-            .map(|s| println!("{}", s))
-            .unwrap_or_else(|e| println!("Failed to serialize JSON: {}", e));
+        // serialize and send system info
+        match emit_event(ProtocolMessage::System(data)) {
+            Ok(_)=>{}
+            Err(err)=>{
+                println!("Failed to serialize JSON: {}", err)
+            }
+            
+        };
     }
 
     // pub fn error(data: ErrorEvent) {

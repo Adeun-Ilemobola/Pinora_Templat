@@ -17,6 +17,7 @@ import {
 } from "@modules/rangefinder/definition";
 import { servoInitialBuild, updateServo } from "@modules/servo/definition";
 import { electroview } from "@/electrobun";
+import { updateStepperMotor , stepperMotorInitialBuild } from "@modules/stepper/definition";
 
 type ModuleByType<T extends TypeIdentifier_module> = Extract<
   ModuleDefinitionType,
@@ -276,6 +277,10 @@ function applyModuleEvent(
 
     case "Rangefinder":
       return updateRangefinder(module, event.event);
+    case "StepperMotor":
+      return updateStepperMotor(module, event.event);
+    default:
+      return module;
   }
 }
 
@@ -313,6 +318,13 @@ function createModule(
 
     case "Rangefinder":
       return rangefinderInitialBuild(
+        registration.id,
+        registration.parent_id,
+        registration.lool_up_id,
+      );
+
+    case "StepperMotor":
+      return stepperMotorInitialBuild(
         registration.id,
         registration.parent_id,
         registration.lool_up_id,

@@ -1,15 +1,15 @@
 use serde::{Deserialize, Serialize};
 
-use crate::protocol::global_definitions::Point;
+use crate::protocol::global_definitions::{Point, StepperState};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 pub struct IncomingCommand {
     pub id: String,
     #[serde(flatten)]
     pub command: ModuleCommand,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 #[serde(tag = "module_type", content = "payload")]
 pub enum ModuleCommand {
     Led(LedCommandPayload),
@@ -20,14 +20,14 @@ pub enum ModuleCommand {
     StepperMotor(StepperMotorCommandPayload)
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 #[serde(tag = "command")]
 pub enum LedCommandPayload {
     SetState { state: u32 },
     Toggle,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 #[serde(tag = "command")]
 pub enum ServoCommandPayload {
     SetAngle { angle: i32 },
@@ -35,7 +35,7 @@ pub enum ServoCommandPayload {
     SetMaxPivot { max_pivot: i32 },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 #[serde(tag = "command")]
 pub enum ClusterCommandPayload {
     ToggleAll,
@@ -44,7 +44,7 @@ pub enum ClusterCommandPayload {
     SetState { id: String, state: u32 },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 #[serde(tag = "command")]
 pub enum LidarCommandPayload {
     Roi { min: Point, max: Point },
@@ -56,13 +56,13 @@ pub enum LidarCommandPayload {
     MovePos { p: Point },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 pub enum RangefinderDistanceMode {
     Short,
     Long,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 #[serde(tag = "command")]
 pub enum RangefinderCommandPayload {
     StartRanging,
@@ -72,9 +72,14 @@ pub enum RangefinderCommandPayload {
 }
 
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq,)]
 #[serde(tag = "command")]
 pub enum StepperMotorCommandPayload {
-    SetPositionAngle{angle: i32},
-    SetPositionSequences
+    SetPivotMin { pivot_min: f32 },
+    SetPivotMax { pivot_max: f32 },
+    MoveToOrigin,
+    MoveToAngle { angle: f32 },
+    MoveToPivotMin,
+    MoveToPivotMax,
+    SetMode { mode: StepperState },
 }

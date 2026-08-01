@@ -3,7 +3,7 @@ use std::sync::mpsc::SyncSender;
 use crate::core::hardware::{
      RangefinderI2c,
 };
-use crate::core::modulecore::{emit, Module, ModuleCore};
+use crate::core::modulecore::{ Module, ModuleCore};
 use crate::protocol::command::{
     ModuleCommand, RangefinderCommandPayload, RangefinderDistanceMode,
 };
@@ -12,7 +12,7 @@ use crate::protocol::module_event::{
     ModuleEvent, RangefinderEvent,
 };
 use crate::protocol::registration::{
-     Registration,
+     ProtocolMessage, Registration
 };
 
 use vl53l1x_uld::{
@@ -39,7 +39,7 @@ impl<'d> Rangefinder<'d> {
          rangefinder_i2c: RangefinderI2c<'d>,
         manual_id: String,
         cluster_id: Option<String>,
-        sender:SyncSender<ModuleEvent>
+        sender:SyncSender<ProtocolMessage>
     ) -> anyhow::Result<Rangefinder<'d>>
    {
     
@@ -82,7 +82,7 @@ impl<'d> Rangefinder<'d> {
             distance_mode: DistanceMode::Long,
         };
 
-        emit::registration(Registration {
+        rangefinder.Registration(Registration {
             id: rangefinder.id().to_string(),
             module_type: ModuleType::Rangefinder,
             lool_up_id: manual_id,

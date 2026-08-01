@@ -4,6 +4,8 @@ import { LedEventSchema } from "@modules/led/definition";
 import { LidarEventSchema ,PointSchema } from "@modules/Lidar/definition";
 import { RangefinderEventSchema  } from "@modules/rangefinder/definition";
 import { ServoEventSchema } from "@modules/servo/definition";
+import { StepperMotorEventSchema } from "@modules/stepper/definition";
+
 
 const SysLogEventSchema = z.object({
   text: z.string(),
@@ -25,7 +27,10 @@ export const ModuleEventSchema = z.discriminatedUnion("module_type", [
     module_type: z.literal("Rangefinder"),
     event: RangefinderEventSchema,
   }),
-  
+  z.object({
+    module_type: z.literal("StepperMotor"),
+    event: StepperMotorEventSchema,
+  })
 ]);
 
 export type ModuleEventEnvelope = z.infer<typeof ModuleEventSchema>;
@@ -38,4 +43,5 @@ export {
   RangefinderEventSchema,
   ServoEventSchema,
   SysLogEventSchema,
+  StepperMotorEventSchema
 };

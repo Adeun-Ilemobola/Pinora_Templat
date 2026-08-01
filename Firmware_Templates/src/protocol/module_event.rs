@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::protocol::{
     command::RangefinderDistanceMode,
-    global_definitions::{Point, RangPoint},
+    global_definitions::{PivotPoint, Point, RangPoint, StepperState},
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
@@ -17,7 +17,7 @@ pub enum ModuleEvent {
     StepperMotor(StepperMotorEvent)
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub enum LogPriority {
     Low,
     Medium,
@@ -25,20 +25,20 @@ pub enum LogPriority {
     Critical,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 pub struct SysLogEvent {
     pub text: String,
     pub raw_err: Option<String>,
     pub priority: LogPriority,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 #[serde(tag = "event_type")]
 pub enum LedEvent {
     Brightness { id: String, level: u32 },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 #[serde(tag = "event_type")]
 pub enum ServoEvent {
     GetAngle { id: String, angle: i32 },
@@ -47,7 +47,7 @@ pub enum ServoEvent {
     GetOffset { id: String, angle: i32 },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 pub enum ScanState {
     Idol,
     Scanning,
@@ -79,13 +79,13 @@ pub enum LidarEvent {
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 #[serde(tag = "event_type")]
 pub enum ButtonEvent {
     Ckick { id: String },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 #[serde(tag = "event_type")]
 pub enum RangefinderEvent {
     Range {
@@ -114,6 +114,11 @@ pub enum RangefinderEvent {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 #[serde(tag = "event_type")]
 pub  enum  StepperMotorEvent {
-     GetAngle { id: String, angle: f32 },
+     GetAngle { id: String, angle: f32 , step: f32},
+     GetPivotMin { id: String, pivot_min: f32 },
+     GetPivotMax { id: String, pivot_max: f32 },
+     GetMode { id: String, mode: StepperState },
+     GetOrigin { id: String, origin: Option<f32> },
+     GetPivotPoint { id: String, pivot_point: PivotPoint },
 
 }

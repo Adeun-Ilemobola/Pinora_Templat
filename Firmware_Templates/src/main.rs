@@ -9,9 +9,9 @@ use crate::core::modulecore::{Module, emit};
 // use crate::module::joystick::JoyStick;
 use crate::protocol::command::IncomingCommand;
 // use crate::utilities::serdeprotocol::IncomingCommand;
-use crate::module::lidar::Lidar;
+// use crate::module::lidar::Lidar;
  use crate::protocol::global_definitions::StepperPins;
-use embedded_hal_bus::i2c::RcDevice;
+// use embedded_hal_bus::i2c::RcDevice;
 use std::io;
 use std::io::{BufRead, ErrorKind};
 use std::sync::mpsc;
@@ -95,7 +95,7 @@ fn main() -> anyhow::Result<()> {
             in3: OutputPinCore::new(p.pins.gpio27)?,  //31
             in4: OutputPinCore::new(p.pins.gpio26)?, //30
         },
-        "stepper".to_string(),
+        "stepperX".to_string(),
         None,
          sync_sender.clone()
     )?));

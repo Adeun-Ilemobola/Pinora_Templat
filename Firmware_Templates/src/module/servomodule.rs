@@ -1,11 +1,11 @@
 use std::sync::mpsc::SyncSender;
 
 use crate::core::hardware::SharedPwm;
-use crate::core::modulecore::{emit, Module, ModuleCore};
+use crate::core::modulecore::{ Module, ModuleCore};
 use crate::protocol::command::{ModuleCommand, ServoCommandPayload};
 use crate::protocol::global_definitions::{ModuleType, ServoCapability};
 use crate::protocol::module_event::{ModuleEvent, ServoEvent};
-use crate::protocol::registration::Registration;
+use crate::protocol::registration::{ProtocolMessage, Registration};
 use crate::utilities::math::{pulse_us_to_tick, range_i32};
 
 use anyhow::Ok;
@@ -31,7 +31,7 @@ impl<'d> ServoModule<'d> {
         channel: Channel,
         config: ServoCapability,
         cluster_id: Option<String>,
-        sender: SyncSender<ModuleEvent>,
+        sender: SyncSender<ProtocolMessage>,
     ) -> anyhow::Result<ServoModule<'d>> {
         let mut s = ServoModule {
             core: ModuleCore::new(ModuleType::Servo, &manuel_id, sender),
@@ -44,7 +44,7 @@ impl<'d> ServoModule<'d> {
             channel: channel.clone(),
             pivot:0
         };
-        emit::registration(Registration {
+        s.Registration(Registration {
             id: s.id().to_string(),
             module_type: ModuleType::Servo,
             lool_up_id: manuel_id.clone(),

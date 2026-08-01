@@ -1,7 +1,7 @@
 use std::sync::mpsc::SyncSender;
 
 use crate::core::hardware::{I2cDriver, TimerState};
-use crate::core::modulecore::emit;
+
 use crate::core::{
     hardware::SharedPwm,
     modulecore::{Module, ModuleCore},
@@ -11,7 +11,7 @@ use crate::module::servomodule::ServoModule;
 use crate::protocol::command::{LidarCommandPayload, ModuleCommand};
 use crate::protocol::global_definitions::{ModuleType, Point, RangPoint, ServoCapability};
 use crate::protocol::module_event::{LidarEvent, LogPriority, ModuleEvent, ScanState, SysLogEvent};
-use crate::protocol::registration::Registration;
+use crate::protocol::registration::{ProtocolMessage, Registration};
 use crate::utilities::logger::SysLog;
 use embedded_hal_bus::i2c::RcDevice;
 use embedded_hal_compat::ReverseCompat;
@@ -46,7 +46,7 @@ impl<'d> Lidar<'d> {
         pwm: SharedPwm<'d>,
         manuel_id: String,
         rangefinder_i2c: RcDevice<I2cDriver<'d>>,
-        sender: SyncSender<ModuleEvent>,
+        sender: SyncSender<ProtocolMessage>,
     ) -> anyhow::Result<Lidar<'d>> {
         let mc = ModuleCore::new(ModuleType::Lidar, &manuel_id, sender.clone());
         let config = ServoCapability {
@@ -113,7 +113,7 @@ impl<'d> Lidar<'d> {
                 }));
             }
         }
-        emit::registration(Registration {
+       new_lidar.Registration(Registration {
             id: new_lidar.id().to_string(),
             lool_up_id: manuel_id.clone(),
             module_type: ModuleType::Lidar,

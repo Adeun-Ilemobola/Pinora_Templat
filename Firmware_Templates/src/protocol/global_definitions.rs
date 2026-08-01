@@ -48,7 +48,7 @@ pub struct StepperPins<'d> {
     pub in4: OutputPinCore<'d>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq ,Serialize, Deserialize,)]
 
 pub enum StepperState {
     Idle,
@@ -58,7 +58,7 @@ pub enum StepperState {
 }
 
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq , Serialize, Deserialize)]
 pub enum PivotPoint {
     Min,
     Max,

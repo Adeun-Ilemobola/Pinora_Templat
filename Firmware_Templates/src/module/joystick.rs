@@ -7,7 +7,7 @@ use esp_idf_svc::hal::adc::{
 };
 use esp_idf_svc::hal::gpio::ADCPin;
 
-use crate::{core::hardware::InputPin, protocol::module_event::ModuleEvent};
+use crate::{core::hardware::InputPin, protocol::{ registration::ProtocolMessage}};
 use crate::core::modulecore::{Module, ModuleCore};
 use crate::module::buttonmodule::Buttonmodule;
 use crate::protocol::command::ModuleCommand;
@@ -39,7 +39,7 @@ where
     X: AdcChannel<AdcUnit = U>,
     Y: AdcChannel<AdcUnit = U>,
 {
-    pub fn new<MB, ADC, AX, AY>(mb: MB, adc: ADC, ax: AX, ay: AY , sender:SyncSender<ModuleEvent>) -> anyhow::Result<Self>
+    pub fn new<MB, ADC, AX, AY>(mb: MB, adc: ADC, ax: AX, ay: AY , sender:SyncSender<ProtocolMessage>) -> anyhow::Result<Self>
     where
         MB: InputPin + 'd,
         ADC: Adc<AdcUnit = U> + 'd,

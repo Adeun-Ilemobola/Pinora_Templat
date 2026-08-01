@@ -1,11 +1,11 @@
 use std::sync::mpsc::SyncSender;
 
 use crate::core::hardware::{ledc, LedTimer, OutputPin};
-use crate::core::modulecore::{Module, ModuleCore, emit};
+use crate::core::modulecore::{Module, ModuleCore};
 use crate::protocol::command::{ModuleCommand  , LedCommandPayload};
 use crate::protocol::global_definitions::ModuleType;
 use crate::protocol::module_event::{LedEvent, ModuleEvent};
-use crate::protocol::registration::{ Registration};
+use crate::protocol::registration::{ ProtocolMessage, Registration};
 use crate::utilities::math::range_u32;
 
 
@@ -21,7 +21,7 @@ impl<'d> Ledmodule<'d> {
         manuel_id: String,
         timer: &LedTimer<'d>,
         cluster_id: Option<String>,
-        sender:SyncSender<ModuleEvent>
+        sender:SyncSender<ProtocolMessage>
     ) -> anyhow::Result<Ledmodule<'d>>
     where
         T: OutputPin + 'd,
@@ -35,7 +35,7 @@ impl<'d> Ledmodule<'d> {
             pwm,
         };
       
-      emit::registration(Registration{
+      ledmodule.Registration(Registration{
         id:ledmodule.id().to_string(),
          module_type:ModuleType::Led,
          lool_up_id:manuel_id.clone(),
