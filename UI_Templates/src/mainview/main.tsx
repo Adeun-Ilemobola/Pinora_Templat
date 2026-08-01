@@ -10,6 +10,7 @@ import {
 } from "react-router-dom";
 import { createRoot } from "react-dom/client";
 import Layout from "./lib/Layout";
+import { LogsBox } from "./Pages/logs";
 
 const router = createBrowserRouter([
   {
@@ -19,6 +20,10 @@ const router = createBrowserRouter([
         index: true,
         element: <App />,
       },
+      {
+        path:"logs",
+        element:<LogsBox/>
+      }
     ],
   },
 ]);

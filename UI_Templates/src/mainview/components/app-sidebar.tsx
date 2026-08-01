@@ -39,10 +39,13 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { useModuleStore } from "@runtime/ModuleStore"
 import { Badge } from "@/components/ui/badge"
+import { useNavigate } from "react-router-dom";
 
 
 
 export function AppSidebar() {
+    const navigate = useNavigate();
+
     const [dark, setDark] = useState(true)
     const count = useModuleStore(
         (state) => Object.keys(state.modules).length
@@ -185,7 +188,11 @@ export function AppSidebar() {
 
                 <SidebarMenu>
                     <SidebarMenuItem >
-                        <SidebarMenuButton >
+                        <SidebarMenuButton
+                        onClick={()=>{
+                            navigate("logs")
+                        }}
+                         >
                             <Logs />
 
                             <span>Logs</span>

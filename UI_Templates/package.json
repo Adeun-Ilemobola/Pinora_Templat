@@ -17,6 +17,7 @@
 		"@hugeicons/core-free-icons": "^4.2.3",
 		"@hugeicons/react": "^1.1.9",
 		"@phosphor-icons/react": "phosphor-icons/react",
+		"@tanstack/react-virtual": "^3.14.9",
 		"bun-serialport": "^0.1.1",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
