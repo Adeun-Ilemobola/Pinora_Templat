@@ -16,6 +16,9 @@ const rpc = Electroview.defineRPC<AppRPC>({
             incomingMessage({message}) {
                 const store = useModuleStore.getState()
                 const SystemInitialized = useModuleStore.getState().portInfo
+                 const newLog = useModuleStore.getState().AddLog;
+
+                 newLog(message)
 
                 switch (message.type) {
                     case "Registration":

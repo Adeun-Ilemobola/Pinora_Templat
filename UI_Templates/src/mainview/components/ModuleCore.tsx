@@ -47,7 +47,7 @@ export default function ModuleCore({ children, id, manuel_id, moduletype }: Modu
             </CardHeader>
             <Separator />
 
-            <CardContent className='flex w-fit'>
+            <CardContent className=' w-fit'>
 
                 {children}
 

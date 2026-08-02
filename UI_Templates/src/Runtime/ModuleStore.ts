@@ -2,11 +2,14 @@ import { create } from "zustand";
 import { Commandtype } from "@shared/Protocol/ModuleCommand";
 import { ModuleEventEnvelope } from "@shared/Protocol/ModuleEven";
 import {
+  InComingMessageSchema,
+  InComingMessageSchemaType,
   ModuleDefinitionType,
   Registration,
   SystemInfoType,
   TypeIdentifier,
   TypeIdentifier_module,
+  viewLogSchema,
 } from "@shared/Protocol/ModuleDefinitionSchema";
 import { buttonInitialBuild, updateButton } from "@modules/button/definition";
 import { ledInitialBuild, updateLed } from "@modules/led/definition";
@@ -18,6 +21,7 @@ import {
 import { servoInitialBuild, updateServo } from "@modules/servo/definition";
 import { electroview } from "@/electrobun";
 import { updateStepperMotor , stepperMotorInitialBuild } from "@modules/stepper/definition";
+import z from "zod";
 
 type ModuleByType<T extends TypeIdentifier_module> = Extract<
   ModuleDefinitionType,
@@ -55,6 +59,8 @@ type ModuleDefinitionTypeSim = {
 }
 
 type ModuleStore = {
+  logs:z.infer<typeof viewLogSchema>[]
+  AddLog:(newLog:z.infer<typeof InComingMessageSchema>) => void
   modules: Record<string, ModuleDefinitionType>;
   LookUp_ID_refTo_ID: Record<string, string>;
   portInfo: {
@@ -80,6 +86,7 @@ type ModuleStore = {
 
 
 export const useModuleStore = create<ModuleStore>((set, get) => ({
+  logs:[],
   modules: {},
   SystemInfo: null,
   LookUp_ID_refTo_ID: {},
@@ -87,6 +94,20 @@ export const useModuleStore = create<ModuleStore>((set, get) => ({
     path: "",
     status: "disconnected",
 
+  },
+
+  AddLog(newLog) {
+    const buileIt:z.infer<typeof viewLogSchema>  = {
+      time:Date.now(),
+      data:newLog
+    }
+    set(pre=>({
+      logs:[
+        ...pre.logs , 
+        {...buileIt}
+      ]
+    }))
+    
   },
 
   registerModule: (registration) => {

@@ -7,6 +7,10 @@ import { ServoEventSchema } from "@modules/servo/definition";
 import { StepperMotorEventSchema } from "@modules/stepper/definition";
 
 
+
+
+
+
 const SysLogEventSchema = z.object({
   text: z.string(),
   raw_err: z.string().nullable(),

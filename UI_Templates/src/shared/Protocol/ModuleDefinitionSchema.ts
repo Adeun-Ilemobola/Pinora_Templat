@@ -99,3 +99,9 @@ export function selectModule<T extends TypeIdentifier_module>(
     ? module as Extract<typeof module, { module_type: T }>
     : undefined
 }
+
+
+export const  viewLogSchema = z.object({
+  time:z.number(),
+  data: InComingMessageSchema
+})

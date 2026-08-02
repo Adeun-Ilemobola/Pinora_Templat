@@ -1,45 +1,58 @@
-
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from '@/components/app-sidebar';
-import { Outlet } from "react-router-dom";
+import { Button } from '@/components/ui/button';
 import {
- useLocation, 
-} from "react-router-dom";
-import { Button } from "@/components/ui/button";
-interface LayoutProps {
-    children: React.ReactNode 
-}
+    SidebarProvider,
+    SidebarTrigger,
+} from '@/components/ui/sidebar';
+import {
+    Outlet,
+    useLocation,
+    useNavigate,
+} from 'react-router-dom';
 
-const Layout = () => {
-  const location = useLocation();              
+export default function Layout() {
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    const isHomePage = location.pathname === '/';
+
+    const pageName = location.pathname
+        .split('/')
+        .filter(Boolean)
+        .map((segment) => decodeURIComponent(segment))
+        .join(' / ');
+
     return (
-    <SidebarProvider>
-      <AppSidebar />
-      <main className='flex flex-col h-screen w-full overflow-hidden overflow-y-scroll relative'>
-        <header className='sticky top-0 z-20 flex h-14 items-center gap-1 border-b bg-background/85 px-2 backdrop-blur-xl md:px-4  flex-row'>
-        <SidebarTrigger size={"icon-lg"} /> 
-        {location.pathname !== "/" && (<>
-        <span className="text-sm font-medium text-muted-foreground">
-            {location.pathname}
-        </span>
-        
-         <Button variant={"outline"} size={"sm"} className="ml-auto" onClick={()=>{
-            window.history.back()
-        }}>
-            Back
-        </Button>
-        </>)}
-       
-        
-  
-        </header>
-        <section className='w-full h-full flex-1 p-2 '>
-             <Outlet />
-        </section>
-       
-      </main>
-    </SidebarProvider>
+        <SidebarProvider>
+            <AppSidebar />
+
+            <main className="relative flex h-screen w-full flex-col overflow-y-auto">
+                <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-1 border-b bg-background/85 px-2 backdrop-blur-xl md:px-4">
+                    <SidebarTrigger size="icon-lg" />
+
+                    {!isHomePage && (
+                        <>
+                            <span className="text-sm font-medium text-muted-foreground">
+                                {pageName}
+                            </span>
+
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="ml-auto"
+                                onClick={() => navigate(-1)}
+                            >
+                                Back
+                            </Button>
+                        </>
+                    )}
+                </header>
+
+                <section className="w-full flex-1 p-2">
+                    <Outlet />
+                </section>
+            </main>
+        </SidebarProvider>
     );
 }
-
-export default Layout;
