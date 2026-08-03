@@ -113,7 +113,7 @@ fn main() -> anyhow::Result<()> {
 
     const MPU_ADDRESS: u8 = 0x68;
     let imu_i2c = RcDevice::new(shared_i2c.clone());
-    let test_imu = MpuDevice::new(imu_i2c, MPU_ADDRESS ,sync_sender.clone() , "MPu" , None );
+    let mut  test_imu = MpuDevice::new(imu_i2c, MPU_ADDRESS ,sync_sender.clone() , "MPu" , None ).map_err(|err| anyhow::anyhow!("{err:?}"))?;
 
     let (command_sender, command_receiver) = mpsc::channel::<IncomingCommand>();
     std::thread::spawn(move || {
@@ -121,6 +121,7 @@ fn main() -> anyhow::Result<()> {
     });
 
     loop {
+        test_imu.tick().map_err(|err| anyhow::anyhow!("{err:?}"))?;
         //let _ = stepper.borrow_mut().tick();
         // rangefinder.borrow_mut().tick();
         // lidar.borrow_mut().tick();
