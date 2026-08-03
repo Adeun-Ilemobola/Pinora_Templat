@@ -53,6 +53,7 @@ anyhow = "1.0.104"
 # Driver for the PCA9685 PWM controller used by the servo modules.
 pwm-pca9685 = "1.0.0" 
 vl53l1x-uld = "2.0.1"
+embedded-hal = "1.0.0"
 
 [build-dependencies]
 embuild = "0.33.2"

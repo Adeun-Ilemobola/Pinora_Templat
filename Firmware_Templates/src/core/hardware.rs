@@ -4,7 +4,7 @@ use embedded_hal_compat::Reverse;
 pub use esp_idf_svc::hal::delay::FreeRtos;
 pub use esp_idf_svc::hal::gpio::*;
 pub use esp_idf_svc::hal::i2c;
-pub use esp_idf_svc::hal::i2c::{I2c, I2cConfig, I2cDriver};
+pub use esp_idf_svc::hal::i2c::{I2c, I2cConfig, I2cDriver , I2cError};
 pub use esp_idf_svc::hal::ledc;
 use esp_idf_svc::hal::ledc::config::TimerConfig;
 use esp_idf_svc::hal::ledc::Resolution;

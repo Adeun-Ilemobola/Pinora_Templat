@@ -1,5 +1,7 @@
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { cn } from '@/lib/utils';
 
 import {
     InComingMessageSchemaType,
@@ -37,6 +39,26 @@ const zLogFrom_Event = z.object({
 });
 
 const log_priority = z.enum(['Low', 'Medium', 'High', 'Critical']);
+
+const logPriorityVariants = {
+    Low: 'low',
+    Medium: 'medium',
+    High: 'high',
+    Critical: 'critical',
+} as const;
+
+const eventTypeVariants = {
+    Registration: 'registration',
+    ModuleEvent: 'module-event',
+    System: 'system',
+} as const;
+
+const logPriorityRings = {
+    Low: 'ring-emerald-500/45',
+    Medium: 'ring-amber-500/50',
+    High: 'ring-orange-500/55',
+    Critical: 'ring-rose-500/60',
+} as const;
 
 const zLogFrom_Log = z.object({
     Type: z.literal('log'),
@@ -140,7 +162,8 @@ export const LogsBox = ({ }: LogsProps) => {
     const rowVirtualizer = useVirtualizer({
         count: logList.length,
         getScrollElement: () => parentRef.current,
-        estimateSize: () => 35,
+        estimateSize: () => 180,
+        overscan: 5,
     });
 
     function onSearchModeChange(mode: LogFromType) {
@@ -306,9 +329,10 @@ export const LogsBox = ({ }: LogsProps) => {
                             return (
                                 <div
                                     key={virtualItem.key}
-                                    className="absolute left-0 top-0 flex w-full items-center border-b px-4 text-sm transition-colors hover:bg-muted/50"
+                                    ref={rowVirtualizer.measureElement}
+                                    data-index={virtualItem.index}
+                                    className="absolute left-0 top-0 w-full px-4 py-2 text-sm"
                                     style={{
-                                        height: `${virtualItem.size}px`,
                                         transform: `translateY(${virtualItem.start}px)`,
                                     }}
                                 >
@@ -488,16 +512,23 @@ function EventCard({ data }: { data: ModuleEventData }) {
 
     if (data.payload.module_type === "SysLog") {
         return (
-            <div>
-                System Log for  debugging == {data.payload.event.text}
-            </div>
+            <LogEntry
+                eventType="ModuleEvent"
+                moduleType="SysLog"
+                payload={data.payload}
+                priority={data.payload.event.priority}
+                ring={logPriorityRings[data.payload.event.priority]}
+            />
         )
     }
 
     return (
-        <div>
-            The state event change === {data.payload.event.event_type}
-        </div>
+        <LogEntry
+            eventType="ModuleEvent"
+            moduleType={data.payload.module_type}
+            payload={data.payload}
+            ring="ring-sky-500/45"
+        />
     )
 
 }
@@ -507,9 +538,12 @@ function EventCard({ data }: { data: ModuleEventData }) {
 function RegistrationCard({ data }: { data: RegistrationData }) {
 
     return (
-        <div>
-            For registered modules event === {data.payload.module_type}
-        </div>
+        <LogEntry
+            eventType="Registration"
+            moduleType={data.payload.module_type}
+            payload={data.payload}
+            ring="ring-violet-500/45"
+        />
     )
 
 }
@@ -517,9 +551,74 @@ function RegistrationCard({ data }: { data: RegistrationData }) {
 function SystemInfoCard({ data }: { data: SystemData }) {
 
     return (
-        <div>
-            For SystemInfo  modules event === {data.payload.current_free_heap}
-        </div>
+        <LogEntry
+            eventType="System"
+            moduleType="ESP-32"
+            payload={data.payload}
+            ring="ring-slate-500/45"
+        />
     )
 
+}
+
+type EventType = z.infer<typeof InComingMessageSchemaType>;
+
+type LogEntryProps = {
+    eventType: EventType;
+    moduleType: string;
+    payload: unknown;
+    priority?: z.infer<typeof log_priority>;
+    ring: string;
+};
+
+function LogEntry({
+    eventType,
+    moduleType,
+    payload,
+    priority,
+    ring,
+}: LogEntryProps) {
+    return (
+        <article
+            className={cn(
+                'min-w-0 overflow-hidden rounded-lg bg-card text-card-foreground shadow-sm ring-1 ring-inset',
+                ring,
+            )}
+        >
+            <div className="flex min-w-0 flex-wrap items-center gap-2.5 px-5 py-4">
+                <EventTypeBadge type={eventType} />
+                <Badge size="xl" variant="outline">
+                    {moduleType}
+                </Badge>
+                {priority && (
+                    <Badge
+                        size="xl"
+                        variant={logPriorityVariants[priority]}
+                    >
+                        {priority}
+                    </Badge>
+                )}
+            </div>
+            <div className="border-t border-border/70 bg-muted/20 px-5 py-4">
+                <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-6 text-muted-foreground">
+                    {JSON.stringify(payload, null, 2)}
+                </pre>
+            </div>
+        </article>
+    );
+}
+
+function EventTypeBadge({ type }: { type: EventType }) {
+    return (
+        <Badge
+            size="xl"
+            variant={eventTypeVariants[type]}
+        >
+            {type === 'ModuleEvent'
+                ? 'Module event'
+                : type === 'System'
+                    ? 'System info'
+                    : type}
+        </Badge>
+    );
 }

@@ -5,13 +5,14 @@ pub mod utilities;
 
 use crate::core::hardware::*;
 use crate::core::modulecore::{Module, emit};
- use crate::module::stepper::StepperMotor;
+ use crate::module::imu::imu_type::MpuDevice;
+use crate::module::stepper::StepperMotor;
 // use crate::module::joystick::JoyStick;
 use crate::protocol::command::IncomingCommand;
 // use crate::utilities::serdeprotocol::IncomingCommand;
 // use crate::module::lidar::Lidar;
  use crate::protocol::global_definitions::StepperPins;
-// use embedded_hal_bus::i2c::RcDevice;
+use embedded_hal_bus::i2c::RcDevice;
 use std::io;
 use std::io::{BufRead, ErrorKind};
 use std::sync::mpsc;
@@ -55,16 +56,16 @@ fn main() -> anyhow::Result<()> {
     let mut modules: HashMap<String, ModuleHandle<'_>> = HashMap::new();
     let p = Peripherals::take()?;
     let mut last_yield_us = now_us();
-    // let i2c = I2cDriver::new(
-    //     p.i2c0,
-    //     p.pins.gpio21,
-    //     p.pins.gpio22,
-    //     &I2cConfig::new().baudrate(400.kHz().into()),
-    // )?;
+    let i2c = I2cDriver::new(
+        p.i2c0,
+        p.pins.gpio21,
+        p.pins.gpio22,
+        &I2cConfig::new().baudrate(100.kHz().into()),
+    )?;
 
-    // let shared_i2c = Rc::new(RefCell::new(i2c));
+     let shared_i2c = Rc::new(RefCell::new(i2c));
 
-    // let hardware = HardwareContext::new(p.ledc.timer0, shared_i2c.clone())?;
+     //let hardware = HardwareContext::new(p.ledc.timer0, shared_i2c.clone())?;
     // let rangefinder_i2c = RcDevice::new(hardware.i2c_bus.clone());
     let sync_sender=emit::start_event_emitter();
 
@@ -88,19 +89,19 @@ fn main() -> anyhow::Result<()> {
     // let lidar_id = lidar.borrow().get_id();
     // modules.insert(lidar_id, lidar.clone());
 
-    let stepper = Rc::new(RefCell::new(StepperMotor::new(
-        StepperPins {
-            in1: OutputPinCore::new(p.pins.gpio12)?, //33
-            in2: OutputPinCore::new(p.pins.gpio14)?, //32
-            in3: OutputPinCore::new(p.pins.gpio27)?,  //31
-            in4: OutputPinCore::new(p.pins.gpio26)?, //30
-        },
-        "stepperX".to_string(),
-        None,
-         sync_sender.clone()
-    )?));
+    // let stepper = Rc::new(RefCell::new(StepperMotor::new(
+    //     StepperPins {
+    //         in1: OutputPinCore::new(p.pins.gpio12)?, //33
+    //         in2: OutputPinCore::new(p.pins.gpio14)?, //32
+    //         in3: OutputPinCore::new(p.pins.gpio27)?,  //31
+    //         in4: OutputPinCore::new(p.pins.gpio26)?, //30
+    //     },
+    //     "stepperX".to_string(),
+    //     None,
+    //      sync_sender.clone()
+    // )?));
 
-    modules.insert(stepper.borrow().id().to_owned(), stepper.clone());
+    //modules.insert(stepper.borrow().id().to_owned(), stepper.clone());
 
     // let mut joystick = JoyStick::new(
     //     p.pins.gpio25,
@@ -109,13 +110,18 @@ fn main() -> anyhow::Result<()> {
     //     p.pins.gpio35,
     // )?;
 
+
+    const MPU_ADDRESS: u8 = 0x68;
+    let imu_i2c = RcDevice::new(shared_i2c.clone());
+    let test_imu = MpuDevice::new(imu_i2c, MPU_ADDRESS ,sync_sender.clone() , "MPu" , None );
+
     let (command_sender, command_receiver) = mpsc::channel::<IncomingCommand>();
     std::thread::spawn(move || {
         serial_command_reader(command_sender);
     });
 
     loop {
-        let _ = stepper.borrow_mut().tick();
+        //let _ = stepper.borrow_mut().tick();
         // rangefinder.borrow_mut().tick();
         // lidar.borrow_mut().tick();
         // joystick.tick()?;
