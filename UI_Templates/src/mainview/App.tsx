@@ -1,49 +1,25 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 
 import { Separator } from "@/components/ui/separator"
 
-import Layout from "@/lib/Layout"
 import { Label } from "@/components/ui/label"
 import { electroview } from "@/electrobun";
 import { toast } from "sonner"
 import { SerialDeviceInfo } from "@shared/rpc"
 import { Button } from "@/components/ui/button"
 import { useModuleStore } from "@runtime/ModuleStore";
-import Liddar from "@modules/Lidar/view"
-import { Input } from "@/components/ui/input"
-import { MoveUp } from "lucide-react"
-import z from "zod"
-import { PointSchema } from "@shared/Protocol/ModuleEven"
 import { selectModule } from "@shared/Protocol/ModuleDefinitionSchema"
 import { StepperCard } from "./Modules/stepper/view"
+import { ImuCard } from "./Modules/IMU/view"
 
-const sequence = [
-	[1, 0, 0, 0],
-	[1, 1, 0, 0],
-	[0, 1, 0, 0],
-	[0, 1, 1, 0],
-	[0, 0, 1, 0],
-	[0, 0, 1, 1],
-	[0, 0, 0, 1],
-	[1, 0, 0, 1],
-];
-
-type HoverPoint = {
-	x: number,
-	y: number,
-	zoneX: number,
-	zoneY: number,
-}
-
-const stepsPerRevolution = 4096;
 function App() {
 	const [ports, setPorts] = useState<SerialDeviceInfo[]>([])
-	const [openedPort, setOpenedPort] = useState(false)
 	const portinfo = useModuleStore((state) => state.portInfo)
 	 const Stepper = useModuleStore((state) => selectModule(state, "stepperX", "StepperMotor"))
+	  const Imu = useModuleStore((state) => selectModule(state, "MPu", "Imu"))
 	  const CoD = useModuleStore((state) => state.sendCommand)
 
 	  useEffect(() => {
@@ -135,6 +111,12 @@ function App() {
 					Disable={portinfo.status === "connected" ? false : true}
 				/>
 			}
+
+			{Imu && (
+				<div className="p-3.5">
+					<ImuCard module={Imu} />
+				</div>
+			)}
 
 
 		</div>

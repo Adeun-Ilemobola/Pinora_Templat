@@ -3,14 +3,13 @@ use std::sync::mpsc::SyncSender;
 use crate::{
     core::{
         hardware::SharedI2cDevice,
-        modulecore::{Module, ModuleCore},
+        modulecore::{Module, ModuleCore, emit},
     },
     module::imu::imu_type::{
-        Axes, ImuError, ImuModel, Mpu, MpuDevice, MpuDeviceErr, MpuDeviceMode, RawAxes,
-        ACCEL_SENSITIVITY, ACCEL_XOUT_H, GYRO_SENSITIVITY, GYRO_XOUT_H,
+        ACCEL_SENSITIVITY, ACCEL_XOUT_H, Axes, GYRO_SENSITIVITY, GYRO_XOUT_H, ImuError, ImuModel, Mpu, MpuDevice, MpuDeviceErr, MpuDeviceMode, RawAxes
     },
     protocol::{
-        command::ModuleCommand, global_definitions::ModuleType, registration::ProtocolMessage,
+        command::ModuleCommand, global_definitions::ModuleType, module_event::{ImuEvent, LogPriority, ModuleEvent, SysLogEvent}, registration::{ProtocolMessage, Registration}
     },
 };
 use embedded_hal::i2c::I2c;
@@ -60,12 +59,17 @@ impl<'d> MpuDevice<'d> {
                 info: Some(String::from("Failed during MPU identification")),
                 i2c_err: format!("{:?}", err),
             };
-            println!("{:?}", err_data);
+            
+            emit::event(ProtocolMessage::ModuleEvent(ModuleEvent::SysLog(SysLogEvent{
+                priority:LogPriority::Critical,
+                text:"Accel error".to_string(),
+                raw_err:Some(format!("{:?}" ,err_data))
+            })));
 
             err_data
         })?;
-        println!("MpuDevice : {:?}", new_mpi);
-        let imu = MpuDevice {
+        
+        let  imu = MpuDevice {
             mpu: new_mpi,
             core: ModuleCore::new(ModuleType::Imu, core_id, sender.clone()),
             mode: MpuDeviceMode::Collecting,
@@ -99,6 +103,14 @@ impl<'d> MpuDevice<'d> {
             bias_collection_gyro: vec![],
         };
         if parent_id.is_some() {}
+        imu.Registration(Registration{
+            id:imu.id().to_string(),
+            module_type:ModuleType::Imu,
+            lool_up_id:core_id.to_string(),
+            parent_id:parent_id.unwrap_or_default()
+            
+        });
+        imu.emit(ModuleEvent::Imu(ImuEvent::Mode { mode: imu.mode.clone() }));
 
         Ok(imu)
     }
@@ -130,10 +142,20 @@ impl<'d> MpuDevice<'d> {
     }
     pub fn tick(&mut self) -> Result<(), ()> {
         let new_gyro = self.raw_gyro().map_err(|err| {
-            println!("Gyro error: {err:?}");
+            self.emit(ModuleEvent::SysLog(SysLogEvent{
+                priority:LogPriority::Critical,
+                text:"Gyro error".to_string(),
+                raw_err:Some(format!("{:?}" ,err))
+            }));
+            
         })?;
         let new_accel = self.raw_accel().map_err(|err| {
-            println!("Accel error: {err:?}");
+            self.emit(ModuleEvent::SysLog(SysLogEvent{
+                priority:LogPriority::Critical,
+                text:"Accel error".to_string(),
+                raw_err:Some(format!("{:?}" ,err))
+            }));
+           
         })?;
 
         match self.mode {
@@ -144,7 +166,6 @@ impl<'d> MpuDevice<'d> {
                     .push(new_gyro.scale(GYRO_SENSITIVITY));
 
                 if self.point_count >= self.point_count_max {
-                    println!("Completing average point collection_accel: {} | collection_gyro:{}  " ,self.bias_collection_accel.len() , self.bias_collection_gyro.len());
                     for axes in self.bias_collection_accel.iter() {
                         self.bias_accel = self.bias_accel.add(axes);
                     }
@@ -159,12 +180,12 @@ impl<'d> MpuDevice<'d> {
                     self.point_count = 0;
                     self.bias_collection_gyro.clear();
                     self.bias_collection_accel.clear();
-                    println!(" average point bias gyro :{:?} " , self.bias_gyro);
-                    println!(" average point bias accel :{:?} " , self.bias_accel);
+                    self.emit(ModuleEvent::Imu(ImuEvent::Mode { mode: self.mode.clone() }));
+                    
 
                     return Ok(());
                 }
-                println!("current point position: {}" , self.point_count);
+               
                 self.point_count += 1;
             }
             MpuDeviceMode::Idle => {
@@ -183,7 +204,8 @@ impl<'d> MpuDevice<'d> {
             self.gyro.x = cover.x - self.bias_gyro.x;
             self.gyro.z = cover.z - self.bias_gyro.z;
             self.gyro.y = cover.y - self.bias_gyro.y;
-            println!(" gyro : {:?}", self.gyro)
+             self.emit(ModuleEvent::Imu(ImuEvent::Gyro { id: self.id().to_string(), raw_axes: self.gyro_raw, axes: self.gyro }));
+            
         }
     }
 
@@ -194,7 +216,8 @@ impl<'d> MpuDevice<'d> {
             self.accel.x = cover.x - self.bias_accel.x;
             self.accel.z = cover.z - self.bias_accel.z;
             self.accel.y = cover.y - self.bias_accel.y;
-            println!(" accel : {:?}", self.accel)
+             self.emit(ModuleEvent::Imu(ImuEvent::Accel { id: self.id().to_string(), raw_axes: self.accel_raw, axes: self.accel }));
+          
         }
     }
 }

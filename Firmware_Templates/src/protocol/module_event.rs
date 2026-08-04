@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::protocol::{
+use crate::{module::imu::imu_type::{Axes, MpuDeviceMode, RawAxes}, protocol::{
     command::RangefinderDistanceMode,
     global_definitions::{PivotPoint, Point, RangPoint, StepperState},
-};
+}};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 #[serde(tag = "module_type", content = "event")]
@@ -14,7 +14,8 @@ pub enum ModuleEvent {
     Button(ButtonEvent),
     SysLog(SysLogEvent),
     Rangefinder(RangefinderEvent),
-    StepperMotor(StepperMotorEvent)
+    StepperMotor(StepperMotorEvent),
+    Imu(ImuEvent)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
@@ -121,4 +122,13 @@ pub  enum  StepperMotorEvent {
      GetOrigin { id: String, origin: Option<f32> },
      GetPivotPoint { id: String, pivot_point: PivotPoint },
 
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
+#[serde(tag = "event_type")]
+
+pub  enum  ImuEvent {
+    Gyro{id: String,   raw_axes:RawAxes , axes:Axes},
+    Accel{id: String,   raw_axes:RawAxes , axes:Axes},
+    Mode {mode:MpuDeviceMode}
 }

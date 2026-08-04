@@ -6,6 +6,7 @@ import { RangefinderModule } from "@modules/rangefinder/definition";
 import { ServoModule } from "@modules/servo/definition";
 import { ModuleEventSchema } from "./ModuleEven";
 import { StepperMotorModule } from "@modules/stepper/definition";
+import { ImuModule } from "@modules/IMU/definition";
 
 export const moduleTypeIdentifier = z.enum([
   "Servo",
@@ -49,7 +50,8 @@ export const ModuleDefinitionSchema = z.discriminatedUnion("module_type", [
   ButtonModule,
   LidarModule,
   RangefinderModule,
-  StepperMotorModule
+  StepperMotorModule,
+  ImuModule,
 ]);
 
 export type ModuleDefinitionType = z.infer<typeof ModuleDefinitionSchema>;
@@ -60,8 +62,8 @@ export {
   LidarModule,
   RangefinderModule,
   ServoModule,
-  StepperMotorModule
-
+  StepperMotorModule,
+  ImuModule,
 };
 
 export const InComingMessageSchema = z.discriminatedUnion("type", [

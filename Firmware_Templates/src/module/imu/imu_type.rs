@@ -1,7 +1,6 @@
 use core::fmt;
 use crate::core::{hardware::SharedI2cDevice, modulecore::ModuleCore};
-use esp_idf_svc::hal::i2c::I2cError;
-use serde::Serialize;
+use serde::{Serialize , Deserialize};
 
 pub const  GYRO_XOUT_H: u8 = 0x43;
 pub  const ACCEL_XOUT_H: u8 = 0x3B;
@@ -9,14 +8,14 @@ pub  const ACCEL_XOUT_H: u8 = 0x3B;
 
 pub const ACCEL_SENSITIVITY: f32 = 16_384.0;
 pub const GYRO_SENSITIVITY: f32 = 131.0;
-#[derive(Debug , Serialize ,PartialEq, Eq , Clone, Copy)]
+#[derive(Debug , Serialize , Deserialize ,PartialEq, Eq , Clone, Copy)]
 pub struct RawAxes {
     pub x: i16,
     pub y: i16,
     pub z: i16,
 }
 
-#[derive(Debug , Serialize ,PartialEq, Clone, Copy)]
+#[derive(Debug , Serialize ,Deserialize ,PartialEq, Clone, Copy)]
 
 pub struct Axes {
     pub x: f32,
@@ -87,6 +86,9 @@ impl<'d> fmt::Debug for Mpu<'d> {
     }
 }
 
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 pub  enum  MpuDeviceMode {
     Collecting,
     Idle,

@@ -21,6 +21,7 @@ import {
 import { servoInitialBuild, updateServo } from "@modules/servo/definition";
 import { electroview } from "@/electrobun";
 import { updateStepperMotor , stepperMotorInitialBuild } from "@modules/stepper/definition";
+import { imuInitialBuild, updateImu } from "@modules/IMU/definition";
 import z from "zod";
 
 type ModuleByType<T extends TypeIdentifier_module> = Extract<
@@ -141,7 +142,25 @@ export const useModuleStore = create<ModuleStore>((set, get) => ({
         return store;
       }
 
+      if (event.module_type === "Imu" && event.event.event_type === "Mode" && !event.event.id) {
+        const modules = Object.fromEntries(
+          Object.entries(store.modules).map(([id, module]) => [
+            id,
+            module.module_type === "Imu"
+              ? updateImu(module, event.event)
+              : module,
+          ]),
+        );
+
+        return { modules };
+      }
+
       const id = event.event.id;
+
+      if (!id) {
+        return store;
+      }
+
       const module = store.modules[id];
 
       if (!module) {
@@ -300,6 +319,8 @@ function applyModuleEvent(
       return updateRangefinder(module, event.event);
     case "StepperMotor":
       return updateStepperMotor(module, event.event);
+    case "Imu":
+      return updateImu(module, event.event);
     default:
       return module;
   }
@@ -346,6 +367,13 @@ function createModule(
 
     case "StepperMotor":
       return stepperMotorInitialBuild(
+        registration.id,
+        registration.parent_id,
+        registration.lool_up_id,
+      );
+
+    case "Imu":
+      return imuInitialBuild(
         registration.id,
         registration.parent_id,
         registration.lool_up_id,
