@@ -54,6 +54,7 @@ anyhow = "1.0.104"
 pwm-pca9685 = "1.0.0" 
 vl53l1x-uld = "2.0.1"
 embedded-hal = "1.0.0"
+mfrc522 = "=0.8.0"
 
 [build-dependencies]
 embuild = "0.33.2"

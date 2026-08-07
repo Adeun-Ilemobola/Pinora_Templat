@@ -17,7 +17,8 @@ pub enum ModuleCommand {
     Servo(ServoCommandPayload),
     Lidar(LidarCommandPayload),
     Rangefinder(RangefinderCommandPayload),
-    StepperMotor(StepperMotorCommandPayload)
+    StepperMotor(StepperMotorCommandPayload),
+    Rfid(RfidCommand)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
@@ -82,4 +83,26 @@ pub enum StepperMotorCommandPayload {
     MoveToPivotMin,
     MoveToPivotMax,
     SetMode { mode: StepperState },
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq,)]
+#[serde(tag = "command")]
+pub enum RfidCommand {
+    Scan,
+    ReadUid,
+
+    ReadBlock {
+        block: u8,
+    },
+
+    WriteBlock {
+        block: u8,
+        data: [u8; 16],
+    },
+
+    ReadPayload,
+    WritePayload {
+        data: Vec<u8>,
+    },
 }

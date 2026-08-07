@@ -28,10 +28,12 @@ pub struct Lidar<'d> {
     max_point: Point,
 
     limit_point: Point,
-    curr_point: Point,
+    curr_point_bottom: Point,
     step: u32,
+    step_y:u32,
     curr_scan_mode: ScanState,
     x_d: i32,
+
     scan_time: std::time::Instant,
     step_timer: TimerState,
     point_map: Vec<RangPoint>,
@@ -90,13 +92,14 @@ impl<'d> Lidar<'d> {
             servo_y,
             min_point: Point { x: 90, y: -90 },
             max_point: Point { x: -90, y: 90 },
-            curr_point: Point { x: 0, y: 0 },
+            curr_point_bottom: Point { x: 0, y: 0 },
             step: 1,
+            step_y:2,
             curr_scan_mode: ScanState::Idol,
             x_d: 1,
             limit_point: Point { x: -90, y: 90 },
             scan_time: std::time::Instant::now(),
-            step_timer: TimerState::from_ms(25.0),
+            step_timer: TimerState::from_ms(30.0),
             rangefinder,
             point_map: vec![],
             current_chunk: 1,
@@ -113,20 +116,20 @@ impl<'d> Lidar<'d> {
                 }));
             }
         }
-       new_lidar.Registration(Registration {
+        new_lidar.Registration(Registration {
             id: new_lidar.id().to_string(),
             lool_up_id: manuel_id.clone(),
             module_type: ModuleType::Lidar,
             parent_id: String::new(),
         });
 
-        new_lidar.curr_point = new_lidar.max_point.clone();
+        new_lidar.curr_point_bottom = new_lidar.max_point.clone();
         new_lidar.move_to_point();
-        new_lidar.curr_point = new_lidar.min_point.clone();
+        new_lidar.curr_point_bottom = new_lidar.min_point.clone();
         new_lidar.move_to_point();
-        new_lidar.curr_point = Point { x: 0, y: 0 };
+        new_lidar.curr_point_bottom = Point { x: 0, y: 0 };
         new_lidar.move_to_point();
-        new_lidar.curr_point = Point { x: 0, y: 0 };
+        new_lidar.curr_point_bottom = Point { x: 0, y: 0 };
         new_lidar.move_to_point();
         new_lidar.emit(ModuleEvent::Lidar(LidarEvent::Roi {
             id: new_lidar.id().to_string(),
@@ -150,14 +153,23 @@ impl<'d> Lidar<'d> {
         }
 
         // Record the position where the servo has already been resting.
+
+        // if self.curr_point_bottom.y > self.max_point.y {
+        //     self.point_map.push(RangPoint {
+        //         x: self.curr_point_bottom.x,
+        //         y: self.curr_point_bottom.y + self.step_y as i32,
+        //         distant: self.rangefinder_top.range_mm,
+        //     });
+        // }
+
         self.point_map.push(RangPoint {
-            x: self.curr_point.x,
-            y: self.curr_point.y,
+            x: self.curr_point_bottom.x,
+            y: self.curr_point_bottom.y,
             distant: self.rangefinder.range_mm,
         });
 
-        let row_finished = self.curr_point.x == self.limit_point.x;
-        let scan_finished = row_finished && self.curr_point.y == self.limit_point.y;
+        let row_finished = self.curr_point_bottom.x == self.limit_point.x;
+        let scan_finished = row_finished && self.curr_point_bottom.y == self.limit_point.y;
 
         if scan_finished {
             self.flush_point_map();
@@ -169,7 +181,6 @@ impl<'d> Lidar<'d> {
                 scan_time: self.scan_time.elapsed().as_secs_f32(),
             }));
             self.sync_all();
-            
 
             return;
         }
@@ -187,9 +198,10 @@ impl<'d> Lidar<'d> {
                 self.max_point.x
             };
 
-            self.curr_point.y -= self.step as i32;
+            self.curr_point_bottom.y -= self.step as i32;
+            // self.curr_point_bottom.y -= self.step_y as i32;
         } else {
-            self.curr_point.x += self.step as i32 * self.x_d;
+            self.curr_point_bottom.x += self.step as i32 * self.x_d;
         }
 
         self.move_to_point();
@@ -217,16 +229,20 @@ impl<'d> Lidar<'d> {
         // const X_DIRECTION: i32 = -1;
         // const Y_DIRECTION: i32 = 1;
 
-        let _ = self.servo_x.set_angle_silent(self.curr_point.x.clone());
-        let _ = self.servo_y.set_angle_silent(self.curr_point.y.clone());
-        self.curr_point = Point {
+        let _ = self
+            .servo_x
+            .set_angle_silent(self.curr_point_bottom.x.clone());
+        let _ = self
+            .servo_y
+            .set_angle_silent(self.curr_point_bottom.y.clone());
+        self.curr_point_bottom = Point {
             x: self.servo_x.pivot_angle(),
             y: self.servo_y.pivot_angle(),
         };
     }
-    pub fn sync_all(&mut self){
+    pub fn sync_all(&mut self) {
         self.servo_x.sync();
-         self.servo_y.sync();
+        self.servo_y.sync();
     }
 
     pub fn get_id(&self) -> String {
@@ -255,10 +271,10 @@ impl<'d> Module for Lidar<'d> {
 
                     if self.servo_x.id() == id {
                         let _ = self.servo_x.set_angle(*step);
-                        self.curr_point.x = self.servo_x.pivot_angle();
+                        self.curr_point_bottom.x = self.servo_x.pivot_angle();
                     } else if self.servo_y.id() == id {
                         let _ = self.servo_y.set_angle(*step);
-                        self.curr_point.y = self.servo_y.pivot_angle();
+                        self.curr_point_bottom.y = self.servo_y.pivot_angle();
                     }
                 }
                 LidarCommandPayload::Roi { min, max } => {
@@ -288,7 +304,7 @@ impl<'d> Module for Lidar<'d> {
                     self.point_map.clear();
                     self.current_chunk = 1;
 
-                    self.curr_point = self.max_point.clone();
+                    self.curr_point_bottom = self.max_point.clone();
                     self.limit_point = self.min_point.clone();
                     self.x_d = -1;
                     self.step_timer.reset();
@@ -315,7 +331,7 @@ impl<'d> Module for Lidar<'d> {
                 }
                 LidarCommandPayload::MovePos { p } => {
                     SysLog::info(format!("LiDAR received MovePos: point={:?}", p), None);
-                    self.curr_point = p.clone();
+                    self.curr_point_bottom = p.clone();
                     self.move_to_point();
                 }
             },

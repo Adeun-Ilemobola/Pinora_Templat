@@ -6,3 +6,4 @@ pub  mod  range_finder;
 pub mod joystick;
 pub  mod stepper;
 pub  mod imu;
+pub  mod rfid;

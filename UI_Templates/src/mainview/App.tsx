@@ -14,6 +14,7 @@ import { useModuleStore } from "@runtime/ModuleStore";
 import { selectModule } from "@shared/Protocol/ModuleDefinitionSchema"
 import { StepperCard } from "./Modules/stepper/view"
 import { ImuCard } from "./Modules/IMU/view"
+import Liddar from "./Modules/Lidar/view"
 
 function App() {
 	const [ports, setPorts] = useState<SerialDeviceInfo[]>([])
@@ -102,7 +103,7 @@ function App() {
 
 			</div>
 
-			{/* <Liddar/> */}
+			<Liddar/>
 
 			{
 				Stepper && <StepperCard

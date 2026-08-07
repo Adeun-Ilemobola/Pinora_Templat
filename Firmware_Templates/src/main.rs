@@ -6,13 +6,22 @@ pub mod utilities;
 use crate::core::hardware::*;
 use crate::core::modulecore::{Module, emit};
  use crate::module::imu::imu_type::MpuDevice;
+use crate::module::rfid::Rfid;
 use crate::module::stepper::StepperMotor;
 // use crate::module::joystick::JoyStick;
 use crate::protocol::command::IncomingCommand;
 // use crate::utilities::serdeprotocol::IncomingCommand;
-// use crate::module::lidar::Lidar;
- use crate::protocol::global_definitions::StepperPins;
+ use crate::module::lidar::Lidar;
+ use crate::protocol::global_definitions::{RGB, StepperPins};
 use embedded_hal_bus::i2c::RcDevice;
+use esp_idf_svc::hal::spi::{
+     config::{
+            Config as SpiConfig,
+            DriverConfig,
+            MODE_0,
+        },
+        SpiDeviceDriver,
+};
 use std::io;
 use std::io::{BufRead, ErrorKind};
 use std::sync::mpsc;
@@ -56,16 +65,36 @@ fn main() -> anyhow::Result<()> {
     let mut modules: HashMap<String, ModuleHandle<'_>> = HashMap::new();
     let p = Peripherals::take()?;
     let mut last_yield_us = now_us();
-    let i2c = I2cDriver::new(
-        p.i2c0,
-        p.pins.gpio21,
-        p.pins.gpio22,
-        &I2cConfig::new().baudrate(100.kHz().into()),
+    // let i2c = I2cDriver::new(
+    //     p.i2c0,
+    //     p.pins.gpio21,
+    //     p.pins.gpio22,
+    //     &I2cConfig::new().baudrate(100.kHz().into()),
+    // )?;
+    let spi = SpiDeviceDriver::new_single(
+        p.spi2,
+        p.pins.gpio18, //SCK, | -> purple
+        p.pins.gpio19,  // MOSI |  -> blue
+        Some(p.pins.gpio23),// MISO |  -> green
+        Some(p.pins.gpio5), // SDA / CS | -> gray
+        &DriverConfig::new(),
+        &SpiConfig::new()
+        .baudrate(1_000_000.Hz())
+        .data_mode(MODE_0),
     )?;
+    // MRC522 RST      -> GPIO 16
 
-     let shared_i2c = Rc::new(RefCell::new(i2c));
 
-     //let hardware = HardwareContext::new(p.ledc.timer0, shared_i2c.clone())?;
+//    LEFT                                      RIGHT
+//┌──────────────────────────────────────────────┐
+//│ SDA │ SCK │ MOSI │ MISO │ IRQ │ GND │ RST │ 3.3V │
+//└──────────────────────────────────────────────┘
+
+    // let shared_i2c = Rc::new(RefCell::new(i2c));
+    // let shared_spi = Rc::new(RefCell::new(spi));
+
+
+    // let hardware = HardwareContext::new(p.ledc.timer0, shared_i2c.clone())?;
     // let rangefinder_i2c = RcDevice::new(hardware.i2c_bus.clone());
     let sync_sender=emit::start_event_emitter();
 
@@ -111,9 +140,23 @@ fn main() -> anyhow::Result<()> {
     // )?;
 
 
-    const MPU_ADDRESS: u8 = 0x68;
-    let imu_i2c = RcDevice::new(shared_i2c.clone());
-    let mut  test_imu = MpuDevice::new(imu_i2c, MPU_ADDRESS ,sync_sender.clone() , "MPu" , None ).map_err(|err| anyhow::anyhow!("{err:?}"))?;
+    // const MPU_ADDRESS: u8 = 0x68;
+    // let imu_i2c = RcDevice::new(shared_i2c.clone());
+    // let mut  test_imu = MpuDevice::new(imu_i2c, MPU_ADDRESS ,sync_sender.clone() , "MPu" , None ).map_err(|err| anyhow::anyhow!("{err:?}"))?;
+
+    let mut  rfid = Rfid::new(
+        spi, 
+        RGB{
+            red : OutputPinCore::new(p.pins.gpio12)?,
+            green:  OutputPinCore::new(p.pins.gpio14)?, 
+            blue: OutputPinCore::new(p.pins.gpio27)? ,
+
+        },
+        OutputPinCore::new(p.pins.gpio17)?,
+        "dff", 
+        None, 
+        sync_sender.clone() 
+    ).map_err(|err| anyhow::anyhow!("{err:?}"))?;
 
     let (command_sender, command_receiver) = mpsc::channel::<IncomingCommand>();
     std::thread::spawn(move || {
@@ -121,7 +164,8 @@ fn main() -> anyhow::Result<()> {
     });
 
     loop {
-        test_imu.tick().map_err(|err| anyhow::anyhow!("{err:?}"))?;
+        let _= rfid.tick();
+        // test_imu.tick().map_err(|err| anyhow::anyhow!("{err:?}"))?;
         //let _ = stepper.borrow_mut().tick();
         // rangefinder.borrow_mut().tick();
         // lidar.borrow_mut().tick();
@@ -144,8 +188,7 @@ fn main() -> anyhow::Result<()> {
         }
         let now = now_us();
 
-        if now - last_yield_us >= 650_000.0  {
-            // About once every 100 ms, give FreeRTOS one scheduler tick.
+        if now - last_yield_us >= 650_000.0 {
             rtos_sleep_ms(1);
             last_yield_us = now_us();
         }

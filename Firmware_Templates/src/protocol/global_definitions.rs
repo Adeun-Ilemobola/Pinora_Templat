@@ -14,6 +14,7 @@ pub enum ModuleType {
     SysLog,
     JoyStick,
     StepperMotor,
+    Rfid
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -46,6 +47,19 @@ pub struct StepperPins<'d> {
     pub in2: OutputPinCore<'d>,
     pub in3: OutputPinCore<'d>,
     pub in4: OutputPinCore<'d>,
+}
+
+pub struct RGB<'d> {
+    pub red: OutputPinCore<'d>,
+    pub green: OutputPinCore<'d>,
+    pub blue: OutputPinCore<'d>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum RGBMode {
+    Red,
+    Green,
+    Blue,
+    Off
 }
 
 #[derive(Debug, Clone, Copy, PartialEq ,Serialize, Deserialize,)]
