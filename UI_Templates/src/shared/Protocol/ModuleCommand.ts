@@ -7,6 +7,8 @@ import {
 } from "@modules/rangefinder/definition";
 import { ServoCommandTypeSchema } from "@modules/servo/definition";
 import { StepperMotorCommandTypeSchema } from "@modules/stepper/definition";
+import { moduleTypeIdentifier } from "./ModuleDefinitionSchema";
+import { RfidCommandTypeSchema } from "@/Modules/rfid/definition";
 
 export const ModuleCommandSchema = z.discriminatedUnion("module_type", [
   z.object({
@@ -39,6 +41,14 @@ export const ModuleCommandSchema = z.discriminatedUnion("module_type", [
     module_type: z.literal("StepperMotor"),
     payload: StepperMotorCommandTypeSchema,
   }),
+
+  z.object({
+    id: z.string(),
+    module_type: z.literal(moduleTypeIdentifier.enum.Rfid),
+    payload: RfidCommandTypeSchema,
+  }),
+
+  
 ]);
 
 export type Commandtype = z.infer<typeof ModuleCommandSchema>;
@@ -50,5 +60,7 @@ export {
   RangefinderCommandTypeSchema,
   RangefinderDistanceModeSchema,
   ServoCommandTypeSchema,
-  StepperMotorCommandTypeSchema
+  StepperMotorCommandTypeSchema,
+  RfidCommandTypeSchema
+  
 };

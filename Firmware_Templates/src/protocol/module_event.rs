@@ -138,7 +138,7 @@ pub  enum  ImuEvent {
 #[serde(tag = "event_type")]
 pub  enum RfidEvent {
     GetCard{id: String,  card_uid:String , card_data:String},
-    GetMode{mode:MddeRfid},
+    GetMode{id: String,mode:MddeRfid},
     GetWriteState{ id:String , state:WriteState , info:String}
     
 

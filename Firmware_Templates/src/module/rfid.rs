@@ -191,6 +191,7 @@ impl<'d> Rfid<'d> {
                             self.mode = MddeRfid::Read;
                             self.emit(ModuleEvent::Rfid(RfidEvent::GetMode {
                                 mode: self.mode.clone(),
+                                 id: self.id().to_string(),
                             }));
                             return Ok(());
                         }
@@ -246,6 +247,7 @@ impl<'d> Rfid<'d> {
                                 self.mode = MddeRfid::Read;
                                 self.emit(ModuleEvent::Rfid(RfidEvent::GetMode {
                                     mode: self.mode.clone(),
+                                     id: self.id().to_string(),
                                 }));
                             }
                             WriteState::Bad => {}
@@ -309,6 +311,7 @@ impl<'d> Module for Rfid<'d> {
                     self.mode = MddeRfid::Write;
                     self.emit(ModuleEvent::Rfid(RfidEvent::GetMode {
                         mode: self.mode.clone(),
+                         id: self.id().to_string(),
                     }));
                 }
             },

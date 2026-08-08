@@ -23,6 +23,7 @@ import { electroview } from "@/electrobun";
 import { updateStepperMotor , stepperMotorInitialBuild } from "@modules/stepper/definition";
 import { imuInitialBuild, updateImu } from "@modules/IMU/definition";
 import z from "zod";
+import { RfidInitialBuild, updateRfid } from "@/Modules/rfid/definition";
 
 type ModuleByType<T extends TypeIdentifier_module> = Extract<
   ModuleDefinitionType,
@@ -321,6 +322,8 @@ function applyModuleEvent(
       return updateStepperMotor(module, event.event);
     case "Imu":
       return updateImu(module, event.event);
+    case "Rfid":
+      return updateRfid(module, event.event);
     default:
       return module;
   }
@@ -374,6 +377,14 @@ function createModule(
 
     case "Imu":
       return imuInitialBuild(
+        registration.id,
+        registration.parent_id,
+        registration.lool_up_id,
+      );
+
+
+       case "Rfid":
+      return RfidInitialBuild(
         registration.id,
         registration.parent_id,
         registration.lool_up_id,

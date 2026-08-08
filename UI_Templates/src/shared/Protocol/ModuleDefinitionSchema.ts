@@ -7,6 +7,7 @@ import { ServoModule } from "@modules/servo/definition";
 import { ModuleEventSchema } from "./ModuleEven";
 import { StepperMotorModule } from "@modules/stepper/definition";
 import { ImuModule } from "@modules/IMU/definition";
+import { RfidModule } from "@/Modules/rfid/definition";
 
 export const moduleTypeIdentifier = z.enum([
   "Servo",
@@ -18,6 +19,7 @@ export const moduleTypeIdentifier = z.enum([
   "SysLog",
   "Rangefinder",
   "StepperMotor",
+  "Rfid"
 ]);
 
 export type TypeIdentifier = z.infer<typeof moduleTypeIdentifier>;
@@ -52,6 +54,7 @@ export const ModuleDefinitionSchema = z.discriminatedUnion("module_type", [
   RangefinderModule,
   StepperMotorModule,
   ImuModule,
+  RfidModule
 ]);
 
 export type ModuleDefinitionType = z.infer<typeof ModuleDefinitionSchema>;
@@ -64,6 +67,7 @@ export {
   ServoModule,
   StepperMotorModule,
   ImuModule,
+  RfidModule
 };
 
 export const InComingMessageSchema = z.discriminatedUnion("type", [

@@ -15,6 +15,7 @@ import { selectModule } from "@shared/Protocol/ModuleDefinitionSchema"
 import { StepperCard } from "./Modules/stepper/view"
 import { ImuCard } from "./Modules/IMU/view"
 import Liddar from "./Modules/Lidar/view"
+import { RfidCard } from "./Modules/rfid/view"
 
 function App() {
 	const [ports, setPorts] = useState<SerialDeviceInfo[]>([])
@@ -22,6 +23,9 @@ function App() {
 	 const Stepper = useModuleStore((state) => selectModule(state, "stepperX", "StepperMotor"))
 	  const Imu = useModuleStore((state) => selectModule(state, "MPu", "Imu"))
 	  const CoD = useModuleStore((state) => state.sendCommand)
+	  const Rfid = useModuleStore((state) =>
+		Object.values(state.modules).find((module) => module.module_type === "Rfid"),
+	  )
 
 	  useEffect(() => {
 		const load = async () => {
@@ -104,6 +108,16 @@ function App() {
 			</div>
 
 			<Liddar/>
+
+			{Rfid && (
+				<div className="p-3.5">
+					<RfidCard
+						module={Rfid}
+						sendCommand={CoD}
+						disabled={portinfo.status !== "connected"}
+					/>
+				</div>
+			)}
 
 			{
 				Stepper && <StepperCard
