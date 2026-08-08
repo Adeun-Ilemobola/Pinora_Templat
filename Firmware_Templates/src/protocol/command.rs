@@ -89,19 +89,8 @@ pub enum StepperMotorCommandPayload {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq,)]
 #[serde(tag = "command")]
 pub enum RfidCommand {
-    Scan,
-    ReadUid,
-
-    ReadBlock {
-        block: u8,
-    },
-
-    WriteBlock {
-        block: u8,
-        data: [u8; 16],
-    },
-
-    ReadPayload,
+    WriteMode,
+    ReadMode,
     WritePayload {
         data: Vec<u8>,
     },

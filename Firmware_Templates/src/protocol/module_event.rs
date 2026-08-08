@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{module::imu::imu_type::{Axes, MpuDeviceMode, RawAxes}, protocol::{
+use crate::{module::{imu::imu_type::{Axes, MpuDeviceMode, RawAxes}, rfid::{MddeRfid, WriteState}}, protocol::{
     command::RangefinderDistanceMode,
     global_definitions::{PivotPoint, Point, RangPoint, StepperState},
 }};
@@ -15,7 +15,8 @@ pub enum ModuleEvent {
     SysLog(SysLogEvent),
     Rangefinder(RangefinderEvent),
     StepperMotor(StepperMotorEvent),
-    Imu(ImuEvent)
+    Imu(ImuEvent),
+    Rfid(RfidEvent)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
@@ -131,4 +132,14 @@ pub  enum  ImuEvent {
     Gyro{id: String,   raw_axes:RawAxes , axes:Axes},
     Accel{id: String,   raw_axes:RawAxes , axes:Axes},
     Mode {mode:MpuDeviceMode}
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
+#[serde(tag = "event_type")]
+pub  enum RfidEvent {
+    GetCard{id: String,  card_uid:String , card_data:String},
+    GetMode{mode:MddeRfid},
+    GetWriteState{ id:String , state:WriteState , info:String}
+    
+
 }
