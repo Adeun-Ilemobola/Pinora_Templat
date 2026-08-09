@@ -1,5 +1,5 @@
 import z from "zod";
-import { moduleTypeIdentifier, type ModuleDefinitionType } from "@shared/Protocol/ModuleDefinitionSchema";
+import type { ModuleDefinitionType } from "@shared/Protocol/ModuleDefinitionSchema";
 export const WriteState = z.enum([
     "Good", "Bad"
 ])
@@ -17,7 +17,7 @@ export const RfidModule = z.object({
     id: z.string(),
     lool_up_id: z.string(),
     parent_id: z.string(),
-    module_type: z.literal(moduleTypeIdentifier.enum.Rfid),
+    module_type: z.literal("Rfid"),
     state: z.object({
         mode: RfidMode,
         writeMsg: z.object({
@@ -42,7 +42,7 @@ export function RfidInitialBuild(
     return {
         id,
         parent_id,
-        module_type: moduleTypeIdentifier.enum.Rfid,
+        module_type: "Rfid",
         lool_up_id,
         state: {
             recentScan: null,
@@ -96,7 +96,7 @@ export function updateRfid(
     module: ModuleDefinitionType,
     event: z.infer<typeof RfidEventSchema>,
 ): ModuleDefinitionType {
-    if (module.module_type !== moduleTypeIdentifier.enum.Rfid) return module;
+    if (module.module_type !== "Rfid") return module;
 
     switch (event.event_type) {
         case "GetCard":

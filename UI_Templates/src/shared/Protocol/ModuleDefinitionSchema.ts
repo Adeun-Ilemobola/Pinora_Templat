@@ -7,7 +7,7 @@ import { ServoModule } from "@modules/servo/definition";
 import { ModuleEventSchema } from "./ModuleEven";
 import { StepperMotorModule } from "@modules/stepper/definition";
 import { ImuModule } from "@modules/IMU/definition";
-import { RfidModule } from "@/Modules/rfid/definition";
+import { RfidModule } from "@modules/rfid/definition";
 
 export const moduleTypeIdentifier = z.enum([
   "Servo",

@@ -143,8 +143,9 @@ fn main() -> anyhow::Result<()> {
     // const MPU_ADDRESS: u8 = 0x68;
     // let imu_i2c = RcDevice::new(shared_i2c.clone());
     // let mut  test_imu = MpuDevice::new(imu_i2c, MPU_ADDRESS ,sync_sender.clone() , "MPu" , None ).map_err(|err| anyhow::anyhow!("{err:?}"))?;
-
-    let mut  rfid = Rfid::new(
+    
+    let   rfid = Rc::new(RefCell::new(
+        Rfid::new(
         spi, 
         RGB{
             red : OutputPinCore::new(p.pins.gpio12)?,
@@ -156,7 +157,11 @@ fn main() -> anyhow::Result<()> {
         "dff", 
         None, 
         sync_sender.clone() 
-    ).map_err(|err| anyhow::anyhow!("{err:?}"))?;
+    ).map_err(|err| anyhow::anyhow!("{err:?}"))?
+    ));
+
+    modules.insert(rfid.borrow().id().to_owned(), rfid.clone());
+
 
     let (command_sender, command_receiver) = mpsc::channel::<IncomingCommand>();
     std::thread::spawn(move || {
@@ -164,7 +169,7 @@ fn main() -> anyhow::Result<()> {
     });
 
     loop {
-        let _= rfid.tick();
+        let _= rfid.borrow_mut().tick();
         // test_imu.tick().map_err(|err| anyhow::anyhow!("{err:?}"))?;
         //let _ = stepper.borrow_mut().tick();
         // rangefinder.borrow_mut().tick();

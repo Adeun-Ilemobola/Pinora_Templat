@@ -6,8 +6,7 @@ import { RangefinderEventSchema  } from "@modules/rangefinder/definition";
 import { ServoEventSchema } from "@modules/servo/definition";
 import { StepperMotorEventSchema } from "@modules/stepper/definition";
 import { ImuEventSchema } from "@modules/IMU/definition";
-import { moduleTypeIdentifier } from "./ModuleDefinitionSchema";
-import { RfidEventSchema } from "@/Modules/rfid/definition";
+import { RfidEventSchema } from "@modules/rfid/definition";
 
 
 
@@ -39,7 +38,7 @@ export const ModuleEventSchema = z.discriminatedUnion("module_type", [
     event: StepperMotorEventSchema,
   }),
   z.object({ module_type: z.literal("Imu"), event: ImuEventSchema }),
-    z.object({ module_type: z.literal(moduleTypeIdentifier.enum.Rfid), event: RfidEventSchema }),
+    z.object({ module_type: z.literal("Rfid"), event: RfidEventSchema }),
 ]);
 
 export type ModuleEventEnvelope = z.infer<typeof ModuleEventSchema>;
@@ -54,5 +53,5 @@ export {
   SysLogEventSchema,
   StepperMotorEventSchema,
   ImuEventSchema,
-RfidEventSchema
+  RfidEventSchema
 };

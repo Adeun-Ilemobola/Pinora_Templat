@@ -1,21 +1,21 @@
-use std::sync::mpsc::SyncSender;
-
 use crate::{
     core::{
         hardware::{OutputPinCore, TimerState},
-        modulecore::{Module, ModuleCore},
+        modulecore::{ Module, ModuleCore},
     },
     protocol::{
         command::{ModuleCommand, RfidCommand},
         global_definitions::{ModuleType, RGBMode, RGB},
-        module_event::{ModuleEvent, RfidEvent},
+        module_event::{LogPriority, ModuleEvent, RfidEvent, SysLogEvent},
         registration::{ProtocolMessage, Registration},
     },
 };
+use std::sync::mpsc::SyncSender;
+use uuid::Uuid;
 
 use esp_idf_svc::hal::{delay::Ets, spi::SpiSingleDeviceDriver};
 use mfrc522::{
-    comm::blocking::spi::{DummyDelay, SpiInterface},
+    comm::blocking::spi::{ SpiInterface},
     Initialized, Mfrc522, MifareKey,
 };
 use serde::{Deserialize, Serialize};
@@ -94,7 +94,7 @@ impl<'d> Rfid<'d> {
             buzer_pin,
             write_chuck: 1,
             write_state: WriteState::Good,
-            write_state_msg: String::new(),
+            write_state_msg: "All Good".to_string(),
         };
 
         dor.Registration(Registration {
@@ -122,41 +122,21 @@ impl<'d> Rfid<'d> {
                         let uid = match self.mf.select(&atqa) {
                             Ok(d) => d,
                             Err(e) => {
+                                self.emit(ModuleEvent::SysLog(SysLogEvent {
+                                    text: "mf.select".to_string(),
+                                    priority: LogPriority::Critical,
+                                    raw_err: Some(format!("{:?} ", e)),
+                                }));
+                                self.update_rgb(RGBMode::Red);
                                 return Err(());
                             }
                         };
+                        // let _ =self.buzer_pin.set_state(true);
+                        // let _ =self.buzer_pin.set_state(false);
                         self.update_rgb(RGBMode::Blue);
-                        println!("Card UID: {:02X?}", uid.as_bytes());
-                        let key: MifareKey = [0xFF; 6];
-                        if !self.temp_read_data.is_empty() {
-                            self.temp_read_data.clear();
-                        }
 
-                        for block in USABLE_BLOCKS.iter() {
-                            match self.mf.mf_authenticate(&uid, *block, &key) {
-                                Ok(_) => {
-                                    let data: [u8; 16] =
-                                        self.mf.mf_read(*block).map_err(|err| -> () {
-                                            println!("data err ->{:?}", err)
-                                        })?;
-
-                                    self.temp_read_data.extend(data);
-
-                                    self.mf
-                                        .stop_crypto1()
-                                        .map_err(|err| -> () { println!("{:?}", err) })?;
-                                    let text = std::str::from_utf8(&self.temp_read_data).map_err(
-                                        |err| -> () { println!(" to text map_err -> {:?}", err) },
-                                    )?;
-                                    self.emit(ModuleEvent::Rfid(RfidEvent::GetCard {
-                                        id: self.id().to_string(),
-                                        card_uid: format!("{:02X?}", uid.as_bytes()),
-                                        card_data: text.to_string(),
-                                    }));
-                                }
-                                Err(e) => {}
-                            }
-                        }
+                        self.read_card(&uid)?;
+                        self.send_card_data(&uid)?;
 
                         // Authenticate and read here when needed.
                     }
@@ -181,57 +161,31 @@ impl<'d> Rfid<'d> {
                         let uid = match self.mf.select(&atqa) {
                             Ok(d) => d,
                             Err(e) => {
+                                self.emit(ModuleEvent::SysLog(SysLogEvent {
+                                    text: "mf.select in Write".to_string(),
+                                    priority: LogPriority::Critical,
+                                    raw_err: Some(format!("{:?} ", e)),
+                                }));
+                                self.update_rgb(RGBMode::Red);
                                 return Err(());
                             }
                         };
                         self.update_rgb(RGBMode::Blue);
-                        println!("Card UID: {:02X?}", uid.as_bytes());
-                        let key: MifareKey = [0xFF; 6];
+                        // let _ =self.buzer_pin.set_state(true);
+                        // let _ =self.buzer_pin.set_state(false);
+                        // println!("Card UID: {:02X?}", uid.as_bytes());
                         if self.temp_write_data.is_empty() {
                             self.mode = MddeRfid::Read;
                             self.emit(ModuleEvent::Rfid(RfidEvent::GetMode {
                                 mode: self.mode.clone(),
-                                 id: self.id().to_string(),
+                                id: self.id().to_string(),
                             }));
                             return Ok(());
                         }
-                        let max_chuck = self.temp_write_data.len().div_ceil(16);
-                        let mut max_chuck_data = self.temp_write_data.chunks(16);
-
-                        for (i, block) in USABLE_BLOCKS.iter().enumerate() {
-                            match self.mf.mf_authenticate(&uid, *block, &key) {
-                                Ok(_) => {
-                                    match max_chuck_data.next() {
-                                        Some(data) => {
-                                            let mut block_data = [0u8; 16];
-                                            block_data[..data.len()].copy_from_slice(data);
-                                            match self.mf.mf_write(*block, block_data) {
-                                                Ok(_) => {}
-                                                Err(e) => {
-                                                    println!("mf_write  Err: {:?} ", e)
-                                                }
-                                            }
-                                        }
-                                        None => {
-                                            self.write_state = WriteState::Bad;
-                                            self.write_state_msg =
-                                                "write data is is empty ".to_string();
-                                            break;
-                                        }
-                                    }
-
-                                    if (i + 1) >= max_chuck {
-                                        break;
-                                    }
-                                }
-                                Err(e) => {
-                                    self.write_state = WriteState::Bad;
-                                    self.write_state_msg =
-                                        format!("fiald to access {}", *block).to_string();
-                                    break;
-                                }
-                            }
-                        }
+                       
+                        self.write_card(&uid)?;
+                        self.read_card(&uid)?;
+                        self.send_card_data(&uid)?;
 
                         self.emit(ModuleEvent::Rfid(RfidEvent::GetWriteState {
                             id: self.id().to_string(),
@@ -241,17 +195,23 @@ impl<'d> Rfid<'d> {
 
                         match self.write_state {
                             WriteState::Good => {
+                                if self.rgb_mode != RGBMode::Off {
+                                    self.update_rgb(RGBMode::Off);
+                                }
+                                self.mode = MddeRfid::Read;
+                                self.temp_write_data.clear();
+                            }
+                            WriteState::Bad => {
                                 if self.rgb_mode != RGBMode::Red {
                                     self.update_rgb(RGBMode::Red);
                                 }
                                 self.mode = MddeRfid::Read;
-                                self.emit(ModuleEvent::Rfid(RfidEvent::GetMode {
-                                    mode: self.mode.clone(),
-                                     id: self.id().to_string(),
-                                }));
                             }
-                            WriteState::Bad => {}
                         }
+                        self.emit(ModuleEvent::Rfid(RfidEvent::GetMode {
+                            mode: self.mode.clone(),
+                            id: self.id().to_string(),
+                        }));
 
                         // Authenticate and read here when needed.
                     }
@@ -264,6 +224,117 @@ impl<'d> Rfid<'d> {
                         println!("RFID error: {error:?}");
                         return Err(());
                     }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn read_card(&mut self, uid: &mfrc522::Uid) -> Result<(), ()> {
+        let key: MifareKey = [0xFF; 6];
+        if !self.temp_read_data.is_empty() {
+            self.temp_read_data.clear();
+        }
+
+        for block in USABLE_BLOCKS.iter() {
+            match self.mf.mf_authenticate(&uid, *block, &key) {
+                Ok(_) => {
+                    let data: [u8; 16] = self.mf.mf_read(*block).map_err(|err| -> () {
+                        self.emit(ModuleEvent::SysLog(SysLogEvent {
+                            text: format!("faild to mf_read  block: {:?}", *block),
+                            priority: LogPriority::Critical,
+                            raw_err: Some(format!("{:?}", err)),
+                        }));
+                    })?;
+
+                    self.temp_read_data.extend(data);
+
+                    self.mf.stop_crypto1().map_err(|err| -> () {
+                        self.emit(ModuleEvent::SysLog(SysLogEvent {
+                            text: format!("faild to stop_crypto1  block: {:?}", *block),
+                            priority: LogPriority::Critical,
+                            raw_err: Some(format!("{:?}", err)),
+                        }));
+                    })?;
+                }
+                Err(e) => {
+                    self.emit(ModuleEvent::SysLog(SysLogEvent {
+                        text: format!("faild to read block: {:?}", *block),
+                        priority: LogPriority::Low,
+                        raw_err: Some(format!("{:?}", e)),
+                    }));
+                }
+            }
+        }
+        Ok(())
+    }
+    fn send_card_data(&mut self, uid: &mfrc522::Uid) -> Result<(), ()> {
+        let bytes: [u8; 16] = self
+            .temp_read_data
+            .as_slice()
+            .try_into()
+            .map_err(|_| -> () { println!("Expected exactly 16 UUID bytes") })?;
+
+        let uuid = Uuid::from_bytes(bytes);
+
+        self.emit(ModuleEvent::Rfid(RfidEvent::GetCard {
+            id: self.id().to_string(),
+            card_uid: format!("{:02X?}", uid.as_bytes()),
+            card_data: uuid.to_string(),
+        }));
+
+        Ok(())
+    }
+    fn write_card(&mut self, uid: &mfrc522::Uid) -> Result<(), ()> {
+        let key: MifareKey = [0xFF; 6];
+
+        let max_chuck = self.temp_write_data.len().div_ceil(16);
+        let mut max_chuck_data = self.temp_write_data.chunks(16);
+
+        for (i, block) in USABLE_BLOCKS.iter().enumerate() {
+            match self.mf.mf_authenticate(&uid, *block, &key) {
+                Ok(_) => {
+                    match max_chuck_data.next() {
+                        Some(data) => {
+                            let mut block_data = [0u8; 16];
+                            block_data[..data.len()].copy_from_slice(data);
+                            match self.mf.mf_write(*block, block_data) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    // println!("mf_write  Err: {:?} ", e)
+                                    self.write_state = WriteState::Bad;
+                                    self.write_state_msg = format!("mf_write  Err: {:?} ", e);
+                                    self.emit(ModuleEvent::SysLog(SysLogEvent {
+                                        text: "mf_write".to_string(),
+                                        priority: LogPriority::Critical,
+                                        raw_err: Some(format!("{:?} ", e)),
+                                    }));
+                                    // break;
+                                }
+                            }
+                        }
+                        None => {
+                            self.write_state = WriteState::Bad;
+                            self.write_state_msg = "write data is is empty ".to_string();
+                            break;
+                        }
+                    }
+
+                    if (i + 1) >= max_chuck {
+                        break;
+                    }
+                }
+                Err(e) => {
+                    self.write_state = WriteState::Bad;
+                    self.write_state_msg =
+                        format!("fiald to access {} | Err : {:?}", *block, e).to_string();
+
+                    self.emit(ModuleEvent::SysLog(SysLogEvent {
+                        text: format!("fiald to access {} ", *block,).to_string(),
+                        priority: LogPriority::Critical,
+                        raw_err: Some(format!("{:?} ", e)),
+                    }));
+                    break;
                 }
             }
         }
@@ -304,14 +375,18 @@ impl<'d> Module for Rfid<'d> {
     fn handle_command(&mut self, command: &ModuleCommand) -> anyhow::Result<()> {
         match command {
             ModuleCommand::Rfid(command) => match command {
-                RfidCommand::ReadMode => {}
-                RfidCommand::WriteMode => {}
+                RfidCommand::ReadMode => {
+                    self.mode = MddeRfid::Read;
+                }
+                RfidCommand::WriteMode => {
+                    self.mode = MddeRfid::Write;
+                }
                 RfidCommand::WritePayload { data } => {
                     self.temp_write_data.extend(data);
                     self.mode = MddeRfid::Write;
                     self.emit(ModuleEvent::Rfid(RfidEvent::GetMode {
                         mode: self.mode.clone(),
-                         id: self.id().to_string(),
+                        id: self.id().to_string(),
                     }));
                 }
             },

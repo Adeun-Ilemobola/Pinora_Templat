@@ -46,6 +46,7 @@ function uuidToBytes(value: string): number[] {
 }
 
 function generateWritableId(): WritableId {
+   
   const value = crypto.randomUUID();
   return { value, bytes: uuidToBytes(value) };
 }

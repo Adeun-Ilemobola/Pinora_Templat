@@ -107,7 +107,7 @@ function App() {
 
 			</div>
 
-			<Liddar/>
+			{/* <Liddar/> */}
 
 			{Rfid && (
 				<div className="p-3.5">
