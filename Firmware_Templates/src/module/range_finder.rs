@@ -1,27 +1,13 @@
 use std::sync::mpsc::SyncSender;
 
-use crate::core::hardware::{
-     RangefinderI2c,
-};
-use crate::core::modulecore::{ Module, ModuleCore};
-use crate::protocol::command::{
-    ModuleCommand, RangefinderCommandPayload, RangefinderDistanceMode,
-};
+use crate::core::hardware::RangefinderI2c;
+use crate::core::modulecore::{Module, ModuleCore};
+use crate::protocol::command::{ModuleCommand, RangefinderCommandPayload, RangefinderDistanceMode};
 use crate::protocol::global_definitions::ModuleType;
-use crate::protocol::module_event::{
-    ModuleEvent, RangefinderEvent,
-};
-use crate::protocol::registration::{
-     ProtocolMessage, Registration
-};
+use crate::protocol::module_event::{LogPriority, ModuleEvent, RangefinderEvent, SysLogEvent};
+use crate::protocol::registration::{ProtocolMessage, Registration};
 
-use vl53l1x_uld::{
-    DistanceMode,
-    IOVoltage,
-    RangeStatus,
-    VL53L1X,
-    DEFAULT_ADDRESS,
-};
+use vl53l1x_uld::{DistanceMode, IOVoltage, RangeStatus, DEFAULT_ADDRESS, VL53L1X};
 
 pub struct Rangefinder<'d> {
     pub core: ModuleCore,
@@ -36,44 +22,27 @@ pub struct Rangefinder<'d> {
 
 impl<'d> Rangefinder<'d> {
     pub fn new(
-         rangefinder_i2c: RangefinderI2c<'d>,
+        rangefinder_i2c: RangefinderI2c<'d>,
         manual_id: String,
         cluster_id: Option<String>,
-        sender:SyncSender<ProtocolMessage>
-    ) -> anyhow::Result<Rangefinder<'d>>
-   {
-    
-        let mut sensor =
-            VL53L1X::new(rangefinder_i2c, DEFAULT_ADDRESS);
+        sender: SyncSender<ProtocolMessage>,
+    ) -> anyhow::Result<Rangefinder<'d>> {
+        let mut sensor = VL53L1X::new(rangefinder_i2c, DEFAULT_ADDRESS);
 
         let sensor_id = sensor
             .get_sensor_id()
-            .map_err(|error| {
-                anyhow::anyhow!(
-                    "Failed to read VL53L1X sensor ID: {error:?}"
-                )
-            })?;
+            .map_err(|error| anyhow::anyhow!("Failed to read VL53L1X sensor ID: {error:?}"))?;
 
         if sensor_id != 0xEACC {
-            anyhow::bail!(
-                "Unexpected VL53L1X sensor ID: 0x{sensor_id:04X}"
-            );
+            anyhow::bail!("Unexpected VL53L1X sensor ID: 0x{sensor_id:04X}");
         }
 
         sensor
             .init(IOVoltage::Volt2_8)
-            .map_err(|error| {
-                anyhow::anyhow!(
-                    "VL53L1X initialization failed: {error:?}"
-                )
-            })?;
+            .map_err(|error| anyhow::anyhow!("VL53L1X initialization failed: {error:?}"))?;
 
         let rangefinder = Self {
-            core: ModuleCore::new(
-                ModuleType::Rangefinder,
-                &manual_id,
-                sender
-            ),
+            core: ModuleCore::new(ModuleType::Rangefinder, &manual_id, sender),
             sensor,
             range_mm: 0,
             is_ranging: false,
@@ -92,76 +61,7 @@ impl<'d> Rangefinder<'d> {
         Ok(rangefinder)
     }
 
-    pub fn tick(&mut self) {
-        if !self.is_ranging {
-            return;
-        }
-
-        let ready = match self.sensor.is_data_ready() {
-            Ok(ready) => ready,
-            Err(error) => {
-                crate::utilities::logger::SysLog::error(
-                    "VL53L1X data-ready check failed".to_string(),
-                    Some(format!("{error:?}")),
-                );
-                return;
-            }
-        };
-
-        if !ready {
-            return;
-        }
-
-        let status = match self.sensor.get_range_status() {
-            Ok(status) => status,
-            Err(error) => {
-                crate::utilities::logger::SysLog::error(
-                    "VL53L1X range-status read failed".to_string(),
-                    Some(format!("{error:?}")),
-                );
-                return;
-            }
-        };
-
-        let distance = match self.sensor.get_distance() {
-            Ok(distance) => distance,
-            Err(error) => {
-                crate::utilities::logger::SysLog::error(
-                    "VL53L1X distance read failed".to_string(),
-                    Some(format!("{error:?}")),
-                );
-                return;
-            }
-        };
-
-        if let Err(error) = self.sensor.clear_interrupt() {
-            crate::utilities::logger::SysLog::error(
-                "VL53L1X interrupt clear failed".to_string(),
-                Some(format!("{error:?}")),
-            );
-            return;
-        }
-
-        if status != RangeStatus::Valid {
-            self.emit(ModuleEvent::Rangefinder(
-                RangefinderEvent::InvalidMeasurement {
-                    id: self.id().to_string(),
-                    status: format!("{status:?}"),
-                },
-            ));
-
-            return;
-        }
-
-        self.range_mm = distance;
-
-        self.emit(ModuleEvent::Rangefinder(
-            RangefinderEvent::Range {
-                id: self.id().to_string(),
-                millimeters: distance,
-            },
-        ));
-    }
+    
 
     pub fn start_ranging(&mut self) -> anyhow::Result<()> {
         if self.is_ranging {
@@ -170,20 +70,14 @@ impl<'d> Rangefinder<'d> {
 
         self.sensor
             .start_ranging()
-            .map_err(|error| {
-                anyhow::anyhow!(
-                    "Failed to start VL53L1X ranging: {error:?}"
-                )
-            })?;
+            .map_err(|error| anyhow::anyhow!("Failed to start VL53L1X ranging: {error:?}"))?;
 
         self.is_ranging = true;
 
-        self.emit(ModuleEvent::Rangefinder(
-            RangefinderEvent::RangingState {
-                id: self.id().to_string(),
-                is_ranging: true,
-            },
-        ));
+        self.emit(ModuleEvent::Rangefinder(RangefinderEvent::RangingState {
+            id: self.id().to_string(),
+            is_ranging: true,
+        }));
 
         Ok(())
     }
@@ -195,34 +89,111 @@ impl<'d> Rangefinder<'d> {
 
         self.sensor
             .stop_ranging()
-            .map_err(|error| {
-                anyhow::anyhow!(
-                    "Failed to stop VL53L1X ranging: {error:?}"
-                )
-            })?;
+            .map_err(|error| anyhow::anyhow!("Failed to stop VL53L1X ranging: {error:?}"))?;
 
         self.is_ranging = false;
 
-        self.emit(ModuleEvent::Rangefinder(
-            RangefinderEvent::RangingState {
-                id: self.id().to_string(),
-                is_ranging: false,
-            },
-        ));
+        self.emit(ModuleEvent::Rangefinder(RangefinderEvent::RangingState {
+            id: self.id().to_string(),
+            is_ranging: false,
+        }));
 
         Ok(())
+    }
+
+    pub fn get_range(&mut self) -> Option<u16> {
+        let ready = match self.sensor.is_data_ready() {
+            Ok(ready) => ready,
+            Err(error) => {
+                self.emit(ModuleEvent::SysLog(SysLogEvent {
+                    text: "VL53L1X data-ready check failed".to_string(),
+                    raw_err: Some(format!("{error:?}")),
+                    priority: LogPriority::Critical,
+                }));
+
+                return None;
+            }
+        };
+
+        if !ready {
+            return None;
+        }
+
+        let status = match self.sensor.get_range_status() {
+            Ok(status) => status,
+            Err(error) => {
+                self.emit(ModuleEvent::SysLog(SysLogEvent {
+                    text: "VL53L1X range-status read failed".to_string(),
+                    raw_err: Some(format!("{error:?}")),
+                    priority: LogPriority::Critical,
+                }));
+                return None;
+            }
+        };
+
+        let distance = match self.sensor.get_distance() {
+            Ok(distance) => distance,
+            Err(error) => {
+                self.emit(ModuleEvent::SysLog(SysLogEvent {
+                    text: "VL53L1X distance read failed".to_string(),
+                    raw_err: Some(format!("{error:?}")),
+                    priority: LogPriority::Critical,
+                }));
+
+                return None;
+            }
+        };
+
+        if let Err(error) = self.sensor.clear_interrupt() {
+            self.emit(ModuleEvent::SysLog(SysLogEvent {
+                text: "VL53L1X interrupt clear failed".to_string(),
+                raw_err: Some(format!("{error:?}")),
+                priority: LogPriority::Critical,
+            }));
+
+            return None;
+        }
+
+        if status != RangeStatus::Valid {
+            self.emit(ModuleEvent::SysLog(SysLogEvent {
+                text: "VL53L1X RangeStatus is Valid failed".to_string(),
+                raw_err: None,
+                priority: LogPriority::Critical,
+            }));
+            return None;
+        }
+        self.range_mm = distance;
+
+        Some(self.range_mm)
     }
 }
 
 impl<'d> Module for Rangefinder<'d> {
-   
+    fn  tick(&mut self)->Result<() , ()> {
+        if !self.is_ranging {
+            return  Err(());
+        }
+        match self.get_range() {
+            Some(rang) => {
+                self.emit(ModuleEvent::Rangefinder(RangefinderEvent::Range {
+                    id: self.id().to_string(),
+                    millimeters: rang,
+                }));
+                
+            }
+            None => {
+                return  Err(());
+            }
+        }
+
+        Ok(())
+
+    }
     fn core(&self) -> &ModuleCore {
         &self.core
     }
-    fn handle_command(
-        &mut self,
-        command: &ModuleCommand,
-    ) -> anyhow::Result<()> {
+
+    fn handle_command(&mut self, command: &ModuleCommand) -> anyhow::Result<()> {
         let ModuleCommand::Rangefinder(command) = command else {
             return Ok(());
         };
@@ -236,57 +207,35 @@ impl<'d> Module for Rangefinder<'d> {
                 self.stop_ranging()?;
             }
 
-            RangefinderCommandPayload::SetTimingBudget {
-                milliseconds,
-            } => {
+            RangefinderCommandPayload::SetTimingBudget { milliseconds } => {
                 self.sensor
                     .set_timing_budget_ms(*milliseconds)
-                    .map_err(|error| {
-                        anyhow::anyhow!(
-                            "Failed to set timing budget: {error:?}"
-                        )
-                    })?;
+                    .map_err(|error| anyhow::anyhow!("Failed to set timing budget: {error:?}"))?;
 
                 self.timing_budget_ms = *milliseconds;
 
-                self.emit(ModuleEvent::Rangefinder(
-                    RangefinderEvent::TimingBudget {
-                        id: self.id().to_string(),
-                        milliseconds: *milliseconds,
-                    },
-                ));
+                self.emit(ModuleEvent::Rangefinder(RangefinderEvent::TimingBudget {
+                    id: self.id().to_string(),
+                    milliseconds: *milliseconds,
+                }));
             }
 
-           
-
-            RangefinderCommandPayload::SetDistanceMode {
-                mode,
-            } => {
+            RangefinderCommandPayload::SetDistanceMode { mode } => {
                 let sensor_mode = match mode {
-                    RangefinderDistanceMode::Short => {
-                        DistanceMode::Short
-                    }
-                    RangefinderDistanceMode::Long => {
-                        DistanceMode::Long
-                    }
+                    RangefinderDistanceMode::Short => DistanceMode::Short,
+                    RangefinderDistanceMode::Long => DistanceMode::Long,
                 };
 
                 self.sensor
                     .set_distance_mode(sensor_mode)
-                    .map_err(|error| {
-                        anyhow::anyhow!(
-                            "Failed to set distance mode: {error:?}"
-                        )
-                    })?;
+                    .map_err(|error| anyhow::anyhow!("Failed to set distance mode: {error:?}"))?;
 
                 self.distance_mode = sensor_mode;
 
-                self.emit(ModuleEvent::Rangefinder(
-                    RangefinderEvent::DistanceMode {
-                        id: self.id().to_string(),
-                        mode: mode.to_owned(),
-                    },
-                ));
+                self.emit(ModuleEvent::Rangefinder(RangefinderEvent::DistanceMode {
+                    id: self.id().to_string(),
+                    mode: mode.to_owned(),
+                }));
             }
         }
 

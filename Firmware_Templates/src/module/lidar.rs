@@ -30,7 +30,7 @@ pub struct Lidar<'d> {
     limit_point: Point,
     curr_point_bottom: Point,
     step: u32,
-    step_y:u32,
+    step_y: u32,
     curr_scan_mode: ScanState,
     x_d: i32,
 
@@ -94,7 +94,7 @@ impl<'d> Lidar<'d> {
             max_point: Point { x: -90, y: 90 },
             curr_point_bottom: Point { x: 0, y: 0 },
             step: 1,
-            step_y:2,
+            step_y: 2,
             curr_scan_mode: ScanState::Idol,
             x_d: 1,
             limit_point: Point { x: -90, y: 90 },
@@ -141,72 +141,7 @@ impl<'d> Lidar<'d> {
         Ok(new_lidar)
     }
 
-    pub fn tick(&mut self) {
-        self.rangefinder.tick();
-
-        if self.curr_scan_mode != ScanState::Scanning {
-            return;
-        }
-
-        if !self.step_timer.ready() {
-            return;
-        }
-
-        // Record the position where the servo has already been resting.
-
-        // if self.curr_point_bottom.y > self.max_point.y {
-        //     self.point_map.push(RangPoint {
-        //         x: self.curr_point_bottom.x,
-        //         y: self.curr_point_bottom.y + self.step_y as i32,
-        //         distant: self.rangefinder_top.range_mm,
-        //     });
-        // }
-
-        self.point_map.push(RangPoint {
-            x: self.curr_point_bottom.x,
-            y: self.curr_point_bottom.y,
-            distant: self.rangefinder.range_mm,
-        });
-
-        let row_finished = self.curr_point_bottom.x == self.limit_point.x;
-        let scan_finished = row_finished && self.curr_point_bottom.y == self.limit_point.y;
-
-        if scan_finished {
-            self.flush_point_map();
-            self.curr_scan_mode = ScanState::Idol;
-
-            self.emit(ModuleEvent::Lidar(LidarEvent::ScanState {
-                id: self.id().to_string(),
-                state: self.curr_scan_mode.clone(),
-                scan_time: self.scan_time.elapsed().as_secs_f32(),
-            }));
-            self.sync_all();
-
-            return;
-        }
-
-        if row_finished {
-            if self.point_map.len() >= POINTS_PER_CHUNK {
-                self.flush_point_map();
-            }
-
-            self.x_d *= -1;
-
-            self.limit_point.x = if self.limit_point.x == self.max_point.x {
-                self.min_point.x
-            } else {
-                self.max_point.x
-            };
-
-            self.curr_point_bottom.y -= self.step as i32;
-            // self.curr_point_bottom.y -= self.step_y as i32;
-        } else {
-            self.curr_point_bottom.x += self.step as i32 * self.x_d;
-        }
-
-        self.move_to_point();
-        self.step_timer.reset();
-    }
+    pub fn tick(&mut self) {}
 
     fn flush_point_map(&mut self) {
         if self.point_map.is_empty() {
@@ -256,6 +191,86 @@ impl<'d> Module for Lidar<'d> {
     }
     fn get_module_type(&self) -> &ModuleType {
         &self.core.module_type
+    }
+    fn tick(&mut self) -> Result<(), ()> {
+        if self.curr_scan_mode != ScanState::Scanning {
+            return Ok(());
+        }
+
+        let range_botton = match self.rangefinder.get_range() {
+            Some(r) => r,
+            None => {
+                return Ok(());
+            }
+        };
+
+        //  let range_top = match self.rangefinder_top.get_range() {
+        //     Some(r) => r,
+        //     None => {
+        //         return Ok(());
+        //     }
+        // };
+
+        // if !self.step_timer.ready() {
+        //     return Ok(());
+        // }
+
+        // Record the position where the servo has already been resting.
+
+        // if self.curr_point_bottom.y > self.max_point.y {
+        //     self.point_map.push(RangPoint {
+        //         x: self.curr_point_bottom.x,
+        //         y: self.curr_point_bottom.y + self.step_y as i32,
+        //         distant: self.rangefinder_top.range_mm,
+        //     });
+        // }
+
+        self.point_map.push(RangPoint {
+            x: self.curr_point_bottom.x,
+            y: self.curr_point_bottom.y,
+            distant: range_botton,
+        });
+
+        let row_finished = self.curr_point_bottom.x == self.limit_point.x;
+        let scan_finished = row_finished && self.curr_point_bottom.y == self.limit_point.y;
+
+        if scan_finished {
+            self.flush_point_map();
+            self.curr_scan_mode = ScanState::Idol;
+
+            self.emit(ModuleEvent::Lidar(LidarEvent::ScanState {
+                id: self.id().to_string(),
+                state: self.curr_scan_mode.clone(),
+                scan_time: self.scan_time.elapsed().as_secs_f32(),
+            }));
+            self.sync_all();
+
+            return Ok(());
+        }
+
+        if row_finished {
+            if self.point_map.len() >= POINTS_PER_CHUNK {
+                self.flush_point_map();
+            }
+
+            self.x_d *= -1;
+
+            self.limit_point.x = if self.limit_point.x == self.max_point.x {
+                self.min_point.x
+            } else {
+                self.max_point.x
+            };
+
+            self.curr_point_bottom.y -= self.step as i32;
+            // self.curr_point_bottom.y -= self.step_y as i32;
+        } else {
+            self.curr_point_bottom.x += self.step as i32 * self.x_d;
+        }
+
+        self.move_to_point();
+        self.step_timer.reset();
+
+        Ok(())
     }
     fn handle_command(&mut self, command: &ModuleCommand) -> anyhow::Result<()> {
         match command {

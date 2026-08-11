@@ -31,6 +31,9 @@ pub trait Module {
     fn id(&self) -> &str {
         &self.core().id
     }
+    fn  tick(&mut self)->Result<() , ()>{
+        Ok(())
+    }
 
     fn get_module_type(&self) -> &ModuleType {
         &self.core().module_type

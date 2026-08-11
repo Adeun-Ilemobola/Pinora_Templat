@@ -5,15 +5,9 @@ pub mod utilities;
 
 use crate::core::hardware::*;
 use crate::core::modulecore::{Module, emit};
- use crate::module::imu::imu_type::MpuDevice;
 use crate::module::rfid::Rfid;
-use crate::module::stepper::StepperMotor;
-// use crate::module::joystick::JoyStick;
 use crate::protocol::command::IncomingCommand;
-// use crate::utilities::serdeprotocol::IncomingCommand;
- use crate::module::lidar::Lidar;
- use crate::protocol::global_definitions::{RGB, StepperPins};
-use embedded_hal_bus::i2c::RcDevice;
+ use crate::protocol::global_definitions::{RGB};
 use esp_idf_svc::hal::spi::{
      config::{
             Config as SpiConfig,
@@ -60,6 +54,8 @@ fn configure_console_uart() -> anyhow::Result<()> {
 fn main() -> anyhow::Result<()> {
     esp_idf_svc::sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
+    let sync_sender=emit::start_event_emitter();
+
     configure_console_uart()?;
     print_esp_system_info();
     let mut modules: HashMap<String, ModuleHandle<'_>> = HashMap::new();
@@ -96,18 +92,6 @@ fn main() -> anyhow::Result<()> {
 
     // let hardware = HardwareContext::new(p.ledc.timer0, shared_i2c.clone())?;
     // let rangefinder_i2c = RcDevice::new(hardware.i2c_bus.clone());
-    let sync_sender=emit::start_event_emitter();
-
-    // let rangefinder = Rc::new(RefCell::new(Rangefinder::new(
-    //     p.i2c1,
-    //     p.pins.gpio21,
-    //     p.pins.gpio22,
-    //     "rangefinder".to_string(),
-    //     None,
-    // )?));
-    // let rangefinder_id = rangefinder.borrow().id().clone();
-    // modules.insert(rangefinder_id, rangefinder.clone());
-    // print_welcome_message("not initialized", "not initialized");
 
     // let lidar = Rc::new(RefCell::new(Lidar::new(
     //     hardware.servo_pwm.clone(),
@@ -132,12 +116,6 @@ fn main() -> anyhow::Result<()> {
 
     //modules.insert(stepper.borrow().id().to_owned(), stepper.clone());
 
-    // let mut joystick = JoyStick::new(
-    //     p.pins.gpio25,
-    //     p.adc1,
-    //     p.pins.gpio34,
-    //     p.pins.gpio35,
-    // )?;
 
 
     // const MPU_ADDRESS: u8 = 0x68;
@@ -170,16 +148,6 @@ fn main() -> anyhow::Result<()> {
 
     loop {
         let _= rfid.borrow_mut().tick();
-        // test_imu.tick().map_err(|err| anyhow::anyhow!("{err:?}"))?;
-        //let _ = stepper.borrow_mut().tick();
-        // rangefinder.borrow_mut().tick();
-        // lidar.borrow_mut().tick();
-        // joystick.tick()?;
-
-        // if btu.poll()? {
-        //     led_module.borrow_mut().toggle()?
-        // }
-
         if let Ok(command) = command_receiver.try_recv() {
             if let Some(module) = modules.get_mut(&command.id) {
                 module.borrow_mut().handle_command(&command.command)?;
@@ -192,7 +160,6 @@ fn main() -> anyhow::Result<()> {
             }
         }
         let now = now_us();
-
         if now - last_yield_us >= 650_000.0 {
             rtos_sleep_ms(1);
             last_yield_us = now_us();

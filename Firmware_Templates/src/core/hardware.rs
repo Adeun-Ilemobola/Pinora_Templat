@@ -13,7 +13,7 @@ pub use esp_idf_svc::hal::uart::UartDriver;
 pub use esp_idf_svc::hal::units::*;
 pub use esp_idf_svc::partition::*;
 use esp_idf_svc::sys;
-use pwm_pca9685::{Address, Pca9685};
+// use pwm_pca9685::{Address, Pca9685};
 use std::{ffi::CStr, ptr};
 
 use crate::core::modulecore::emit;
@@ -141,12 +141,12 @@ pub type SharedI2cDevice<'d> = RcDevice<I2cDriver<'d>>;
 
 pub type RangefinderI2c<'d> = Reverse<RcDevice<I2cDriver<'d>>>;
 
-pub type SharedPwm<'d> = Rc<RefCell<Pca9685<SharedI2cDevice<'d>>>>;
+//pub type SharedPwm<'d> = Rc<RefCell<Pca9685<SharedI2cDevice<'d>>>>;
 
 pub type LedTimer<'d> = ledc::LedcTimerDriver<'d, ledc::LowSpeed>;
 
 pub struct HardwareContext<'d> {
-    pub servo_pwm: SharedPwm<'d>,
+    // pub servo_pwm: SharedPwm<'d>,
     pub led_timer: LedTimer<'d>,
     pub i2c_bus: I2cBus<'d>,
 }
@@ -157,26 +157,26 @@ impl<'d> HardwareContext<'d> {
         TIMER: ledc::LedcTimer<SpeedMode = ledc::LowSpeed> + 'd,
     {
         Ok(Self {
-            servo_pwm: Self::create_shared_pwm(i2c_bus.clone())?,
+            // servo_pwm: Self::create_shared_pwm(i2c_bus.clone())?,
             led_timer: Self::create_led_timer(timer)?,
             i2c_bus,
         })
     }
 
-    pub fn create_shared_pwm(i2c_bus: I2cBus<'d>) -> anyhow::Result<SharedPwm<'d>> {
-        let i2c_device = RcDevice::new(i2c_bus);
+    // pub fn create_shared_pwm(i2c_bus: I2cBus<'d>) -> anyhow::Result<SharedPwm<'d>> {
+    //     let i2c_device = RcDevice::new(i2c_bus);
 
-        let mut pwm = Pca9685::new(i2c_device, Address::default())
-            .map_err(|e| anyhow::anyhow!("PCA9685 init: {:?}", e))?;
+    //     let mut pwm = Pca9685::new(i2c_device, Address::default())
+    //         .map_err(|e| anyhow::anyhow!("PCA9685 init: {:?}", e))?;
 
-        pwm.set_prescale(100)
-            .map_err(|e| anyhow::anyhow!("set_prescale: {:?}", e))?;
+    //     pwm.set_prescale(100)
+    //         .map_err(|e| anyhow::anyhow!("set_prescale: {:?}", e))?;
 
-        pwm.enable()
-            .map_err(|e| anyhow::anyhow!("enable: {:?}", e))?;
+    //     pwm.enable()
+    //         .map_err(|e| anyhow::anyhow!("enable: {:?}", e))?;
 
-        Ok(Rc::new(RefCell::new(pwm)))
-    }
+    //     Ok(Rc::new(RefCell::new(pwm)))
+    // }
 
     pub fn create_led_timer<T>(timer: T) -> anyhow::Result<LedTimer<'d>>
     where

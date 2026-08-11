@@ -67,8 +67,8 @@ pub enum RGBMode {
 pub enum StepperState {
     Idle,
     Moving,
-    Homing,
-    Pivot,
+    Homing {cycle :u32},
+    Pivot {point:PivotPoint },
 }
 
 
