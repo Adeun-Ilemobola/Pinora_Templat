@@ -1,14 +1,28 @@
-use std::sync::mpsc::SyncSender;
 
+use serde::{Deserialize, Serialize};
+
+use crate::core::emitter::Emitter;
 use crate::core::hardware::{ledc, LedTimer, OutputPin};
 use crate::core::modulecore::{Module, ModuleCore};
-use crate::protocol::command::{ModuleCommand  , LedCommandPayload};
+use crate::protocol::command::{ModuleCommand  };
 use crate::protocol::global_definitions::ModuleType;
-use crate::protocol::module_event::{LedEvent, ModuleEvent};
-use crate::protocol::registration::{ ProtocolMessage, Registration};
+use crate::protocol::module_event::{ ModuleEvent};
+use crate::protocol::registration::{  Registration};
 use crate::utilities::math::range_u32;
 
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
+#[serde(tag = "event_type")]
+pub enum LedEvent {
+    Brightness { id: String, level: u32 },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
+#[serde(tag = "command")]
+pub enum LedCommandPayload {
+    SetState { state: u32 },
+    Toggle,
+}
 pub struct Ledmodule<'d> {
     core: ModuleCore,
     state: u32,
@@ -21,7 +35,7 @@ impl<'d> Ledmodule<'d> {
         manuel_id: String,
         timer: &LedTimer<'d>,
         cluster_id: Option<String>,
-        sender:SyncSender<ProtocolMessage>
+        sender:Emitter
     ) -> anyhow::Result<Ledmodule<'d>>
     where
         T: OutputPin + 'd,
@@ -35,7 +49,7 @@ impl<'d> Ledmodule<'d> {
             pwm,
         };
       
-      ledmodule.Registration(Registration{
+      ledmodule.registration(Registration{
         id:ledmodule.id().to_string(),
          module_type:ModuleType::Led,
          lool_up_id:manuel_id.clone(),

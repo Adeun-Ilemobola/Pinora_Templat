@@ -1,16 +1,14 @@
 use crate::{
     core::{
-        hardware::{OutputPinCore, TimerState},
-        modulecore::{ Module, ModuleCore},
+        emitter::Emitter, hardware::{OutputPinCore, TimerState}, modulecore::{ Module, ModuleCore}
     },
     protocol::{
-        command::{ModuleCommand, RfidCommand},
-        global_definitions::{ModuleType, RGBMode, RGB},
-        module_event::{LogPriority, ModuleEvent, RfidEvent, SysLogEvent},
-        registration::{ProtocolMessage, Registration},
+        command::{ModuleCommand},
+        global_definitions::{ModuleType},
+        module_event::{LogPriority, ModuleEvent, SysLogEvent},
+        registration::{ Registration},
     },
 };
-use std::sync::mpsc::SyncSender;
 use uuid::Uuid;
 
 use esp_idf_svc::hal::{delay::Ets, spi::SpiSingleDeviceDriver};
@@ -19,6 +17,38 @@ use mfrc522::{
     Initialized, Mfrc522, MifareKey,
 };
 use serde::{Deserialize, Serialize};
+
+pub struct RGB<'d> {
+    pub red: OutputPinCore<'d>,
+    pub green: OutputPinCore<'d>,
+    pub blue: OutputPinCore<'d>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum RGBMode {
+    Red,
+    Green,
+    Blue,
+    Off
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq,)]
+#[serde(tag = "command")]
+pub enum RfidCommand {
+    WriteMode,
+    ReadMode,
+    WritePayload {
+        data: Vec<u8>,
+    },
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
+#[serde(tag = "event_type")]
+pub  enum RfidEvent {
+    GetCard{id: String,  card_uid:String , card_data:String},
+    GetMode{id: String,mode:MddeRfid},
+    GetWriteState{ id:String , state:WriteState , info:String}
+    
+
+}
 
 fn rfid_spi_delay() {
     Ets::delay_us(1);
@@ -65,7 +95,7 @@ impl<'d> Rfid<'d> {
         buzer_pin: OutputPinCore<'d>,
         core_id: &str,
         parent_id: Option<String>,
-        sender: SyncSender<ProtocolMessage>,
+        sender:Emitter,
     ) -> anyhow::Result<Self> {
         let interface = SpiInterface::new(spi).with_delay(rfid_spi_delay as RfidDelay);
 
@@ -97,7 +127,7 @@ impl<'d> Rfid<'d> {
             write_state_msg: "All Good".to_string(),
         };
 
-        dor.Registration(Registration {
+        dor.registration(Registration {
             id: dor.id().to_string(),
             module_type: dor.get_module_type().clone(),
             lool_up_id: core_id.to_string(),

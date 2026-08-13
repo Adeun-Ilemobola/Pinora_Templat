@@ -16,7 +16,7 @@ use esp_idf_svc::sys;
 // use pwm_pca9685::{Address, Pca9685};
 use std::{ffi::CStr, ptr};
 
-use crate::core::modulecore::emit;
+use crate::core::emitter::Emitter;
 use crate::protocol::registration::SystemInfo;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -190,7 +190,7 @@ impl<'d> HardwareContext<'d> {
     }
 }
 
-pub fn print_esp_system_info() {
+pub fn print_esp_system_info(emit:Emitter) {
     unsafe {
         // -------------------------
         // RAM / heap information
@@ -233,7 +233,7 @@ pub fn print_esp_system_info() {
             "Failed to read".to_string()
         };
 
-        emit::system_info(SystemInfo {
+        emit.system_info(SystemInfo {
             esp_idf_version: idf_version.to_string(),
             total_heap: format_bytes(total_heap),
             current_free_heap: format_bytes(free_heap),

@@ -2,14 +2,42 @@ use std::sync::mpsc::SyncSender;
 
 use crate::core::hardware::SharedPwm;
 use crate::core::modulecore::{ Module, ModuleCore};
-use crate::protocol::command::{ModuleCommand, ServoCommandPayload};
+use crate::protocol::command::{ModuleCommand};
 use crate::protocol::global_definitions::{ModuleType, ServoCapability};
 use crate::protocol::module_event::{ModuleEvent, ServoEvent};
-use crate::protocol::registration::{ProtocolMessage, Registration};
+use crate::protocol::registration::{ Registration};
 use crate::utilities::math::{pulse_us_to_tick, range_i32};
 
 use anyhow::Ok;
 use pwm_pca9685::Channel;
+use serde::{Deserialize, Serialize};
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ServoCapability {
+    pub max_angle: i32,
+    pub min_angle: i32,
+    pub offset: i32,
+    pub min_pivot: i32,
+    pub max_pivot: i32,
+    pub pulse_min: i32,
+    pub pulse_max: i32,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
+#[serde(tag = "event_type")]
+pub enum ServoEvent {
+    GetAngle { id: String, angle: i32 },
+    GetMinPivot { id: String, min_pivot: i32 },
+    GetMaxPivot { id: String, max_pivot: i32 },
+    GetOffset { id: String, angle: i32 },
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
+#[serde(tag = "command")]
+pub enum ServoCommandPayload {
+    SetAngle { angle: i32 },
+    SetMinPivot { min_pivot: i32 },
+    SetMaxPivot { max_pivot: i32 },
+}
 
 pub struct ServoModule<'d> {
     core: ModuleCore,
@@ -31,7 +59,7 @@ impl<'d> ServoModule<'d> {
         channel: Channel,
         config: ServoCapability,
         cluster_id: Option<String>,
-        sender: SyncSender<ProtocolMessage>,
+        sender: Emitter,
     ) -> anyhow::Result<ServoModule<'d>> {
         let mut s = ServoModule {
             core: ModuleCore::new(ModuleType::Servo, &manuel_id, sender),
@@ -44,7 +72,7 @@ impl<'d> ServoModule<'d> {
             channel: channel.clone(),
             pivot:0
         };
-        s.Registration(Registration {
+        s.registration(Registration {
             id: s.id().to_string(),
             module_type: ModuleType::Servo,
             lool_up_id: manuel_id.clone(),

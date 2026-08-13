@@ -3,18 +3,14 @@ pub mod module;
 pub mod protocol;
 pub mod utilities;
 
+use crate::core::emitter::Emitter;
 use crate::core::hardware::*;
-use crate::core::modulecore::{Module, emit};
-use crate::module::rfid::Rfid;
+use crate::core::modulecore::{Module};
+use crate::module::stepper::{StepperMotor, StepperPins};
 use crate::protocol::command::IncomingCommand;
- use crate::protocol::global_definitions::{RGB};
 use esp_idf_svc::hal::spi::{
-     config::{
-            Config as SpiConfig,
-            DriverConfig,
-            MODE_0,
-        },
-        SpiDeviceDriver,
+    config::{Config as SpiConfig, DriverConfig, MODE_0},
+    SpiDeviceDriver,
 };
 use std::io;
 use std::io::{BufRead, ErrorKind};
@@ -54,10 +50,10 @@ fn configure_console_uart() -> anyhow::Result<()> {
 fn main() -> anyhow::Result<()> {
     esp_idf_svc::sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
-    let sync_sender=emit::start_event_emitter();
+    let sync_sender = Emitter::new(None);
 
     configure_console_uart()?;
-    print_esp_system_info();
+    print_esp_system_info(sync_sender.clone());
     let mut modules: HashMap<String, ModuleHandle<'_>> = HashMap::new();
     let p = Peripherals::take()?;
     let mut last_yield_us = now_us();
@@ -69,26 +65,22 @@ fn main() -> anyhow::Result<()> {
     // )?;
     let spi = SpiDeviceDriver::new_single(
         p.spi2,
-        p.pins.gpio18, //SCK, | -> purple
-        p.pins.gpio19,  // MOSI |  -> blue
-        Some(p.pins.gpio23),// MISO |  -> green
-        Some(p.pins.gpio5), // SDA / CS | -> gray
+        p.pins.gpio18,       //SCK, | -> purple
+        p.pins.gpio19,       // MOSI |  -> blue
+        Some(p.pins.gpio23), // MISO |  -> green
+        Some(p.pins.gpio5),  // SDA / CS | -> gray
         &DriverConfig::new(),
-        &SpiConfig::new()
-        .baudrate(1_000_000.Hz())
-        .data_mode(MODE_0),
+        &SpiConfig::new().baudrate(1_000_000.Hz()).data_mode(MODE_0),
     )?;
     // MRC522 RST      -> GPIO 16
 
-
-//    LEFT                                      RIGHT
-//┌──────────────────────────────────────────────┐
-//│ SDA │ SCK │ MOSI │ MISO │ IRQ │ GND │ RST │ 3.3V │
-//└──────────────────────────────────────────────┘
+    //    LEFT                                      RIGHT
+    //┌──────────────────────────────────────────────┐
+    //│ SDA │ SCK │ MOSI │ MISO │ IRQ │ GND │ RST │ 3.3V │
+    //└──────────────────────────────────────────────┘
 
     // let shared_i2c = Rc::new(RefCell::new(i2c));
     // let shared_spi = Rc::new(RefCell::new(spi));
-
 
     // let hardware = HardwareContext::new(p.ledc.timer0, shared_i2c.clone())?;
     // let rangefinder_i2c = RcDevice::new(hardware.i2c_bus.clone());
@@ -102,44 +94,41 @@ fn main() -> anyhow::Result<()> {
     // let lidar_id = lidar.borrow().get_id();
     // modules.insert(lidar_id, lidar.clone());
 
-    // let stepper = Rc::new(RefCell::new(StepperMotor::new(
-    //     StepperPins {
-    //         in1: OutputPinCore::new(p.pins.gpio12)?, //33
-    //         in2: OutputPinCore::new(p.pins.gpio14)?, //32
-    //         in3: OutputPinCore::new(p.pins.gpio27)?,  //31
-    //         in4: OutputPinCore::new(p.pins.gpio26)?, //30
-    //     },
-    //     "stepperX".to_string(),
-    //     None,
-    //      sync_sender.clone()
-    // )?));
+    let stepper = Rc::new(RefCell::new(StepperMotor::new(
+        StepperPins {
+            in1: OutputPinCore::new(p.pins.gpio12)?, //33
+            in2: OutputPinCore::new(p.pins.gpio14)?, //32
+            in3: OutputPinCore::new(p.pins.gpio27)?, //31
+            in4: OutputPinCore::new(p.pins.gpio26)?, //30
+        },
+        "stepperX".to_string(),
+        None,
+        sync_sender.clone(),
+    )?));
 
-    //modules.insert(stepper.borrow().id().to_owned(), stepper.clone());
-
-
+    modules.insert(stepper.borrow().id().to_owned(), stepper.clone());
 
     // const MPU_ADDRESS: u8 = 0x68;
     // let imu_i2c = RcDevice::new(shared_i2c.clone());
     // let mut  test_imu = MpuDevice::new(imu_i2c, MPU_ADDRESS ,sync_sender.clone() , "MPu" , None ).map_err(|err| anyhow::anyhow!("{err:?}"))?;
-    
-    let   rfid = Rc::new(RefCell::new(
-        Rfid::new(
-        spi, 
-        RGB{
-            red : OutputPinCore::new(p.pins.gpio12)?,
-            green:  OutputPinCore::new(p.pins.gpio14)?, 
-            blue: OutputPinCore::new(p.pins.gpio27)? ,
 
-        },
-        OutputPinCore::new(p.pins.gpio17)?,
-        "dff", 
-        None, 
-        sync_sender.clone() 
-    ).map_err(|err| anyhow::anyhow!("{err:?}"))?
-    ));
+    // let   rfid = Rc::new(RefCell::new(
+    //     Rfid::new(
+    //     spi,
+    //     RGB{
+    //         red : OutputPinCore::new(p.pins.gpio12)?,
+    //         green:  OutputPinCore::new(p.pins.gpio14)?,
+    //         blue: OutputPinCore::new(p.pins.gpio27)? ,
 
-    modules.insert(rfid.borrow().id().to_owned(), rfid.clone());
+    //     },
+    //     OutputPinCore::new(p.pins.gpio17)?,
+    //     "dff",
+    //     None,
+    //     sync_sender.clone()
+    // ).map_err(|err| anyhow::anyhow!("{err:?}"))?
+    // ));
 
+    // modules.insert(rfid.borrow().id().to_owned(), rfid.clone());
 
     let (command_sender, command_receiver) = mpsc::channel::<IncomingCommand>();
     std::thread::spawn(move || {
@@ -147,7 +136,11 @@ fn main() -> anyhow::Result<()> {
     });
 
     loop {
-        let _= rfid.borrow_mut().tick();
+        // for module in modules.values() {
+        //     let _ = module.borrow_mut().tick();
+        // }
+         let _ =stepper.borrow_mut().tick();
+
         if let Ok(command) = command_receiver.try_recv() {
             if let Some(module) = modules.get_mut(&command.id) {
                 module.borrow_mut().handle_command(&command.command)?;

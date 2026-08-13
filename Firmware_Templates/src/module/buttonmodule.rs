@@ -1,14 +1,20 @@
-use std::sync::mpsc::SyncSender;
 
+use crate::core::emitter::Emitter;
 use crate::core::hardware::{InputPin, InputPinCore, Pull};
-use crate::core::modulecore::{Module, ModuleCore, emit};
+use crate::core::modulecore::{Module, ModuleCore};
 use crate::protocol::command::ModuleCommand;
 use crate::protocol::global_definitions::ModuleType;
-use crate::protocol::module_event::{ButtonEvent, ModuleEvent};
-use crate::protocol::registration::{ ProtocolMessage, Registration};
+use crate::protocol::module_event::{ ModuleEvent};
+use crate::protocol::registration::{  Registration};
 use esp_idf_svc::hal::gpio::Level;
+use serde::{Deserialize, Serialize};
 
 static BUTTON_MODULE_MAX_TIME: u64 = 30; // Maximum time in milliseconds to consider a button press valid
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
+#[serde(tag = "event_type")]
+pub enum ButtonEvent {
+    Ckick { id: String },
+}
 
 pub struct Buttonmodule<'d> {
     core: ModuleCore,
@@ -20,7 +26,7 @@ pub struct Buttonmodule<'d> {
 }
 
 impl<'d> Buttonmodule<'d> {
-    pub fn new<T>(pin: T , lool_up_id:String , sender:SyncSender<ProtocolMessage>) -> anyhow::Result<Buttonmodule<'d>>
+    pub fn new<T>(pin: T , lool_up_id:String , sender:Emitter) -> anyhow::Result<Buttonmodule<'d>>
     where
         T: InputPin + 'd,
     {
@@ -33,7 +39,7 @@ impl<'d> Buttonmodule<'d> {
             prev_state: Level::High,
         };
 
-       emit::registration(Registration{
+       buttonmodule.registration(Registration{
         id:buttonmodule.id().to_string(),
         lool_up_id :lool_up_id.clone(),
         module_type:ModuleType::Button,

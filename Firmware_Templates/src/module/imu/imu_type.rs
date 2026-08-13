@@ -125,3 +125,13 @@ pub enum MpuDeviceErr {
         i2c_err: String,
     },
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
+#[serde(tag = "event_type")]
+
+pub  enum  ImuEvent {
+    Gyro{id: String,   raw_axes:RawAxes , axes:Axes},
+    Accel{id: String,   raw_axes:RawAxes , axes:Axes},
+    Mode {mode:MpuDeviceMode}
+}
+

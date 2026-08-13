@@ -1,17 +1,45 @@
-use std::{sync::mpsc::SyncSender, time::Instant};
+use std::{time::Instant};
+
+use serde::{Deserialize, Serialize};
 
 use crate::{
     core::{
-        hardware::TimerState,
-        modulecore::{Module, ModuleCore},
+        emitter::Emitter, hardware::{OutputPinCore, TimerState}, modulecore::{Module, ModuleCore}
     },
     protocol::{
-        command::{ModuleCommand, StepperMotorCommandPayload},
-        global_definitions::{ModuleType, PivotLimits, PivotPoint, StepperPins, StepperState},
-        module_event::{ModuleEvent, StepperMotorEvent},
-        registration::{ProtocolMessage, Registration},
+        command::{ModuleCommand},
+        global_definitions::{ModuleType},
+        module_event::{ModuleEvent},
+        registration::Registration,
     },
 };
+
+#[derive(Debug, Clone, Copy, PartialEq , Serialize, Deserialize)]
+pub enum PivotPoint {
+    Min,
+    Max,
+}
+#[derive(Debug, Clone, Copy)]
+pub struct PivotLimits {
+    pub min: f32,
+    pub max: f32,
+}
+
+
+#[derive(Debug, Clone, Copy, PartialEq ,Serialize, Deserialize,)]
+pub enum StepperState {
+    Idle,
+    Moving,
+    Homing {cycle :u32},
+    Pivot {point:PivotPoint },
+}
+
+pub struct StepperPins<'d> {
+    pub in1: OutputPinCore<'d>,
+    pub in2: OutputPinCore<'d>,
+    pub in3: OutputPinCore<'d>,
+    pub in4: OutputPinCore<'d>,
+}
 
 const POSITIVE_SEQUENCE: [[u8; 4]; 8] = [
     [1, 0, 0, 0],
@@ -54,15 +82,15 @@ impl<'d> StepperMotor<'d> {
         pins_bus: StepperPins<'d>,
         manuel_id: String,
         cluster_id: Option<String>,
-        sender: SyncSender<ProtocolMessage>,
+        sender: Emitter,
     ) -> anyhow::Result<StepperMotor<'d>> {
-        let mut motor = StepperMotor {
+        let motor = StepperMotor {
             core: ModuleCore::new(ModuleType::StepperMotor, &manuel_id, sender),
             pins: pins_bus,
             step_timer: TimerState::from_ms(1.0),
             target_step: 0.0,
             step: 0.0,
-            mode: StepperState::Idle,
+            mode: StepperState::Homing { cycle: 1 },
             test_time: Instant::now(),
             // origin: None,
             pivot_point: PivotPoint::Max,
@@ -76,8 +104,7 @@ impl<'d> StepperMotor<'d> {
             step: motor.step,
         }));
 
-        motor.mode = StepperState::Homing{cycle:1};
-        motor.Registration(Registration {
+        motor.registration(Registration {
             id: motor.id().to_string(),
             module_type: ModuleType::StepperMotor,
             lool_up_id: manuel_id.clone(),
@@ -153,11 +180,11 @@ impl<'d> StepperMotor<'d> {
     }
 
     pub fn tick(&mut self) -> anyhow::Result<()> {
-        match  self.mode {
+        match self.mode {
             StepperState::Idle => {}
 
-            StepperState::Homing {mut cycle} => {
-                if cycle >= 6 {
+            StepperState::Homing { mut cycle } => {
+                if cycle > 6 {
                     self.mode = StepperState::Idle;
                     self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetMode {
                         id: self.id().to_string(),
@@ -165,6 +192,16 @@ impl<'d> StepperMotor<'d> {
                     }));
                     return Ok(());
                 }
+                match self.pivot_point {
+                    PivotPoint::Max => self.move_to_min_pivot()?,
+                    PivotPoint::Min => self.move_to_max_pivot()?,
+                }
+
+                // if cycle % 2 == 1 {
+                //     self.move_to_max_pivot()?;
+                // } else {
+                //     self.move_to_min_pivot()?;
+                // }
 
                 if self.step == self.target_step {
                     cycle += 1;
@@ -174,25 +211,21 @@ impl<'d> StepperMotor<'d> {
                         Self::step_to_angle(self.step),
                         elapsed
                     );
-                    
+
                     match self.pivot_point {
-                        PivotPoint::Max => self.pivot_point  = PivotPoint::Min,
-                        PivotPoint::Min => self.pivot_point  = PivotPoint::Max,  
+                        PivotPoint::Max => self.pivot_point = PivotPoint::Min,
+                        PivotPoint::Min => self.pivot_point = PivotPoint::Max,
                     }
 
-                    self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetPivotPoint { 
-                        id: self.id().to_string(), 
-                        pivot_point: self.pivot_point.clone() 
-                    }));
+                    self.emit(ModuleEvent::StepperMotor(
+                        StepperMotorEvent::GetPivotPoint {
+                            id: self.id().to_string(),
+                            pivot_point: self.pivot_point.clone(),
+                        },
+                    ));
 
                     self.step_timer.reset();
-                    // self.mode = StepperState::Homing { cycle };
-                }
-
-                if cycle % 2 == 1 {
-                    self.move_to_max_pivot()?;
-                } else {
-                    self.move_to_min_pivot()?;
+                    self.mode = StepperState::Homing { cycle };
                 }
             }
 
@@ -229,7 +262,8 @@ impl<'d> StepperMotor<'d> {
     }
     pub fn move_to_min_pivot(&mut self) -> anyhow::Result<()> {
         if self.target_step != Self::angle_to_step(self.pivot_limits.value(self.pivot_point)) {
-            self.set_angle(self.pivot_limits.value(self.pivot_point));
+            // self.set_angle(self.pivot_limits.value(self.pivot_point));
+            self.set_relative_angle_target(self.pivot_limits.value(self.pivot_point));
         }
         self.go_to_position();
         Ok(())
@@ -315,4 +349,54 @@ impl<'d> Module for StepperMotor<'d> {
         }
         Ok(())
     }
+}
+
+
+
+
+
+impl PivotLimits {
+    pub fn new(min: f32, max: f32) -> Self {
+        Self { min, max }
+    }
+
+    pub fn value(&self, point: PivotPoint) -> f32 {
+        match point {
+            PivotPoint::Min => self.min,
+            PivotPoint::Max => self.max,
+        }
+    }
+
+    pub fn opposite(&self, point: PivotPoint) -> PivotPoint {
+        match point {
+            PivotPoint::Min => PivotPoint::Max,
+            PivotPoint::Max => PivotPoint::Min,
+        }
+    }
+    pub fn update_max(&mut self , n:f32){ self.max = n}
+    pub fn update_min(&mut self , n:f32){ self.min = n}
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq,)]
+#[serde(tag = "command")]
+pub enum StepperMotorCommandPayload {
+    SetPivotMin { pivot_min: f32 },
+    SetPivotMax { pivot_max: f32 },
+    MoveToOrigin,
+    MoveToAngle { angle: f32 },
+    MoveToPivotMin,
+    MoveToPivotMax,
+    SetMode { mode: StepperState },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
+#[serde(tag = "event_type")]
+pub  enum  StepperMotorEvent {
+     GetAngle { id: String, angle: f32 , step: f32},
+     GetPivotMin { id: String, pivot_min: f32 },
+     GetPivotMax { id: String, pivot_max: f32 },
+     GetMode { id: String, mode: StepperState },
+     GetOrigin { id: String, origin: Option<f32> },
+     GetPivotPoint { id: String, pivot_point: PivotPoint },
+
 }

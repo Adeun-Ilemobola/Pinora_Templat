@@ -1,14 +1,53 @@
 use std::sync::mpsc::SyncSender;
 
+use crate::core::emitter::Emitter;
 use crate::core::hardware::RangefinderI2c;
 use crate::core::modulecore::{Module, ModuleCore};
-use crate::protocol::command::{ModuleCommand, RangefinderCommandPayload, RangefinderDistanceMode};
+use crate::protocol::command::{ModuleCommand};
 use crate::protocol::global_definitions::ModuleType;
 use crate::protocol::module_event::{LogPriority, ModuleEvent, RangefinderEvent, SysLogEvent};
-use crate::protocol::registration::{ProtocolMessage, Registration};
+use crate::protocol::registration::{ Registration};
 
+use serde::{Deserialize, Serialize};
 use vl53l1x_uld::{DistanceMode, IOVoltage, RangeStatus, DEFAULT_ADDRESS, VL53L1X};
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
+pub enum RangefinderDistanceMode {
+    Short,
+    Long,
+}
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
+#[serde(tag = "command")]
+pub enum RangefinderCommandPayload {
+    StartRanging,
+    StopRanging,
+    SetTimingBudget { milliseconds: u16 },
+    SetDistanceMode { mode: RangefinderDistanceMode },
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
+#[serde(tag = "event_type")]
+pub enum RangefinderEvent {
+    Range {
+        id: String,
+        millimeters: u16,
+    },
+    RangingState {
+        id: String,
+        is_ranging: bool,
+    },
+    TimingBudget {
+        id: String,
+        milliseconds: u16,
+    },
+    DistanceMode {
+        id: String,
+        mode: RangefinderDistanceMode,
+    },
+    InvalidMeasurement {
+        id: String,
+        status: String,
+    },
+}
 pub struct Rangefinder<'d> {
     pub core: ModuleCore,
     pub sensor: VL53L1X<RangefinderI2c<'d>>,
@@ -25,7 +64,7 @@ impl<'d> Rangefinder<'d> {
         rangefinder_i2c: RangefinderI2c<'d>,
         manual_id: String,
         cluster_id: Option<String>,
-        sender: SyncSender<ProtocolMessage>,
+        sender: Emitter,
     ) -> anyhow::Result<Rangefinder<'d>> {
         let mut sensor = VL53L1X::new(rangefinder_i2c, DEFAULT_ADDRESS);
 
@@ -51,7 +90,7 @@ impl<'d> Rangefinder<'d> {
             distance_mode: DistanceMode::Long,
         };
 
-        rangefinder.Registration(Registration {
+        rangefinder.registration(Registration {
             id: rangefinder.id().to_string(),
             module_type: ModuleType::Rangefinder,
             lool_up_id: manual_id,

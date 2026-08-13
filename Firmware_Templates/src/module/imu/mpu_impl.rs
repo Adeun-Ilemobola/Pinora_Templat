@@ -1,15 +1,13 @@
-use std::sync::mpsc::SyncSender;
 
 use crate::{
     core::{
-        hardware::SharedI2cDevice,
-        modulecore::{Module, ModuleCore, emit},
+        emitter::Emitter, hardware::SharedI2cDevice, modulecore::{Module, ModuleCore}
     },
     module::imu::imu_type::{
-        ACCEL_SENSITIVITY, ACCEL_XOUT_H, Axes, GYRO_SENSITIVITY, GYRO_XOUT_H, ImuError, ImuModel, Mpu, MpuDevice, MpuDeviceErr, MpuDeviceMode, RawAxes
+        ACCEL_SENSITIVITY, ACCEL_XOUT_H, Axes, GYRO_SENSITIVITY, GYRO_XOUT_H, ImuError, ImuEvent, ImuModel, Mpu, MpuDevice, MpuDeviceErr, MpuDeviceMode, RawAxes
     },
     protocol::{
-        command::ModuleCommand, global_definitions::ModuleType, module_event::{ImuEvent, LogPriority, ModuleEvent, SysLogEvent}, registration::{ProtocolMessage, Registration}
+        command::ModuleCommand, global_definitions::ModuleType, module_event::{ LogPriority, ModuleEvent, SysLogEvent}, registration::{ProtocolMessage, Registration}
     },
 };
 use embedded_hal::i2c::I2c;
@@ -50,7 +48,7 @@ impl<'d> MpuDevice<'d> {
     pub fn new(
         i2c: SharedI2cDevice<'d>,
         device_address: u8,
-        sender: SyncSender<ProtocolMessage>,
+        sender: Emitter,
         core_id: &str,
         parent_id: Option<String>,
     ) -> Result<MpuDevice<'d>, MpuDeviceErr> {
@@ -59,8 +57,9 @@ impl<'d> MpuDevice<'d> {
                 info: Some(String::from("Failed during MPU identification")),
                 i2c_err: format!("{:?}", err),
             };
+           
             
-            emit::event(ProtocolMessage::ModuleEvent(ModuleEvent::SysLog(SysLogEvent{
+            sender.any(ProtocolMessage::ModuleEvent(ModuleEvent::SysLog(SysLogEvent{
                 priority:LogPriority::Critical,
                 text:"Accel error".to_string(),
                 raw_err:Some(format!("{:?}" ,err_data))
@@ -103,7 +102,7 @@ impl<'d> MpuDevice<'d> {
             bias_collection_gyro: vec![],
         };
         if parent_id.is_some() {}
-        imu.Registration(Registration{
+        imu.registration(Registration{
             id:imu.id().to_string(),
             module_type:ModuleType::Imu,
             lool_up_id:core_id.to_string(),
