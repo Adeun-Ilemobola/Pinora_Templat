@@ -79,6 +79,16 @@ impl<'d> OutputPinCore<'d> {
 
         Ok(())
     }
+    pub fn high(&mut self, )-> anyhow::Result<()> {
+         self.driver.set_high()?;
+         Ok(())
+    }
+
+      pub fn low(&mut self, )-> anyhow::Result<()> {
+         self.driver.set_low()?;
+         Ok(())
+    }
+
 
     pub fn toggle(&mut self) -> anyhow::Result<()> {
         self.driver.toggle()?;

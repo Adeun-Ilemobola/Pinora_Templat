@@ -6,7 +6,7 @@ pub mod utilities;
 use crate::core::emitter::Emitter;
 use crate::core::hardware::*;
 use crate::core::modulecore::{Module};
-use crate::module::stepper::{StepperMotor, StepperPins};
+use crate::module::stepper::{StepperMotor, StepperPinMode, StepperPins};
 use crate::protocol::command::IncomingCommand;
 use esp_idf_svc::hal::spi::{
     config::{Config as SpiConfig, DriverConfig, MODE_0},
@@ -95,12 +95,12 @@ fn main() -> anyhow::Result<()> {
     // modules.insert(lidar_id, lidar.clone());
 
     let stepper = Rc::new(RefCell::new(StepperMotor::new(
-        StepperPins {
+        StepperPinMode::Manuel(StepperPins {
             in1: OutputPinCore::new(p.pins.gpio12)?, //33
             in2: OutputPinCore::new(p.pins.gpio14)?, //32
             in3: OutputPinCore::new(p.pins.gpio27)?, //31
             in4: OutputPinCore::new(p.pins.gpio26)?, //30
-        },
+        }),
         "stepperX".to_string(),
         None,
         sync_sender.clone(),
