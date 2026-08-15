@@ -52,7 +52,7 @@ impl<'d> InputPinCore<'d> {
         Ok(self.driver.is_low())
     }
     pub fn now(&self) -> anyhow::Result<Level> {
-        Ok(self.driver.get_level())
+        Ok(self.driver.get_level().clone())
     }
 }
 

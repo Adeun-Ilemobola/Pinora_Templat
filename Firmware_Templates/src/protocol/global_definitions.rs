@@ -14,7 +14,8 @@ pub enum ModuleType {
     SysLog,
     JoyStick,
     StepperMotor,
-    Rfid
+    Rfid,
+    RemoteReceiver
 }
 
 

@@ -7,3 +7,5 @@ pub mod ledmodule;
 pub  mod stepper;
  pub  mod imu;
 pub  mod rfid;
+
+pub mod remote_receiver;
