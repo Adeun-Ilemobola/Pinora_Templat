@@ -152,6 +152,7 @@ fn main() -> anyhow::Result<()> {
             }
         }
         let now = now_us();
+        
         if now - last_yield_us >= 650_000.0 {
             rtos_sleep_ms(1);
             last_yield_us = now_us();
