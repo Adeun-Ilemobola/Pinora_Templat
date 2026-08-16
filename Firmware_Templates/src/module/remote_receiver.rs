@@ -11,14 +11,80 @@ use crate::{
     protocol::{command::ModuleCommand, global_definitions::ModuleType},
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RemoteButton {
+    Power,
+    VolumeUp,
+    FunctionStop,
+
+    Previous,
+    PlayPause,
+    Next,
+
+    Down,
+    VolumeDown,
+    Up,
+
+    Zero,
+    Equalizer,
+    StopRepeat,
+
+    One,
+    Two,
+    Three,
+    Four,
+    Five,
+    Six,
+    Seven,
+    Eight,
+    Nine,
+}
+
+impl RemoteButton {
+    pub fn from_command(command: u8) -> Option<Self> {
+        match command {
+            0x45 => Some(Self::Power),
+            0x46 => Some(Self::VolumeUp),
+            0x47 => Some(Self::FunctionStop),
+
+            0x44 => Some(Self::Previous),
+            0x40 => Some(Self::PlayPause),
+            0x43 => Some(Self::Next),
+
+            0x07 => Some(Self::Down),
+            0x15 => Some(Self::VolumeDown),
+            0x09 => Some(Self::Up),
+
+            0x19 => Some(Self::Equalizer),
+            0x0D => Some(Self::StopRepeat),
+
+            // Num
+            0x16 => Some(Self::Zero),
+            0x0C => Some(Self::One),
+            0x18 => Some(Self::Two),
+            0x5E => Some(Self::Three),
+            0x08 => Some(Self::Four),
+            0x1C => Some(Self::Five),
+            0x5A => Some(Self::Six),
+            0x42 => Some(Self::Seven),
+            0x52 => Some(Self::Eight),
+            0x4A => Some(Self::Nine),
+
+            _ => None,
+        }
+    }
+}
+
 pub struct RemoteReceiver<'d> {
     core: ModuleCore,
     state: Level,
     step_timer: TimerState,
+    // invalidate: TimerState,
     pin_driver: InputPinCore<'d>,
     test_time: Instant,
     buffer_raw: Vec<(Level, Duration)>,
     ignore_initial: bool,
+    remote_button: Option<RemoteButton>,
 }
 
 impl<'d> RemoteReceiver<'d> {
@@ -35,6 +101,8 @@ impl<'d> RemoteReceiver<'d> {
             buffer_raw: vec![],
             ignore_initial: true,
             step_timer: TimerState::from_ms(100.6),
+          
+            remote_button: None,
         };
         Ok(r)
     }
@@ -74,7 +142,7 @@ impl<'d> RemoteReceiver<'d> {
                     i += 2;
                 }
             }
-            None=>{
+            None => {
                 return;
             }
         }
@@ -98,7 +166,17 @@ impl<'d> RemoteReceiver<'d> {
             );
             data.push(value);
         }
-        println!("Data: {:02X?}", data);
+
+        if data[0] ^ data[1] != 0xFF {
+            return;
+        }
+
+        if data[2] ^ data[3] != 0xFF {
+            return;
+        }
+        self.remote_button = RemoteButton::from_command(data[2]);
+
+       
     }
 }
 
@@ -108,6 +186,20 @@ impl<'d> Module for RemoteReceiver<'d> {
             self.ignore_initial = false;
             return Ok(());
         }
+        match self.remote_button {
+            None=>{
+
+            }
+            Some(data)=>{
+                 println!("Data: {:?}", data);
+                 if self.step_timer.ready(){
+                    self.remote_button = None;
+                 }
+            }
+        }
+
+
+
         let data_now = self.pin_driver.now().unwrap();
         let previous_state = self.state;
         if data_now != self.state {
@@ -117,7 +209,7 @@ impl<'d> Module for RemoteReceiver<'d> {
             self.state = data_now;
         }
 
-        if self.step_timer.ready() && self.buffer_raw.len() > 2{
+        if self.step_timer.ready() && self.buffer_raw.len() > 2 {
             // println!(
             //     "---------------- FRAME len={} ----------------",
             //     self.buffer_raw.len()
