@@ -8,10 +8,10 @@ import { Separator } from "@/components/ui/separator"
 import { Label } from "@/components/ui/label"
 import { electroview } from "@/electrobun";
 import { toast } from "sonner"
-import { SerialDeviceInfo } from "@shared/rpc"
+import { SerialDeviceInfo } from "@src/bun/rpc"
 import { Button } from "@/components/ui/button"
-import { useModuleStore } from "@runtime/ModuleStore";
-import { selectModule } from "@shared/Protocol/ModuleDefinitionSchema"
+import { useModuleStore } from "@src/bun/Runtime/ModuleStore";
+import { selectModule } from "@src/bun/Protocol/ModuleDefinitionSchema"
 import { StepperCard } from "./Modules/stepper/view"
 import { ImuCard } from "./Modules/IMU/view"
 import Liddar from "./Modules/Lidar/view"

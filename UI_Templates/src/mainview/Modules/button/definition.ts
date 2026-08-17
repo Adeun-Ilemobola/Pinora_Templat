@@ -1,5 +1,5 @@
 import z from "zod";
-import type { ModuleDefinitionType } from "@shared/Protocol/ModuleDefinitionSchema";
+import type { ModuleDefinitionType } from "@src/bun/Protocol/ModuleDefinitionSchema";
 
 export const ButtonEventSchema = z.discriminatedUnion("event_type", [
   z.object({

@@ -29,12 +29,6 @@
 			"@modules/*": [
 				"./src/mainview/Modules/*"
 			],
-			"@runtime/*": [
-				"./src/Runtime/*"
-			],
-			"@shared/*": [
-				"./src/shared/*"
-			],
 			"@src/*": [
 				"./src/*"
 			]

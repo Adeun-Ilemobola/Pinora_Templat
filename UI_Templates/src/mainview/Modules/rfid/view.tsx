@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import type { Commandtype as Command } from "@shared/Protocol/ModuleCommand";
+import type { Commandtype as Command } from "@src/bun/Protocol/ModuleCommand";
 import type { RfidModuleDefinition, RfidModeType } from "./definition";
 
 type RfidCardProps = {

@@ -37,7 +37,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { useModuleStore } from "@runtime/ModuleStore"
+import { useModuleStore } from "@src/bun/Runtime/ModuleStore"
 import { Badge } from "@/components/ui/badge"
 import { useNavigate } from "react-router-dom";
 

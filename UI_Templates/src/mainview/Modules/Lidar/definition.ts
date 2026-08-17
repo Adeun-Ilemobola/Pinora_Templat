@@ -1,5 +1,5 @@
 import z from "zod";
-import type { ModuleDefinitionType } from "@shared/Protocol/ModuleDefinitionSchema";
+import type { ModuleDefinitionType } from "@src/bun/Protocol/ModuleDefinitionSchema";
 
 export const PointSchema = z.object({
   x: z.number().int().min(-90).max(90),

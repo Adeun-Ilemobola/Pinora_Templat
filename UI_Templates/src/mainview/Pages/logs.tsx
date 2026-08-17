@@ -7,7 +7,7 @@ import {
     InComingMessageSchemaType,
     moduleTypeIdentifier,
     viewLogSchema,
-} from '@shared/Protocol/ModuleDefinitionSchema';
+} from '@src/bun/Protocol/ModuleDefinitionSchema';
 
 import { useMemo, useRef, useState } from 'react';
 import z from 'zod';
@@ -20,7 +20,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { useModuleStore } from '@runtime/ModuleStore';
+import { useModuleStore } from '@src/bun/Runtime/ModuleStore';
 
 type LogsProps = {};
 

@@ -23,8 +23,6 @@ export default defineConfig({
 			"@": fromProjectRoot("./src/mainview"),
 			"@app": fromProjectRoot("./src/mainview"),
 			"@modules": fromProjectRoot("./src/mainview/Modules"),
-			"@runtime": fromProjectRoot("./src/Runtime"),
-			"@shared": fromProjectRoot("./src/shared"),
 			"@src": fromProjectRoot("./src"),
 		},
 	},

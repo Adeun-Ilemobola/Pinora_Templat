@@ -1,7 +1,7 @@
 import { BrowserWindow, BrowserView } from "electrobun/bun";
-import type { AppRPC, SerialDeviceInfo } from "@shared/rpc";
+import type { AppRPC, SerialDeviceInfo } from "@src/bun/rpc";
 import z from "zod";
-import { InComingMessageSchema } from "@shared/Protocol/ModuleDefinitionSchema";
+import { InComingMessageSchema } from "@src/bun/Protocol/ModuleDefinitionSchema";
 
 type SerialLibrary = typeof import("bun-serialport");
 
@@ -133,9 +133,6 @@ export const rpc = BrowserView.defineRPC<AppRPC>({
 
 
             }
-
-
-
           });
 
           await espPort.open();
@@ -153,8 +150,6 @@ export const rpc = BrowserView.defineRPC<AppRPC>({
 
 
         }
-
-
       },
 
       async sendComand(params) {

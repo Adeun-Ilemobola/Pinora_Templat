@@ -32,6 +32,23 @@ pub enum StepperState {
     Homing { cycle: u32 },
     Pivot { point: PivotPoint },
 }
+impl From<&StepperState> for StepperStateType {
+    fn from(state: &StepperState) -> Self {
+        match state {
+            StepperState::Idle => Self::Idle,
+            StepperState::Moving => Self::Moving,
+            StepperState::Homing { .. } => Self::Homing,
+            StepperState::Pivot { .. } => Self::Pivot,
+        }
+    }
+}
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum StepperStateType {
+    Idle,
+    Moving,
+    Homing,
+    Pivot,
+}
 
 pub struct StepperPins<'d> {
     pub in1: OutputPinCore<'d>,
@@ -159,7 +176,7 @@ impl<'d> StepperMotor<'d> {
                     self.mode = StepperState::Idle;
                     self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetMode {
                         id: self.id().to_string(),
-                        mode: self.mode,
+                        mode: StepperStateType::from(&self.mode),
                     }));
                     return Ok(());
                 }
@@ -195,7 +212,7 @@ impl<'d> StepperMotor<'d> {
                     }));
                     self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetMode {
                         id: self.id().to_string(),
-                        mode: self.mode,
+                        mode: StepperStateType::from(&self.mode),
                     }));
 
                     self.mode = StepperState::Homing { cycle };
@@ -209,7 +226,7 @@ impl<'d> StepperMotor<'d> {
                     self.target_step = 0.0;
                     self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetMode {
                         id: self.id().to_string(),
-                        mode: self.mode,
+                        mode: StepperStateType::from(&self.mode),
                     }));
                 }
             }
@@ -304,7 +321,7 @@ impl<'d> Module for StepperMotor<'d> {
                     self.mode = StepperState::Moving;
                     self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetMode {
                         id: self.id().to_string(),
-                        mode: self.mode,
+                        mode: StepperStateType::from(&self.mode),
                     }));
                 }
                 StepperMotorCommandPayload::SetPivotMax { pivot_max } => {
@@ -334,7 +351,14 @@ impl<'d> Module for StepperMotor<'d> {
                     self.move_pivot(self.pivot_point)?;
                 }
                 StepperMotorCommandPayload::SetMode { mode } => {
-                    self.mode = *mode;
+                    self.mode = match *mode {
+                        StepperStateType::Idle => StepperState::Idle,
+                        StepperStateType::Homing => StepperState::Homing { cycle: 1 },
+                        StepperStateType::Pivot => StepperState::Pivot {
+                            point: PivotPoint::Max,
+                        },
+                        StepperStateType::Moving => StepperState::Moving,
+                    };
                 }
             },
             _ => {
@@ -380,7 +404,7 @@ pub enum StepperMotorCommandPayload {
     MoveToAngle { angle: f32 },
     MoveToPivotMin,
     MoveToPivotMax,
-    SetMode { mode: StepperState },
+    SetMode { mode: StepperStateType },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -389,7 +413,7 @@ pub enum StepperMotorEvent {
     GetAngle { id: String, angle: f32, step: f32 },
     GetPivotMin { id: String, pivot_min: f32 },
     GetPivotMax { id: String, pivot_max: f32 },
-    GetMode { id: String, mode: StepperState },
+    GetMode { id: String, mode: StepperStateType },
     GetOrigin { id: String, origin: Option<f32> },
     GetPivotPoint { id: String, pivot_point: PivotPoint },
 }

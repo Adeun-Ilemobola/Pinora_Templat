@@ -3,7 +3,7 @@ import { PivotPointSchema, StepperMotorDefinition } from './definition';
 import { memo, useMemo, useState } from 'react';
 import z from 'zod';
 import ModuleCore from "@/components/ModuleCore";
-import type { Commandtype as Command } from "@shared/Protocol/ModuleCommand";
+import type { Commandtype as Command } from "@src/bun/Protocol/ModuleCommand";
 import { ArrowBigRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';

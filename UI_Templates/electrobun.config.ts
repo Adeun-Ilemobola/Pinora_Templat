@@ -9,8 +9,6 @@ const tsconfig = fileURLToPath(new URL("./tsconfig.json", import.meta.url));
 const aliases: Record<string, string> = {
 	"@app": join(projectRoot, "src/mainview"),
 	"@modules": join(projectRoot, "src/mainview/Modules"),
-	"@runtime": join(projectRoot, "src/Runtime"),
-	"@shared": join(projectRoot, "src/shared"),
 	"@src": join(projectRoot, "src"),
 };
 
@@ -18,7 +16,7 @@ const aliasPlugin: BunPlugin = {
 	name: "pinora-path-aliases",
 	setup(build) {
 		build.onResolve(
-			{ filter: /^@(app|modules|runtime|shared|src)\// },
+			{ filter: /^@(app|modules|shared|src)\// },
 			({ path }) => {
 				const separator = path.indexOf("/");
 				const alias = path.slice(0, separator);

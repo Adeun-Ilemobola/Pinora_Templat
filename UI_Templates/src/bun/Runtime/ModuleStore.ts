@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { Commandtype } from "@shared/Protocol/ModuleCommand";
-import { ModuleEventEnvelope } from "@shared/Protocol/ModuleEven";
+import { Commandtype } from "@src/bun/Protocol/ModuleCommand";
+import { ModuleEventEnvelope } from "@src/bun/Protocol/ModuleEven";
 import {
   InComingMessageSchema,
   InComingMessageSchemaType,
@@ -10,7 +10,7 @@ import {
   TypeIdentifier,
   TypeIdentifier_module,
   viewLogSchema,
-} from "@shared/Protocol/ModuleDefinitionSchema";
+} from "@src/bun/Protocol/ModuleDefinitionSchema";
 import { buttonInitialBuild, updateButton } from "@modules/button/definition";
 import { ledInitialBuild, updateLed } from "@modules/led/definition";
 import { lidarInitialBuild, updateLidar } from "@modules/Lidar/definition";

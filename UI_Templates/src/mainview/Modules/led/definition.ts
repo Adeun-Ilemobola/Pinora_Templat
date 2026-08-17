@@ -1,5 +1,5 @@
 import z from "zod";
-import type { ModuleDefinitionType } from "@shared/Protocol/ModuleDefinitionSchema";
+import type { ModuleDefinitionType } from "@src/bun/Protocol/ModuleDefinitionSchema";
 
 export const LedCommandTypeSchema = z.discriminatedUnion("command", [
   z.object({
