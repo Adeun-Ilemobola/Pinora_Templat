@@ -1,39 +1,29 @@
-import path from "path"
-import react from "@vitejs/plugin-react"
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { fileURLToPath, URL } from "node:url"
+
 import tailwindcss from "@tailwindcss/vite"
-import { defineConfig } from "vite"
 
-// @ts-expect-error process is a nodejs global
-const host = process.env.TAURI_DEV_HOST;
+const fromProjectRoot = (path: string) =>
+	fileURLToPath(new URL(path, import.meta.url));
 
-// https://vite.dev/config/
-export default defineConfig(async () => ({
-  plugins: [react(), tailwindcss()],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
-  },
-
-  // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
-  //
-  // 1. prevent Vite from obscuring rust errors
-  clearScreen: false,
-  // 2. tauri expects a fixed port, fail if that port is not available
-  server: {
-    port: 1420,
-    strictPort: true,
-    host: host || false,
-    hmr: host
-      ? {
-          protocol: "ws",
-          host,
-          port: 1421,
-        }
-      : undefined,
-    watch: {
-      // 3. tell Vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
-    },
-  },
-}));
+export default defineConfig({
+	plugins: [react() ,tailwindcss() ],
+	root: "src/mainview",
+	build: {
+		outDir: "../../dist",
+		emptyOutDir: true,
+	},
+	server: {
+		port: 5173,
+		strictPort: true,
+	},
+	resolve: {
+		alias: {
+			"@": fromProjectRoot("./src/mainview"),
+			"@app": fromProjectRoot("./src/mainview"),
+			"@modules": fromProjectRoot("./src/mainview/Modules"),
+			"@src": fromProjectRoot("./src"),
+		},
+	},
+});

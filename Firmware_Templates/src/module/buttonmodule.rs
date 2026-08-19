@@ -1,12 +1,20 @@
+
+use crate::core::emitter::Emitter;
 use crate::core::hardware::{InputPin, InputPinCore, Pull};
-use crate::core::modulecore::{Module, ModuleCore, emit};
+use crate::core::modulecore::{Module, ModuleCore};
 use crate::protocol::command::ModuleCommand;
 use crate::protocol::global_definitions::ModuleType;
-use crate::protocol::module_event::{ButtonEvent, ModuleEvent};
-use crate::protocol::registration::{ Registration};
+use crate::protocol::module_event::{ ModuleEvent};
+use crate::protocol::registration::{  Registration};
 use esp_idf_svc::hal::gpio::Level;
+use serde::{Deserialize, Serialize};
 
 static BUTTON_MODULE_MAX_TIME: u64 = 30; // Maximum time in milliseconds to consider a button press valid
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
+#[serde(tag = "event_type")]
+pub enum ButtonEvent {
+    Ckick { id: String },
+}
 
 pub struct Buttonmodule<'d> {
     core: ModuleCore,
@@ -18,12 +26,12 @@ pub struct Buttonmodule<'d> {
 }
 
 impl<'d> Buttonmodule<'d> {
-    pub fn new<T>(pin: T , lool_up_id:String) -> anyhow::Result<Buttonmodule<'d>>
+    pub fn new<T>(pin: T , lool_up_id:String , sender:Emitter) -> anyhow::Result<Buttonmodule<'d>>
     where
         T: InputPin + 'd,
     {
         let  buttonmodule = Buttonmodule {
-            core: ModuleCore::new(ModuleType::Button, &lool_up_id),
+            core: ModuleCore::new(ModuleType::Button, &lool_up_id , sender),
             state: Level::High,
             pin_driver: InputPinCore::new(pin, Pull::Up)?,
             last_state: Level::High,
@@ -31,7 +39,7 @@ impl<'d> Buttonmodule<'d> {
             prev_state: Level::High,
         };
 
-       emit::registration(Registration{
+       buttonmodule.registration(Registration{
         id:buttonmodule.id().to_string(),
         lool_up_id :lool_up_id.clone(),
         module_type:ModuleType::Button,
@@ -61,7 +69,7 @@ impl<'d> Buttonmodule<'d> {
         if self.state != self.prev_state {
             let pressed = self.state == Level::Low;
             self.prev_state = self.state;
-            emit::event(ModuleEvent::Button(ButtonEvent::Ckick{ id:self.id().clone()}));
+            self.emit(ModuleEvent::Button(ButtonEvent::Ckick{ id:self.id().to_string()}));
             return Ok(pressed);
         }
         Ok(false)
@@ -69,10 +77,6 @@ impl<'d> Buttonmodule<'d> {
     
 }
 impl<'d> Module for Buttonmodule<'d> {
-    fn id(&self) -> &String {
-        &self.core.id
-    }
-
     fn core(&self) -> &ModuleCore {
         &self.core
     }

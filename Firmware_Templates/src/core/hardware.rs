@@ -4,7 +4,7 @@ use embedded_hal_compat::Reverse;
 pub use esp_idf_svc::hal::delay::FreeRtos;
 pub use esp_idf_svc::hal::gpio::*;
 pub use esp_idf_svc::hal::i2c;
-pub use esp_idf_svc::hal::i2c::{I2c, I2cConfig, I2cDriver};
+pub use esp_idf_svc::hal::i2c::{I2c, I2cConfig, I2cDriver , I2cError};
 pub use esp_idf_svc::hal::ledc;
 use esp_idf_svc::hal::ledc::config::TimerConfig;
 use esp_idf_svc::hal::ledc::Resolution;
@@ -13,11 +13,11 @@ pub use esp_idf_svc::hal::uart::UartDriver;
 pub use esp_idf_svc::hal::units::*;
 pub use esp_idf_svc::partition::*;
 use esp_idf_svc::sys;
-use pinora_shared::protocol::registration::SystemInfo;
-use pwm_pca9685::{Address, Pca9685};
+// use pwm_pca9685::{Address, Pca9685};
 use std::{ffi::CStr, ptr};
 
-use crate::core::modulecore::emit;
+use crate::core::emitter::Emitter;
+use crate::protocol::registration::SystemInfo;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
@@ -52,7 +52,7 @@ impl<'d> InputPinCore<'d> {
         Ok(self.driver.is_low())
     }
     pub fn now(&self) -> anyhow::Result<Level> {
-        Ok(self.driver.get_level())
+        Ok(self.driver.get_level().clone())
     }
 }
 
@@ -79,6 +79,16 @@ impl<'d> OutputPinCore<'d> {
 
         Ok(())
     }
+    pub fn high(&mut self, )-> anyhow::Result<()> {
+         self.driver.set_high()?;
+         Ok(())
+    }
+
+      pub fn low(&mut self, )-> anyhow::Result<()> {
+         self.driver.set_low()?;
+         Ok(())
+    }
+
 
     pub fn toggle(&mut self) -> anyhow::Result<()> {
         self.driver.toggle()?;
@@ -86,11 +96,54 @@ impl<'d> OutputPinCore<'d> {
     }
 }
 
-pub fn sleep_time(ms: u32) {
+pub fn rtos_sleep_ms(ms: u32) {
     FreeRtos::delay_ms(ms);
 }
-pub fn sleep_ms(ms: u64) {
+pub fn thread_sleep_ms(ms: u64) {
     std::thread::sleep(Duration::from_millis(ms));
+}
+pub fn now_us() -> f64 {
+    unsafe { sys::esp_timer_get_time() as f64 }
+}
+
+pub struct TimerState {
+    period_us: f64,
+    next_deadline_us: f64,
+}
+
+impl TimerState {
+    pub fn from_ms(period_ms: f64) -> Self {
+        let period_us = period_ms  * 1_000.0;
+        let now = now_us();
+
+        Self {
+            period_us,
+            next_deadline_us: now + period_us,
+        }
+    }
+
+   
+
+    pub fn ready(&mut self) -> bool {
+        let now = now_us();
+
+        if now < self.next_deadline_us {
+            return false;
+        }
+
+        self.next_deadline_us += self.period_us;
+
+        // Do not rapidly replay hundreds of missed timer intervals.
+        if self.next_deadline_us <= now {
+            self.next_deadline_us = now + self.period_us;
+        }
+
+        true
+    }
+
+    pub fn reset(&mut self) {
+        self.next_deadline_us = now_us() + self.period_us;
+    }
 }
 
 pub type I2cBus<'d> = Rc<RefCell<I2cDriver<'d>>>;
@@ -98,12 +151,12 @@ pub type SharedI2cDevice<'d> = RcDevice<I2cDriver<'d>>;
 
 pub type RangefinderI2c<'d> = Reverse<RcDevice<I2cDriver<'d>>>;
 
-pub type SharedPwm<'d> = Rc<RefCell<Pca9685<SharedI2cDevice<'d>>>>;
+//pub type SharedPwm<'d> = Rc<RefCell<Pca9685<SharedI2cDevice<'d>>>>;
 
 pub type LedTimer<'d> = ledc::LedcTimerDriver<'d, ledc::LowSpeed>;
 
 pub struct HardwareContext<'d> {
-    pub servo_pwm: SharedPwm<'d>,
+    // pub servo_pwm: SharedPwm<'d>,
     pub led_timer: LedTimer<'d>,
     pub i2c_bus: I2cBus<'d>,
 }
@@ -114,26 +167,26 @@ impl<'d> HardwareContext<'d> {
         TIMER: ledc::LedcTimer<SpeedMode = ledc::LowSpeed> + 'd,
     {
         Ok(Self {
-            servo_pwm: Self::create_shared_pwm(i2c_bus.clone())?,
+            // servo_pwm: Self::create_shared_pwm(i2c_bus.clone())?,
             led_timer: Self::create_led_timer(timer)?,
             i2c_bus,
         })
     }
 
-    pub fn create_shared_pwm(i2c_bus: I2cBus<'d>) -> anyhow::Result<SharedPwm<'d>> {
-        let i2c_device = RcDevice::new(i2c_bus);
+    // pub fn create_shared_pwm(i2c_bus: I2cBus<'d>) -> anyhow::Result<SharedPwm<'d>> {
+    //     let i2c_device = RcDevice::new(i2c_bus);
 
-        let mut pwm = Pca9685::new(i2c_device, Address::default())
-            .map_err(|e| anyhow::anyhow!("PCA9685 init: {:?}", e))?;
+    //     let mut pwm = Pca9685::new(i2c_device, Address::default())
+    //         .map_err(|e| anyhow::anyhow!("PCA9685 init: {:?}", e))?;
 
-        pwm.set_prescale(100)
-            .map_err(|e| anyhow::anyhow!("set_prescale: {:?}", e))?;
+    //     pwm.set_prescale(100)
+    //         .map_err(|e| anyhow::anyhow!("set_prescale: {:?}", e))?;
 
-        pwm.enable()
-            .map_err(|e| anyhow::anyhow!("enable: {:?}", e))?;
+    //     pwm.enable()
+    //         .map_err(|e| anyhow::anyhow!("enable: {:?}", e))?;
 
-        Ok(Rc::new(RefCell::new(pwm)))
-    }
+    //     Ok(Rc::new(RefCell::new(pwm)))
+    // }
 
     pub fn create_led_timer<T>(timer: T) -> anyhow::Result<LedTimer<'d>>
     where
@@ -147,7 +200,7 @@ impl<'d> HardwareContext<'d> {
     }
 }
 
-pub fn print_esp_system_info() {
+pub fn print_esp_system_info(emit:Emitter) {
     unsafe {
         // -------------------------
         // RAM / heap information
@@ -190,7 +243,7 @@ pub fn print_esp_system_info() {
             "Failed to read".to_string()
         };
 
-        emit::system_info(SystemInfo {
+        emit.system_info(SystemInfo {
             esp_idf_version: idf_version.to_string(),
             total_heap: format_bytes(total_heap),
             current_free_heap: format_bytes(free_heap),

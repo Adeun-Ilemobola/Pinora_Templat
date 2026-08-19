@@ -3,17 +3,20 @@ pub mod module;
 pub mod protocol;
 pub mod utilities;
 
+use crate::core::emitter::Emitter;
 use crate::core::hardware::*;
 use crate::core::modulecore::Module;
-use crate::module::joystick::JoyStick;
+use crate::module::remote_receiver::RemoteReceiver;
+use crate::module::stepper::{StepperMotor, StepperPinAuto, StepperPinMode, StepperPins};
 use crate::protocol::command::IncomingCommand;
-// use crate::utilities::serdeprotocol::IncomingCommand;
-use crate::module::lidar::Lidar;
+use esp_idf_svc::hal::spi::{
+    config::{Config as SpiConfig, DriverConfig, MODE_0},
+    SpiDeviceDriver,
+};
 use std::io;
 use std::io::{BufRead, ErrorKind};
 use std::sync::mpsc;
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
- use embedded_hal_bus::i2c::RcDevice;
 
 type ModuleHandle<'a> = Rc<RefCell<dyn Module + 'a>>;
 
@@ -45,53 +48,86 @@ fn configure_console_uart() -> anyhow::Result<()> {
     Ok(())
 }
 
-
-
 fn main() -> anyhow::Result<()> {
     esp_idf_svc::sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
+    let sync_sender = Emitter::new(None);
+
     configure_console_uart()?;
-    print_esp_system_info();
+    print_esp_system_info(sync_sender.clone());
     let mut modules: HashMap<String, ModuleHandle<'_>> = HashMap::new();
     let p = Peripherals::take()?;
-    let i2c = I2cDriver::new(
-        p.i2c0,
-        p.pins.gpio21,
-        p.pins.gpio22,
-        &I2cConfig::new().baudrate(400.kHz().into()),
-    )?;
-
-    let shared_i2c = Rc::new(RefCell::new(i2c));
-    
-
-    let hardware = HardwareContext::new(p.ledc.timer0,shared_i2c.clone())?;
-    let rangefinder_i2c = RcDevice::new(hardware.i2c_bus.clone());
-
-    // let rangefinder = Rc::new(RefCell::new(Rangefinder::new(
-    //     p.i2c1,
+    let mut last_yield_us = now_us();
+    // let i2c = I2cDriver::new(
+    //     p.i2c0,
     //     p.pins.gpio21,
     //     p.pins.gpio22,
-    //     "rangefinder".to_string(),
-    //     None,
-    // )?));
-    // let rangefinder_id = rangefinder.borrow().id().clone();
-    // modules.insert(rangefinder_id, rangefinder.clone());
-    // print_welcome_message("not initialized", "not initialized");
-
-    let lidar = Rc::new(RefCell::new(Lidar::new(
-        hardware.servo_pwm.clone(),
-        "lidar".to_string(),
-        rangefinder_i2c
-    )?));
-    let lidar_id = lidar.borrow().get_id();
-    modules.insert(lidar_id, lidar.clone());
-
-    // let mut joystick = JoyStick::new(
-    //     p.pins.gpio25,
-    //     p.adc1,
-    //     p.pins.gpio34,
-    //     p.pins.gpio35,
+    //     &I2cConfig::new().baudrate(100.kHz().into()),
     // )?;
+    let spi = SpiDeviceDriver::new_single(
+        p.spi2,
+        p.pins.gpio18,       //SCK, | -> purple
+        p.pins.gpio19,       // MOSI |  -> blue
+        Some(p.pins.gpio23), // MISO |  -> green
+        Some(p.pins.gpio5),  // SDA / CS | -> gray
+        &DriverConfig::new(),
+        &SpiConfig::new().baudrate(1_000_000.Hz()).data_mode(MODE_0),
+    )?;
+    // MRC522 RST      -> GPIO 16
+
+    //    LEFT                                      RIGHT
+    //┌──────────────────────────────────────────────┐
+    //│ SDA │ SCK │ MOSI │ MISO │ IRQ │ GND │ RST │ 3.3V │
+    //└──────────────────────────────────────────────┘
+
+    // let shared_i2c = Rc::new(RefCell::new(i2c));
+    // let shared_spi = Rc::new(RefCell::new(spi));
+
+    // let hardware = HardwareContext::new(p.ledc.timer0, shared_i2c.clone())?;
+    // let rangefinder_i2c = RcDevice::new(hardware.i2c_bus.clone());
+
+    // let lidar = Rc::new(RefCell::new(Lidar::new(
+    //     hardware.servo_pwm.clone(),
+    //     "lidar".to_string(),
+    //     rangefinder_i2c,
+    //     sync_sender.clone()
+    // )?));
+    // let lidar_id = lidar.borrow().get_id();
+    // modules.insert(lidar_id, lidar.clone());
+
+    let temote_receiver = Rc::new(RefCell::new(
+        RemoteReceiver::new(
+            InputPinCore::new(p.pins.gpio12, Pull::UpDown)
+                .map_err(|err| anyhow::anyhow!("{err:?}"))?,
+            "er".to_string(),
+            sync_sender.clone(),
+        )
+        .map_err(|err| anyhow::anyhow!("{err:?}"))?,
+    ));
+
+    modules.insert(temote_receiver.borrow().id().to_owned(), temote_receiver.clone());
+
+    // const MPU_ADDRESS: u8 = 0x68;
+    // let imu_i2c = RcDevice::new(shared_i2c.clone());
+    // let mut  test_imu = MpuDevice::new(imu_i2c, MPU_ADDRESS ,sync_sender.clone() , "MPu" , None ).map_err(|err| anyhow::anyhow!("{err:?}"))?;
+
+    // let   rfid = Rc::new(RefCell::new(
+    //     Rfid::new(
+    //     spi,
+    //     RGB{
+    //         red : OutputPinCore::new(p.pins.gpio12)?,
+    //         green:  OutputPinCore::new(p.pins.gpio14)?,
+    //         blue: OutputPinCore::new(p.pins.gpio27)? ,
+
+    //     },
+    //     OutputPinCore::new(p.pins.gpio17)?,
+    //     "dff",
+    //     None,
+    //     sync_sender.clone()
+    // ).map_err(|err| anyhow::anyhow!("{err:?}"))?
+    // ));
+
+    // modules.insert(rfid.borrow().id().to_owned(), rfid.clone());
 
     let (command_sender, command_receiver) = mpsc::channel::<IncomingCommand>();
     std::thread::spawn(move || {
@@ -99,13 +135,10 @@ fn main() -> anyhow::Result<()> {
     });
 
     loop {
-        // rangefinder.borrow_mut().tick();
-        lidar.borrow_mut().tick();
-        // joystick.tick()?;
-
-        // if btu.poll()? {
-        //     led_module.borrow_mut().toggle()?
+        // for module in modules.values() {
+        //     let _ = module.borrow_mut().tick();
         // }
+        let _ = temote_receiver.borrow_mut().tick();
 
         if let Ok(command) = command_receiver.try_recv() {
             if let Some(module) = modules.get_mut(&command.id) {
@@ -118,7 +151,12 @@ fn main() -> anyhow::Result<()> {
                 );
             }
         }
-        sleep_ms(10);
+        let now = now_us();
+        
+        if now - last_yield_us >= 650_000.0 {
+            rtos_sleep_ms(1);
+            last_yield_us = now_us();
+        }
     }
 }
 

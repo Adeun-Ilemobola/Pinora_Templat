@@ -1,12 +1,28 @@
+
+use serde::{Deserialize, Serialize};
+
+use crate::core::emitter::Emitter;
 use crate::core::hardware::{ledc, LedTimer, OutputPin};
-use crate::core::modulecore::{Module, ModuleCore, emit};
-use crate::protocol::command::{ModuleCommand  , LedCommandPayload};
+use crate::core::modulecore::{Module, ModuleCore};
+use crate::protocol::command::{ModuleCommand  };
 use crate::protocol::global_definitions::ModuleType;
-use crate::protocol::module_event::{LedEvent, ModuleEvent};
-use crate::protocol::registration::{ Registration};
+use crate::protocol::module_event::{ ModuleEvent};
+use crate::protocol::registration::{  Registration};
 use crate::utilities::math::range_u32;
 
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
+#[serde(tag = "event_type")]
+pub enum LedEvent {
+    Brightness { id: String, level: u32 },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
+#[serde(tag = "command")]
+pub enum LedCommandPayload {
+    SetState { state: u32 },
+    Toggle,
+}
 pub struct Ledmodule<'d> {
     core: ModuleCore,
     state: u32,
@@ -19,6 +35,7 @@ impl<'d> Ledmodule<'d> {
         manuel_id: String,
         timer: &LedTimer<'d>,
         cluster_id: Option<String>,
+        sender:Emitter
     ) -> anyhow::Result<Ledmodule<'d>>
     where
         T: OutputPin + 'd,
@@ -27,12 +44,12 @@ impl<'d> Ledmodule<'d> {
         let pwm = ledc::LedcDriver::new(channel, timer, pin)?;
 
         let  ledmodule = Ledmodule {
-            core: ModuleCore::new(ModuleType::Led, &manuel_id),
+            core: ModuleCore::new(ModuleType::Led, &manuel_id , sender),
             state: 0,
             pwm,
         };
       
-      emit::registration(Registration{
+      ledmodule.registration(Registration{
         id:ledmodule.id().to_string(),
          module_type:ModuleType::Led,
          lool_up_id:manuel_id.clone(),
@@ -48,7 +65,7 @@ impl<'d> Ledmodule<'d> {
         let p = range_u32(state, 0, 100, 0, self.pwm.get_max_duty());
         self.pwm.set_duty(p)?;
         self.state = state;
-        emit::event(ModuleEvent::Led(LedEvent::Brightness { id:self.id().clone(), level: state }));
+        self.emit(ModuleEvent::Led(LedEvent::Brightness { id:self.id().to_string(), level: state }));
     
 
         Ok(())
@@ -69,10 +86,6 @@ impl<'d> Ledmodule<'d> {
 }
 
 impl<'d> Module for Ledmodule<'d> {
-    fn id(&self) -> &String {
-        &self.core.id
-    }
-
     fn core(&self) -> &ModuleCore {
         &self.core
     }
