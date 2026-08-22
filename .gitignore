@@ -37,12 +37,8 @@ target/
 /UI_Templates/artifacts/
 /UI_Templates/*.tsbuildinfo
 
-
-# Tauri
-/UI_Templates/src-tauri/target/
-/UI_Templates/src-tauri/gen/schemas/
-/UI_Templates/src-tauri/.vscode/
-
+/UI_Templates\sidecars\serial\node_modules
+/UI_Templates\sidecars\serial\package-lock.json
 # Firmware
 /Firmware_Templates/.embuild/
 /Firmware_Templates/target/

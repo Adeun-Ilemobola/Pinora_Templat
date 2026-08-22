@@ -43,14 +43,16 @@ export default {
 		},
 		// Vite builds to dist/, we copy from there
 		copy: {
-			"dist/index.html": "views/mainview/index.html",
-			"dist/assets": "views/mainview/assets",
-			"node_modules/serialport":
-				"node_modules/serialport",
-
-			"node_modules/@serialport":
-				"node_modules/@serialport",
-
+			// "dist/index.html": "views/mainview/index.html",
+			// "dist/assets": "views/mainview/assets",
+			// "node_modules/serialport":
+			// 	"node_modules/serialport",
+			// "node_modules/@serialport":
+			// 	"node_modules/@serialport",
+			// "node_modules/debug": "node_modules/debug",
+			// "node_modules/ms": "node_modules/ms",
+			// "node_modules/node-addon-api": "node_modules/node-addon-api",
+			// "node_modules/node-gyp-build": "node_modules/node-gyp-build",
 		},
 		// external: ["serialport"],
 		// Ignore Vite output in watch mode — HMR handles view rebuilds separately

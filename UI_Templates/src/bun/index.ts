@@ -1,17 +1,15 @@
 import { BrowserWindow, BrowserView } from "electrobun/bun";
 import type { AppRPC, SerialDeviceInfo } from "@src/bun/rpc";
-import z from "zod";
+import z, { any } from "zod";
 import { InComingMessageSchema } from "@src/bun/Protocol/ModuleDefinitionSchema";
+import { BunSerial } from "@src/bun/Runtime/serial/BunSerial";
 
-type SerialLibrary = typeof import("bun-serialport");
+const serial = new BunSerial({
+  bridgePath:
+    "C:/Dev/Pinora/Pinora_Templat/UI_Templates/sidecars/serial/index.mjs",
+});
 
-let espPort: any = null;
-let serialLibrary: Promise<SerialLibrary> | undefined;
 
-function loadSerialLibrary(): Promise<SerialLibrary> {
-  serialLibrary ??= import("bun-serialport");
-  return serialLibrary;
-}
 
 const DEV_SERVER_URL = "http://localhost:5173";
 function isValidJSON(text: string) {
@@ -45,12 +43,11 @@ export const rpc = BrowserView.defineRPC<AppRPC>({
   handlers: {
     requests: {
       async getAvailablePorts(): Promise<SerialDeviceInfo[]> {
-        console.log("Loading serialport...");
+      
+        const ports = await serial.list();
+       
 
-        const { list } = await loadSerialLibrary();
-        const ports = await list();
-
-        return ports.map((port: any) => ({
+       return ports.map((port: any) => ({
           path: port.path,
           manufacturer: port.manufacturer ?? null,
           serialNumber: port.serialNumber ?? null,
@@ -62,86 +59,12 @@ export const rpc = BrowserView.defineRPC<AppRPC>({
       },
       async openPort({ port }) {
         try {
-          const { SerialPort, readlineParser } = await loadSerialLibrary();
-
-          // Bun/ElectroBun main process
-          mainWindow.webview.rpc?.send.PortStatus({
-              path:port,
-              status:"connecting"
-            })
-          espPort = new SerialPort({
-            path: port,
-            baudRate: 115200,
-            autoOpen: false,
-          });
-
-          espPort.on("open", () => {
-            console.log("Serial port opened");
-            mainWindow.webview.rpc?.send.PortStatus({
-              path:port,
-              status:"connected"
-            })
-          });
-
-          espPort.on("error", (error: Error) => {
-            espPort = null
-            console.error("Serial port error:", error);
-            mainWindow.webview.rpc?.send.PortStatus({
-              path:port,
-              status:"error"
-            })
-          });
-
-          espPort.on("close", () => {
-            espPort = null
-            console.log("Serial port closed");
-            mainWindow.webview.rpc?.send.PortStatus({
-              path:port,
-              status:"disconnected"
-            })
-          });
-
-          const parser = espPort.pipe(
-            readlineParser({
-              delimiter: "\n",
-              encoding: "utf-8",
-            }),
-          );
-
-          parser.on("data", (line: string) => {
-            // console.log("ESP32:", line);
-            // if (line.startsWith("I (422) main_task: Calling app_main()")) {
-            //   start = true;
-            // }
-            console.log("-- ESP32 :", line)
-            if (isValidJSON(line)) {
-              const data = JSON.parse(line)
-              ;
-              const parsedMessage = InComingMessageSchema.safeParse(data);
-
-              if (!parsedMessage.success) {
-                console.error(
-                  "[ListenStore] invalid incoming message:",
-                  z.prettifyError(parsedMessage.error),
-                );
-                return;
-              }
-
-              const message = parsedMessage.data;
-              // console.log("ESP32:", message);
-              mainWindow.webview.rpc?.send.incomingMessage({ message })
-
-
-            }
-          });
-
-          await espPort.open();
+         
 
           return true;
 
         } catch (error) {
           console.error(error)
-          espPort = null
           mainWindow.webview.rpc?.send.PortStatus({
               path:port,
               status:"error"
@@ -154,17 +77,7 @@ export const rpc = BrowserView.defineRPC<AppRPC>({
 
       async sendComand(params) {
         try {
-          console.log("new command :", params)
-          if (!espPort) {
-            console.error("no Port available")
-            throw new Error("no Port available");
-          }
-          const sendData = `${JSON.stringify(params)}\n`;
-          console.log("stringify data :", sendData)
-          const result = await espPort.write(sendData);
-
-          console.log("Serial write result:", result);
-
+          
         } catch (error) {
           console.error("Command write failed:", error);
           throw error;

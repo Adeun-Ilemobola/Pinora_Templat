@@ -3,7 +3,7 @@ pub mod module;
 pub mod protocol;
 pub mod utilities;
 
-use crate::core::emitter::Emitter;
+use crate::core::emitter::{Emitter , TransportType};
 use crate::core::hardware::*;
 use crate::core::modulecore::Module;
 use crate::module::remote_receiver::RemoteReceiver;
