@@ -9,4 +9,50 @@
     <div id="root"></div>
     <script type="module" src="/main.tsx"></script>
   </body>
+
+  <script>
+    window.addEventListener("error", (event) => {
+        console.error(
+            "[PINORA BOOT ERROR]",
+            event.error ?? event.message
+        );
+
+        document.body.innerHTML = `
+            <pre style="
+                white-space: pre-wrap;
+                padding: 20px;
+                color: #ff5555;
+                background: #111;
+                min-height: 100vh;
+                font-family: monospace;
+            ">
+PINORA BOOT ERROR
+
+${String(event.error?.stack ?? event.message)}
+            </pre>
+        `;
+    });
+
+    window.addEventListener("unhandledrejection", (event) => {
+        console.error(
+            "[PINORA UNHANDLED PROMISE]",
+            event.reason
+        );
+
+        document.body.innerHTML = `
+            <pre style="
+                white-space: pre-wrap;
+                padding: 20px;
+                color: #ff5555;
+                background: #111;
+                min-height: 100vh;
+                font-family: monospace;
+            ">
+PINORA UNHANDLED PROMISE
+
+${String(event.reason?.stack ?? event.reason)}
+            </pre>
+        `;
+    });
+</script>
 </html>

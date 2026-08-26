@@ -1,46 +1,70 @@
 {
-	"compilerOptions": {
-		"target": "ES2020",
-		"useDefineForClassFields": true,
-		"lib": [
-			"ES2020",
-			"DOM",
-			"DOM.Iterable"
-		],
-		"module": "ESNext",
-		"skipLibCheck": true,
-		"moduleResolution": "bundler",
-		"allowImportingTsExtensions": true,
-		"isolatedModules": true,
-		"moduleDetection": "force",
-		"noEmit": true,
-		"jsx": "react-jsx",
-		"strict": true,
-		"noUnusedLocals": true,
-		"noUnusedParameters": true,
-		"noFallthroughCasesInSwitch": true,
-		"paths": {
-			"@/*": [
-				"./src/mainview/*"
-			],
-			"@app/*": [
-				"./src/mainview/*"
-			],
-			"@modules/*": [
-				"./src/mainview/Modules/*"
-			],
-			"@src/*": [
-				"./src/*"
-			]
-		}
-	},
-	"include": [
-		"src"
-	],
-	"exclude": [
-		"node_modules",
-		"dist",
-		"build",
-		"../../package/dist"
-	]
+    "extends": "./.hutch/devkit/tsconfig.json",
+
+    "compilerOptions": {
+        "baseUrl": ".",
+        "types": ["bun"],
+
+        "target": "ES2020",
+        "useDefineForClassFields": true,
+        "lib": [
+            "ES2020",
+            "DOM",
+            "DOM.Iterable"
+        ],
+
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "skipLibCheck": true,
+        "allowImportingTsExtensions": true,
+        "isolatedModules": true,
+        "moduleDetection": "force",
+        "noEmit": true,
+        "jsx": "react-jsx",
+        "strict": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noFallthroughCasesInSwitch": true,
+
+        "paths": {
+            "electrobun": [
+                "./.hutch/devkit/api/sdks/main/index.ts"
+            ],
+            "electrobun/main": [
+                "./.hutch/devkit/api/sdks/main/index.ts"
+            ],
+            "electrobun/view": [
+                "./.hutch/devkit/api/browser/index.ts"
+            ],
+            "electrobun/rpc": [
+                "./.hutch/devkit/api/sdks/main/entries/rpc.ts"
+            ],
+
+            "@/*": [
+                "./src/mainview/*"
+            ],
+            "@app/*": [
+                "./src/mainview/*"
+            ],
+            "@modules/*": [
+                "./src/mainview/Modules/*"
+            ],
+            "@src/*": [
+                "./src/*"
+            ]
+        }
+    },
+
+    "include": [
+        "src",
+        "electrobun.config.ts",
+        "vite.config.ts"
+    ],
+
+    "exclude": [
+        "node_modules",
+        "dist",
+        "build",
+        "../../package/dist"
+    ]
 }

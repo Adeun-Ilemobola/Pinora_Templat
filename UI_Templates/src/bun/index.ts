@@ -1,4 +1,8 @@
-import { BrowserWindow, BrowserView } from "electrobun/bun";
+import {
+    BrowserWindow,
+    BrowserView,
+   
+} from "electrobun/main";
 import type { AppRPC, SerialDeviceInfo } from "@src/bun/rpc";
 import z, { any } from "zod";
 import { InComingMessageSchema } from "@src/bun/Protocol/ModuleDefinitionSchema";
@@ -9,6 +13,26 @@ const serial = new BunSerial({
     "C:/Dev/Pinora/Pinora_Templat/UI_Templates/sidecars/serial/index.mjs",
 });
 
+serial.on("opened", (data) => {
+  console.log("Serial port opened:", data);
+});
+
+serial.on("data", (data) => {
+
+  
+  console.log(
+    "ESP32:",
+    new TextDecoder().decode(data),
+  );
+});
+
+serial.on("error", (error) => {
+  console.error("Serial error:", error);
+});
+
+serial.on("closed", (data) => {
+  console.log("Serial port closed:", data);
+});
 
 
 const DEV_SERVER_URL = "http://localhost:5173";
@@ -43,11 +67,11 @@ export const rpc = BrowserView.defineRPC<AppRPC>({
   handlers: {
     requests: {
       async getAvailablePorts(): Promise<SerialDeviceInfo[]> {
-      
-        const ports = await serial.list();
-       
 
-       return ports.map((port: any) => ({
+        const ports = await serial.list();
+
+
+        return ports.map((port: any) => ({
           path: port.path,
           manufacturer: port.manufacturer ?? null,
           serialNumber: port.serialNumber ?? null,
@@ -59,16 +83,23 @@ export const rpc = BrowserView.defineRPC<AppRPC>({
       },
       async openPort({ port }) {
         try {
-         
+          await serial.open({
+            path: port,
+            baudRate: 115200,
+          });
+
+
+
+
 
           return true;
 
         } catch (error) {
           console.error(error)
           mainWindow.webview.rpc?.send.PortStatus({
-              path:port,
-              status:"error"
-            })
+            path: port,
+            status: "error"
+          })
           throw new Error("Something went wrong" + error,);
 
 
@@ -77,7 +108,8 @@ export const rpc = BrowserView.defineRPC<AppRPC>({
 
       async sendComand(params) {
         try {
-          
+
+
         } catch (error) {
           console.error("Command write failed:", error);
           throw error;

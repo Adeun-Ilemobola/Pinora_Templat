@@ -15,30 +15,19 @@ Desktop.ini
 *.sln
 *.sw?
 target/
-# Frontend
-# /UI_Templates/logs/
-# /UI_Templates/*.log
-# /UI_Templates/npm-debug.log*
-# /UI_Templates/yarn-debug.log*
-# /UI_Templates/yarn-error.log*
-# /UI_Templates/pnpm-debug.log*
-# /UI_Templates/lerna-debug.log*
-# /UI_Templates/node_modules/
-# /UI_Templates/dist/
-# /UI_Templates/dist-ssr/
-# /UI_Templates/*.local
-# /UI_Templates/.vscode/*
-# !/UI_Templates/.vscode/extensions.json
 
-
+# Pinora desktop app
 /UI_Templates/node_modules/
 /UI_Templates/build/
 /UI_Templates/dist/
 /UI_Templates/artifacts/
+/UI_Templates/.hutch/
+/UI_Templates/.cottontail-tmp/
 /UI_Templates/*.tsbuildinfo
 
-/UI_Templates\sidecars\serial\node_modules
-/UI_Templates\sidecars\serial\package-lock.json
+# Serial sidecar
+/UI_Templates/sidecars/serial/node_modules/
+/UI_Templates/sidecars/serial/package-lock.json
 # Firmware
 /Firmware_Templates/.embuild/
 /Firmware_Templates/target/

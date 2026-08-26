@@ -1,4 +1,4 @@
-import type { RPCSchema } from "electrobun/bun";
+import type { RPCSchema } from "electrobun/main";
 import { InComingMessageSchema } from "./Protocol/ModuleDefinitionSchema";
 import z from "zod";
 import { Commandtype } from "./Protocol/ModuleCommand";

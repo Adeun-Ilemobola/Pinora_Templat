@@ -5,14 +5,14 @@ import App from "./App";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { Toaster } from "sonner";
 import {
-  createBrowserRouter,
+  createHashRouter,
   RouterProvider,
 } from "react-router-dom";
 import { createRoot } from "react-dom/client";
 import Layout from "./lib/Layout";
 import { LogsBox } from "./Pages/logs";
 
-const router = createBrowserRouter([
+const router = createHashRouter([
   {
     element: <Layout />,
     children: [
@@ -21,9 +21,9 @@ const router = createBrowserRouter([
         element: <App />,
       },
       {
-        path:"logs",
-        element:<LogsBox/>
-      }
+        path: "logs",
+        element: <LogsBox />,
+      },
     ],
   },
 ]);

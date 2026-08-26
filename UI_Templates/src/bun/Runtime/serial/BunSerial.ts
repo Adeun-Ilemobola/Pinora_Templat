@@ -12,6 +12,9 @@ type PendingRequest = {
     reject: (error: Error) => void;
 };
 
+var readOutputCont = 0;
+
+
 export class BunSerial {
     private bridgePath: string;
     private nodePath: string;
@@ -57,12 +60,15 @@ export class BunSerial {
         const reader = this.child.stdout.getReader();
         const decoder = new TextDecoder();
 
+      
+
         let buffer = "";
 
         try {
             while (true) {
                 const { value, done } = await reader.read();
-
+               
+            
                 if (done) {
                     break;
                 }
@@ -181,9 +187,7 @@ export class BunSerial {
         }
     }
 
-    private request<T = void>(
-        message: Record<string, unknown>,
-    ): Promise<T> {
+    private request<T = void>( message: Record<string, unknown>,): Promise<T> {
         this.start();
 
         const id = this.nextRequestId++;
@@ -216,9 +220,7 @@ export class BunSerial {
     }
 
     async list(): Promise<SerialPortInfo[]> {
-        const result = await this.request<{
-            ports: SerialPortInfo[];
-        }>({
+        const result = await this.request<{ ports: SerialPortInfo[];}>({
             type: "list",
         });
 
