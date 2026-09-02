@@ -5,7 +5,7 @@ pub mod utilities;
 use crate::core::emitter::{Emitter , TransportType};
 use crate::core::hardware::*;
 use crate::core::modulecore::Module;
-use crate::module::remote_receiver::RemoteReceiver;
+use crate::module::remote_receiver::RemoteReceiverButton;
 use crate::module::stepper::{StepperMotor, StepperPinAuto, StepperPinMode, StepperPins};
 use pinora_protocol::command::IncomingCommand;
 use esp_idf_svc::hal::spi::{
@@ -95,7 +95,7 @@ fn main() -> anyhow::Result<()> {
     // modules.insert(lidar_id, lidar.clone());
 
     let temote_receiver = Rc::new(RefCell::new(
-        RemoteReceiver::new(
+        RemoteReceiverButton::new(
             InputPinCore::new(p.pins.gpio12, Pull::UpDown)
                 .map_err(|err| anyhow::anyhow!("{err:?}"))?,
             "er".to_string(),

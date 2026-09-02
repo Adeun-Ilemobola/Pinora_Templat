@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ServoCapability {
     pub max_angle: i32,
     pub min_angle: i32,
@@ -12,7 +12,6 @@ pub struct ServoCapability {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(tag = "event_type")]
 pub enum ServoEvent {
     GetAngle { id: String, angle: i32 },
     GetMinPivot { id: String, min_pivot: i32 },
@@ -21,7 +20,6 @@ pub enum ServoEvent {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(tag = "command")]
 pub enum ServoCommandPayload {
     SetAngle { angle: i32 },
     SetMinPivot { min_pivot: i32 },

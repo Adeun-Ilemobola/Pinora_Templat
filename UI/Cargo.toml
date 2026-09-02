@@ -9,6 +9,8 @@ edition = "2024"
 pinora-protocol = { path = "../protocol" }
 slint = "1.16.1"
 serialport = "4.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 
 [build-dependencies]
 slint-build = "1.16.1"

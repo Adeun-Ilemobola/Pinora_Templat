@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum RangefinderDistanceMode {
     Short,
     Long,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "command")]
 pub enum RangefinderCommandPayload {
     StartRanging,
@@ -15,7 +15,7 @@ pub enum RangefinderCommandPayload {
     SetDistanceMode { mode: RangefinderDistanceMode },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "event_type")]
 pub enum RangefinderEvent {
     Range {

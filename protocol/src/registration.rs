@@ -13,7 +13,6 @@ pub struct Registration {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
-#[serde(tag = "type", content = "payload")]
 pub enum ProtocolMessage {
     Registration(Registration),
     ModuleEvent(ModuleEvent),

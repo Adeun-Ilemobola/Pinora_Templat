@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{module::{buttonmodule::ButtonEvent, imu::imu_type::{ ImuEvent}, ledmodule::LedEvent, rfid::{ RfidEvent}, stepper::{ StepperMotorEvent, }}};
+use crate::{RemoteButtonEvent, module::{buttonmodule::ButtonEvent, imu::imu_type::ImuEvent, ledmodule::LedEvent, rfid::RfidEvent, stepper::StepperMotorEvent}};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
-#[serde(tag = "module_type", content = "event")]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq )]
 pub enum ModuleEvent {
     Led(LedEvent),
     //Servo(ServoEvent),
@@ -13,7 +12,8 @@ pub enum ModuleEvent {
     //Rangefinder(RangefinderEvent),
     StepperMotor(StepperMotorEvent),
     Imu(ImuEvent),
-    Rfid(RfidEvent)
+    Rfid(RfidEvent),
+    RemoteReceiver(RemoteButtonEvent)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]

@@ -1,4 +1,6 @@
-use crate::transport::{bluetooth_transport::BluetoothTransport, serial_transport::SerialTransport, transport_type::{ConnectionState, ConnectionType, TransportError, TransportType}, wifi_transport::WifiTransport};
+use std::sync::{Arc, Mutex};
+
+use crate::{transport::{bluetooth_transport::BluetoothTransport, serial_transport::SerialTransport, transport_type::{ConnectionState, ConnectionType, TransportError, TransportType}, wifi_transport::WifiTransport}, type_box::EventCallback};
 
 
 
@@ -19,7 +21,7 @@ impl Transport {
         }
     }
 
-    pub fn set_serial_transport(&mut self, name: String, rate: u32, event_callback: Box<dyn FnMut(Vec<u8>) + Send + 'static>)->ConnectionType {
+    pub fn set_serial_transport(&mut self, name: String, rate: u32, event_callback: EventCallback)->ConnectionType {
         let serial_transport = SerialTransport::new(event_callback);
         self.core = Some(TransportCore::Serial(serial_transport));
         match self.core {

@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(tag = "command")]
 pub enum RfidCommand {
     WriteMode,
     ReadMode,
@@ -9,7 +8,6 @@ pub enum RfidCommand {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(tag = "event_type")]
 pub enum RfidEvent {
     GetCard {
         id: String,
@@ -27,7 +25,7 @@ pub enum RfidEvent {
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 pub enum MddeRfid {
     Read,
     Write,

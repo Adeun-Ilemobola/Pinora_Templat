@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize , PartialEq)]
 pub enum PivotPoint {
     Min,
     Max,
@@ -15,7 +15,6 @@ pub enum StepperStateType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(tag = "command")]
 pub enum StepperMotorCommandPayload {
     SetPivotMin { pivot_min: f32 },
     SetPivotMax { pivot_max: f32 },
@@ -27,7 +26,6 @@ pub enum StepperMotorCommandPayload {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(tag = "event_type")]
 pub enum StepperMotorEvent {
     GetAngle { id: String, angle: f32, step: f32 },
     GetPivotMin { id: String, pivot_min: f32 },

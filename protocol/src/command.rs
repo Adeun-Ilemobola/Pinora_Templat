@@ -10,7 +10,6 @@ pub struct IncomingCommand {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
-#[serde(tag = "module_type", content = "payload")]
 pub enum ModuleCommand {
     Led(LedCommandPayload),
     //Servo(ServoCommandPayload),

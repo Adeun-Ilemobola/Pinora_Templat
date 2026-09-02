@@ -6,7 +6,10 @@ pub mod range_finder;
 pub mod rfid;
 pub mod servomodule;
 pub mod stepper;
+pub mod remote_receiver;
 
+
+pub use remote_receiver::*;
 pub use buttonmodule::*;
 pub use imu::*;
 pub use ledmodule::*;

@@ -1,5 +1,6 @@
-use crate::transport::transport_type::{
-    ConnectionState, ConnectionType, TransportError, TransportType,
+use crate::{
+    transport::transport_type::{ConnectionState, ConnectionType, TransportError, TransportType},
+    type_box::EventCallback,
 };
 use serialport::SerialPort;
 use std::sync::{
@@ -15,19 +16,19 @@ pub struct SerialTransport {
     pub serial_buf: Vec<u8>,
 
     pub serial: Option<Box<dyn SerialPort>>,
-    pub event_callback: Arc<Mutex<Box<dyn FnMut(Vec<u8>) + Send + 'static>>>,
+    pub event_callback: EventCallback,
     pub reader_thread: Option<JoinHandle<()>>,
     pub reader_running: Arc<AtomicBool>,
 }
 
 impl SerialTransport {
-    pub fn new(event_callback: Box<dyn FnMut(Vec<u8>) + Send + 'static>) -> Self {
+    pub fn new(event_callback: EventCallback) -> Self {
         SerialTransport {
             name: "".to_string(),
             rate: 0,
             serial_buf: Vec::new(),
             serial: None,
-            event_callback: Arc::new(Mutex::new(event_callback)),
+            event_callback,
             reader_running: Arc::new(AtomicBool::new(true)),
             reader_thread: None,
         }
@@ -115,20 +116,14 @@ impl SerialTransport {
                 if buffer_ves.is_empty() {
                     continue;
                 }
-                line_buff.extend(buffer_ves.clone());
-                let is_new_line = match line_buff.last() {
-                    Some(newline_byte) => *newline_byte == 10 || *newline_byte == 0x0A,
-                    _ => false,
-                };
-                if is_new_line {
+                line_buff.extend_from_slice(&buffer_ves);
+                
+                while let Some(index) = line_buff.iter().position(|byte| *byte == b'\n') {
+                    let line: Vec<u8> = line_buff.drain(..=index).collect();
+
                     if let Ok(mut callback) = callback.lock() {
-                        (callback)(line_buff.clone());
+                        (callback)(line);
                     }
-                    match String::from_utf8(line_buff.clone()) {
-                        Ok(string) => println!("Success: {string}"),
-                        Err(e) => println!("Invalid UTF-8 sequence: {e}"),
-                    }
-                    line_buff.clear();
                 }
 
                 buffer = [0; 1024];

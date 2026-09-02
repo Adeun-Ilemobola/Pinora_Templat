@@ -2,80 +2,19 @@ use std::time::{Duration, Instant};
 
 use esp_idf_svc::hal::gpio::Level;
 
-use crate::{
-    core::{
-        emitter::Emitter,
-        hardware::{InputPinCore, TimerState},
-        modulecore::{Module, ModuleCore},
-    },
+use crate::core::{
+    emitter::Emitter,
+    hardware::{InputPinCore, TimerState},
+    modulecore::{Module, ModuleCore},
 };
-use pinora_protocol::{command::ModuleCommand, global_definitions::ModuleType};
+use pinora_protocol::{
+    command::ModuleCommand,
+    global_definitions::ModuleType,
+    ModuleEvent::{ RemoteReceiver},
+    Registration, RemoteButton, RemoteButtonEvent,
+};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RemoteButton {
-    Power,
-    VolumeUp,
-    FunctionStop,
-
-    Previous,
-    PlayPause,
-    Next,
-
-    Down,
-    VolumeDown,
-    Up,
-
-    Zero,
-    Equalizer,
-    StopRepeat,
-
-    One,
-    Two,
-    Three,
-    Four,
-    Five,
-    Six,
-    Seven,
-    Eight,
-    Nine,
-}
-
-impl RemoteButton {
-    pub fn from_command(command: u8) -> Option<Self> {
-        match command {
-            0x45 => Some(Self::Power),
-            0x46 => Some(Self::VolumeUp),
-            0x47 => Some(Self::FunctionStop),
-
-            0x44 => Some(Self::Previous),
-            0x40 => Some(Self::PlayPause),
-            0x43 => Some(Self::Next),
-
-            0x07 => Some(Self::Down),
-            0x15 => Some(Self::VolumeDown),
-            0x09 => Some(Self::Up),
-
-            0x19 => Some(Self::Equalizer),
-            0x0D => Some(Self::StopRepeat),
-
-            // Num
-            0x16 => Some(Self::Zero),
-            0x0C => Some(Self::One),
-            0x18 => Some(Self::Two),
-            0x5E => Some(Self::Three),
-            0x08 => Some(Self::Four),
-            0x1C => Some(Self::Five),
-            0x5A => Some(Self::Six),
-            0x42 => Some(Self::Seven),
-            0x52 => Some(Self::Eight),
-            0x4A => Some(Self::Nine),
-
-            _ => None,
-        }
-    }
-}
-
-pub struct RemoteReceiver<'d> {
+pub struct RemoteReceiverButton<'d> {
     core: ModuleCore,
     state: Level,
     step_timer: TimerState,
@@ -84,16 +23,16 @@ pub struct RemoteReceiver<'d> {
     test_time: Instant,
     buffer_raw: Vec<(Level, Duration)>,
     ignore_initial: bool,
-    remote_button: Option<RemoteButton>,
+    remote_button: RemoteButton,
 }
 
-impl<'d> RemoteReceiver<'d> {
+impl<'d> RemoteReceiverButton<'d> {
     pub fn new(
         pin: InputPinCore<'d>,
         core_id: String,
         sender: Emitter,
-    ) -> Result<RemoteReceiver<'d>, ()> {
-        let r = RemoteReceiver {
+    ) -> Result<RemoteReceiverButton<'d>, ()> {
+        let r = RemoteReceiverButton {
             core: ModuleCore::new(ModuleType::RemoteReceiver, &core_id, sender),
             pin_driver: pin,
             state: Level::Low,
@@ -101,9 +40,15 @@ impl<'d> RemoteReceiver<'d> {
             buffer_raw: vec![],
             ignore_initial: true,
             step_timer: TimerState::from_ms(100.6),
-          
-            remote_button: None,
+
+            remote_button: RemoteButton::None,
         };
+        r.registration(Registration {
+            id: r.id().to_string(),
+            module_type: ModuleType::RemoteReceiver,
+            lool_up_id: core_id,
+            parent_id: String::new(),
+        });
         Ok(r)
     }
     fn extract(&mut self) {
@@ -160,10 +105,10 @@ impl<'d> RemoteReceiver<'d> {
                 }
             }
 
-            println!(
-                "decimal: {} | hex: 0x{:02X} | binary: {:08b}",
-                value, value, value
-            );
+            // println!(
+            //     "decimal: {} | hex: 0x{:02X} | binary: {:08b}",
+            //     value, value, value
+            // );
             data.push(value);
         }
 
@@ -175,30 +120,15 @@ impl<'d> RemoteReceiver<'d> {
             return;
         }
         self.remote_button = RemoteButton::from_command(data[2]);
-
-       
     }
 }
 
-impl<'d> Module for RemoteReceiver<'d> {
+impl<'d> Module for RemoteReceiverButton<'d> {
     fn tick(&mut self) -> Result<(), ()> {
         if self.ignore_initial {
             self.ignore_initial = false;
             return Ok(());
         }
-        match self.remote_button {
-            None=>{
-
-            }
-            Some(data)=>{
-                 println!("Data: {:?}", data);
-                 if self.step_timer.ready(){
-                    self.remote_button = None;
-                 }
-            }
-        }
-
-
 
         let data_now = self.pin_driver.now().unwrap();
         let previous_state = self.state;
@@ -221,6 +151,16 @@ impl<'d> Module for RemoteReceiver<'d> {
             self.extract();
             self.buffer_raw.clear();
             self.step_timer.reset();
+        }
+
+        if self.remote_button != RemoteButton::None {
+            if self.step_timer.ready() {
+                self.emit(RemoteReceiver(RemoteButtonEvent::Click {
+                    id: self.id().to_string(),
+                    key: self.remote_button.clone(),
+                }));
+                self.remote_button = RemoteButton::None;
+            }
         }
 
         Ok(())

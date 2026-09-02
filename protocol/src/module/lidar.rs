@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "event_type")]
 pub struct RangPoint {
     pub x: i32,
@@ -8,7 +8,7 @@ pub struct RangPoint {
     pub distant: u16,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Point {
     pub x: i32,
     pub y: i32,
@@ -22,7 +22,6 @@ pub enum ScanState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(tag = "event_type")]
 pub enum LidarEvent {
     Roi {
         id: String,

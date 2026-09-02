@@ -2,12 +2,11 @@ use slint::ComponentHandle;
 use std::sync::{Arc, Mutex};
 
 use crate::{
-    AppWindow, ConnectionTypeS,
-    transport::{
+    AppWindow, ConnectionTypeS, module_controller::ModuleController, transport::{
         serial_transport::SerialTransport,
         transport_gate::Transport,
         transport_type::{BaudRate, TransportType, to_slint_model},
-    },
+    }, type_box::EventCallback,
 };
 
 pub fn disconnect(ui: slint::Weak<AppWindow>, transport: Arc<Mutex<Transport>>) {
@@ -26,7 +25,7 @@ pub fn disconnect(ui: slint::Weak<AppWindow>, transport: Arc<Mutex<Transport>>) 
     println!(" try to disconnect")
 }
 
-pub fn connection(ui: slint::Weak<AppWindow>, transport: Arc<Mutex<Transport>>) {
+pub fn connection(ui: slint::Weak<AppWindow>, transport: Arc<Mutex<Transport>> , event_callback: EventCallback) {
     let ui_core = ui.unwrap();
     let mut bri = transport.lock().unwrap();
     let selected_transport = ui_core.get_selected_transport();
@@ -49,9 +48,7 @@ pub fn connection(ui: slint::Weak<AppWindow>, transport: Arc<Mutex<Transport>>) 
             let statse = bri.set_serial_transport(
                 port,
                 newBaudRate.as_u32(),
-                Box::new(|data| {
-                    println!("Raw data: {:?}", data);
-                }),
+                 Arc::clone(&event_callback),
             );
             ui_core.set_Connection_mode(statse.to_slint());
         }
@@ -70,14 +67,23 @@ pub fn connection(ui: slint::Weak<AppWindow>, transport: Arc<Mutex<Transport>>) 
     }
 }
 
-pub fn bind(ui: &AppWindow, gateway: Arc<Mutex<Transport>>) {
+pub fn bind(ui: &AppWindow, gateway: Arc<Mutex<Transport>> , event_callback: Box<dyn FnMut(Vec<u8>) + Send + 'static>,) {
     let serialports = SerialTransport::get_available_ports().unwrap();
+
+    let event_callback =EventCallback::new(Mutex::new(event_callback));
+
     let model_ports = to_slint_model(serialports);
+
     let transport_types = TransportType::to_slint_model();
+
     ui.set_combo_transport_model(transport_types.into());
+
     ui.set_selected_transport(TransportType::Serial.format());
+
     ui.set_ports(model_ports);
+
     ui.set_baudrates(BaudRate::to_slint_model());
+
 
     // Weak UI handles for each callback
     let disconnect_ui = ui.as_weak();
@@ -86,12 +92,17 @@ pub fn bind(ui: &AppWindow, gateway: Arc<Mutex<Transport>>) {
     // Shared Transport handles for each callback
     let disconnect_gateway = Arc::clone(&gateway);
     let connection_gateway = Arc::clone(&gateway);
+   
 
     ui.on_request_Make_Disconnect(move || {
         disconnect(disconnect_ui.clone(), Arc::clone(&disconnect_gateway))
     });
 
     ui.on_request_Make_Connection(move || {
-        connection(connection_ui.clone(), Arc::clone(&connection_gateway))
+        connection(
+            connection_ui.clone(), 
+            Arc::clone(&connection_gateway),
+            Arc::clone(&event_callback),
+        )
     });
 }
