@@ -1,53 +1,17 @@
-use std::sync::mpsc::SyncSender;
-
 use crate::core::emitter::Emitter;
 use crate::core::hardware::RangefinderI2c;
 use crate::core::modulecore::{Module, ModuleCore};
-use crate::protocol::command::{ModuleCommand};
-use crate::protocol::global_definitions::ModuleType;
-use crate::protocol::module_event::{LogPriority, ModuleEvent, RangefinderEvent, SysLogEvent};
-use crate::protocol::registration::{ Registration};
-
-use serde::{Deserialize, Serialize};
+use pinora_protocol::{
+    command::ModuleCommand,
+    global_definitions::ModuleType,
+    module_event::{LogPriority, ModuleEvent, SysLogEvent},
+    registration::Registration,
+};
 use vl53l1x_uld::{DistanceMode, IOVoltage, RangeStatus, DEFAULT_ADDRESS, VL53L1X};
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
-pub enum RangefinderDistanceMode {
-    Short,
-    Long,
-}
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
-#[serde(tag = "command")]
-pub enum RangefinderCommandPayload {
-    StartRanging,
-    StopRanging,
-    SetTimingBudget { milliseconds: u16 },
-    SetDistanceMode { mode: RangefinderDistanceMode },
-}
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
-#[serde(tag = "event_type")]
-pub enum RangefinderEvent {
-    Range {
-        id: String,
-        millimeters: u16,
-    },
-    RangingState {
-        id: String,
-        is_ranging: bool,
-    },
-    TimingBudget {
-        id: String,
-        milliseconds: u16,
-    },
-    DistanceMode {
-        id: String,
-        mode: RangefinderDistanceMode,
-    },
-    InvalidMeasurement {
-        id: String,
-        status: String,
-    },
-}
+pub use pinora_protocol::modules::range_finder::{
+    RangefinderCommandPayload, RangefinderDistanceMode, RangefinderEvent,
+};
 pub struct Rangefinder<'d> {
     pub core: ModuleCore,
     pub sensor: VL53L1X<RangefinderI2c<'d>>,

@@ -1,0 +1,32 @@
+import { VerticalBox , ComboBox } from "std-widgets.slint";
+export component SelectorCore inherits VerticalBox {
+    callback clicked();
+    callback selection-changed(string);
+    in property <[string]> values: [];
+    in property <string> placeholder: "";
+    in property <string> label: "";
+    in property <bool> disabled: false;
+
+    spacing: 4px;
+    width: 140px;
+    height: 37px;
+
+    Text {
+        text: root.label;
+        font-size: 15px;
+        width: root.width;
+       
+    }
+
+    ComboBox {
+        width: root.width;
+        height: 35px;
+        enabled: !root.disabled;
+        model: root.values;
+        current-index: 0;
+        selected(value) => {
+            root.selection-changed(value);
+        }
+    }
+
+}

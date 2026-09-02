@@ -1,0 +1,182 @@
+import { Button, VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { InputCore } from "component/UI/InputCore.slint";
+import { SelectorCore } from "component/UI/SelectorCore.slint";
+import { Card } from "component/Card.slint";
+export enum TransportTypeS {
+    Serial,
+    Wifi,
+    Bluetooth,
+}
+export enum ConnectionTypeS {
+    Disconnected,
+    Connecting,
+    Connected,
+    Error,
+}
+export component AppWindow inherits Window {
+    in-out property <string> text: "q";
+    in-out property <TransportTypeS> selected_transport;
+    in property <[string]> combo-transport-model;
+    in property <ConnectionTypeS> Connection_mode: ConnectionTypeS.Disconnected;
+
+    // Serial Form
+     in property <[string]> ports: [];
+    in property <[string]> baudrates: [];
+    in-out property <string> baudrate;
+    in-out property <string> port;
+
+    // Wifi Form
+     in-out property <string> wifi_ssid;
+    in-out property <string> wifi_password;
+
+    // Bluetooth Form
+     in-out property <string> bluetooth_name;
+    in-out property <string> bluetooth_pin;
+
+    callback request-increase-value();
+    callback request-change-transport(TransportTypeS);
+    callback request_Make_Connection();
+    callback request_Make_Disconnect();
+
+    // --------
+    function ModeLable(parameter: ConnectionTypeS) -> string {
+        if parameter == ConnectionTypeS.Connected {
+            return "Connected";
+        }
+        if parameter == ConnectionTypeS.Disconnected {
+            return "Disconnected";
+        }
+        if parameter == ConnectionTypeS.Connecting {
+            return "Connecting";
+        }
+        return "Error";
+    }
+    function ModeLableColor(parameter: ConnectionTypeS) -> color {
+        if parameter == ConnectionTypeS.Connected {
+            return #16A34A;
+        }
+        if parameter == ConnectionTypeS.Disconnected {
+            return #DC2626;
+        }
+        if parameter == ConnectionTypeS.Connecting {
+            return #F59E0B;
+        }
+        return #EF4444;
+    }
+
+    width: 1000px;
+    height: 500px;
+
+    VerticalBox {
+        width: 100%;
+        height: 350px;
+        spacing: 10px;
+
+        main-card := Card {
+            height: 270px;
+            width: 400px;
+            main_form := VerticalBox {
+                spacing: 26px;
+                padding: 2px;
+
+                SelectorCore {
+                    label: "Transport Type";
+                    values: combo-transport-model;
+                    selection-changed(value) => {
+                        if (value == "Serial") {
+                            selected_transport = TransportTypeS.Serial;
+                        } else if (value == "Wifi") {
+                            selected_transport = TransportTypeS.Wifi;
+                        } else if (value == "Bluetooth") {
+                            selected_transport = TransportTypeS.Bluetooth;
+                        }
+                    }
+                }
+
+                if selected_transport == TransportTypeS.Serial: HorizontalBox {
+                    spacing: 10px;
+                    padding: 0px;
+                    SelectorCore {
+                        label: "Port";
+                        values: root.ports;
+                        selection-changed(value) => {
+                            root.port = value;
+                        }
+                    }
+
+                    SelectorCore {
+                        label: "Baudrate";
+                        values: root.baudrates;
+                        selection-changed(value) => {
+                            root.baudrate = value;
+                        }
+                    }
+                }
+                if selected_transport == TransportTypeS.Wifi: HorizontalBox {
+                    spacing: 10px;
+                    padding: 0px;
+                    InputCore {
+                        label: "SSID";
+                        value: root.wifi_ssid;
+                        text-changed(value) => {
+                            root.wifi_ssid = value;
+                        }
+                    }
+
+                    InputCore {
+                        label: "Password";
+                        value: root.wifi_password;
+                        text-changed(value) => {
+                            root.wifi_password = value;
+                        }
+                    }
+                }
+                if selected_transport == TransportTypeS.Bluetooth: HorizontalBox {
+                    spacing: 10px;
+                    padding: 0px;
+                    InputCore {
+                        label: "Device Name";
+                        value: root.bluetooth_name;
+                        text-changed(value) => {
+                            root.bluetooth_name = value;
+                        }
+                    }
+
+                    InputCore {
+                        label: "PIN";
+                        value: root.bluetooth_pin;
+                        text-changed(value) => {
+                            root.bluetooth_pin = value;
+                        }
+                    }
+                }
+            }
+
+            Button {
+                width: 100px;
+                height: 40px;
+                x: main-card.width - self.width - 20px;
+                y: main-card.height - self.height - 20px;
+                text: Connection_mode == ConnectionTypeS.Connected ? "Disconnected" : "Connected";
+                clicked => {
+                    if Connection_mode == ConnectionTypeS.Connected {
+                        root.request_Make_Disconnect();
+                        return;
+                    }
+                    root.request_Make_Connection();
+                }
+                enabled: !(Connection_mode == ConnectionTypeS.Error) || !(Connection_mode == ConnectionTypeS.Connecting);
+            }
+
+            Text {
+                width: 206px;
+                height: 40px;
+                color: ModeLableColor(Connection_mode);
+                x: main_form.padding;
+                y: main-card.height - self.height - 20px;
+                text: ModeLable(Connection_mode);
+                font-size: 32px;
+            }
+        }
+    }
+}

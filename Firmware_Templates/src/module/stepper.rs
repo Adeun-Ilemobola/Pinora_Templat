@@ -8,17 +8,18 @@ use crate::{
         hardware::{OutputPinCore, TimerState},
         modulecore::{Module, ModuleCore},
     },
-    protocol::{
-        command::ModuleCommand, global_definitions::ModuleType, module_event::ModuleEvent,
-        registration::Registration,
-    },
+};
+use pinora_protocol::{
+    command::ModuleCommand,
+    global_definitions::ModuleType,
+    module_event::ModuleEvent,
+    registration::Registration,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum PivotPoint {
-    Min,
-    Max,
-}
+pub use pinora_protocol::module::stepper::{
+    PivotPoint, StepperMotorCommandPayload, StepperMotorEvent, StepperStateType,
+};
+
 #[derive(Debug, Clone, Copy)]
 pub struct PivotLimits {
     pub min: f32,
@@ -42,14 +43,6 @@ impl From<&StepperState> for StepperStateType {
         }
     }
 }
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-pub enum StepperStateType {
-    Idle,
-    Moving,
-    Homing,
-    Pivot,
-}
-
 pub struct StepperPins<'d> {
     pub in1: OutputPinCore<'d>,
     pub in2: OutputPinCore<'d>,
@@ -393,27 +386,4 @@ impl PivotLimits {
     pub fn update_min(&mut self, n: f32) {
         self.min = n
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(tag = "command")]
-pub enum StepperMotorCommandPayload {
-    SetPivotMin { pivot_min: f32 },
-    SetPivotMax { pivot_max: f32 },
-    MoveToOrigin,
-    MoveToAngle { angle: f32 },
-    MoveToPivotMin,
-    MoveToPivotMax,
-    SetMode { mode: StepperStateType },
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(tag = "event_type")]
-pub enum StepperMotorEvent {
-    GetAngle { id: String, angle: f32, step: f32 },
-    GetPivotMin { id: String, pivot_min: f32 },
-    GetPivotMax { id: String, pivot_max: f32 },
-    GetMode { id: String, mode: StepperStateType },
-    GetOrigin { id: String, origin: Option<f32> },
-    GetPivotPoint { id: String, pivot_point: PivotPoint },
 }

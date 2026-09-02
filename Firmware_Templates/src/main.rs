@@ -1,6 +1,5 @@
 pub mod core;
 pub mod module;
-pub mod protocol;
 pub mod utilities;
 
 use crate::core::emitter::{Emitter , TransportType};
@@ -8,7 +7,7 @@ use crate::core::hardware::*;
 use crate::core::modulecore::Module;
 use crate::module::remote_receiver::RemoteReceiver;
 use crate::module::stepper::{StepperMotor, StepperPinAuto, StepperPinMode, StepperPins};
-use crate::protocol::command::IncomingCommand;
+use pinora_protocol::command::IncomingCommand;
 use esp_idf_svc::hal::spi::{
     config::{Config as SpiConfig, DriverConfig, MODE_0},
     SpiDeviceDriver,

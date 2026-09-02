@@ -8,77 +8,21 @@ use crate::core::{
 };
 use crate::module::range_finder::Rangefinder;
 use crate::module::servomodule::ServoModule;
-use crate::protocol::command::{ ModuleCommand};
-use crate::protocol::global_definitions::{ModuleType, Point, RangPoint, ServoCapability};
-use crate::protocol::module_event::{LidarEvent, LogPriority, ModuleEvent, ScanState, SysLogEvent};
-use crate::protocol::registration::{ProtocolMessage, Registration};
 use embedded_hal_bus::i2c::RcDevice;
 use embedded_hal_compat::ReverseCompat;
+use pinora_protocol::{
+    command::ModuleCommand,
+    global_definitions::ModuleType,
+    module_event::{LogPriority, ModuleEvent, SysLogEvent},
+    registration::{ProtocolMessage, Registration},
+};
 use pwm_pca9685::Channel;
-use serde::{Deserialize, Serialize};
 const POINTS_PER_CHUNK: usize = 100;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(tag = "event_type")]
-pub struct RangPoint {
-    pub x: i32,
-    pub y: i32,
-    pub distant: u16,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct Point {
-    pub x: i32,
-    pub y: i32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
-pub enum ScanState {
-    Idol,
-    Scanning,
-    StopScan,
-}
-
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq,)]
-#[serde(tag = "event_type")]
-pub enum LidarEvent {
-    Roi {
-        id: String,
-        min: Point,
-        max: Point,
-    },
-    PointMap {
-        id: String,
-        max_chunk: i32,
-        curr_chunk: i32,
-        map: Vec<RangPoint>,
-    },
-    Target {
-        id: String,
-        point: Point,
-    },
-    ScanState {
-        id: String,
-        state: ScanState,
-        scan_time:f32
-    },
-}
-
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
-#[serde(tag = "command")]
-pub enum LidarCommandPayload {
-    Roi { min: Point, max: Point },
-    StartScan,
-    StopScan,
-    Test,
-    SetStep { step: u32 },
-    ChangeMotorAngle { id: String, step: i32 },
-    MovePos { p: Point },
-}
-
-
+pub use pinora_protocol::modules::lidar::{
+    LidarCommandPayload, LidarEvent, Point, RangPoint, ScanState,
+};
+pub use pinora_protocol::modules::servomodule::ServoCapability;
 
 pub struct Lidar<'d> {
     core: ModuleCore,

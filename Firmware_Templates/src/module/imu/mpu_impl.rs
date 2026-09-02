@@ -6,12 +6,15 @@ use crate::{
     module::imu::imu_type::{
         ACCEL_SENSITIVITY, ACCEL_XOUT_H, Axes, GYRO_SENSITIVITY, GYRO_XOUT_H, ImuError, ImuEvent, ImuModel, Mpu, MpuDevice, MpuDeviceErr, MpuDeviceMode, RawAxes
     },
-    protocol::{
-        command::ModuleCommand, global_definitions::ModuleType, module_event::{ LogPriority, ModuleEvent, SysLogEvent}, registration::{ProtocolMessage, Registration}
-    },
 };
 use embedded_hal::i2c::I2c;
 use esp_idf_svc::hal::i2c::I2cError;
+use pinora_protocol::{
+    command::ModuleCommand,
+    global_definitions::ModuleType,
+    module_event::{LogPriority, ModuleEvent, SysLogEvent},
+    registration::{ProtocolMessage, Registration},
+};
 
 impl<'d> Mpu<'d> {
     pub fn identify(

@@ -2,179 +2,222 @@
 
 # Pinora
 
-### An Electrobun desktop control surface and modular Rust firmware for ESP32 projects
+### A Slint desktop client, shared Rust protocol, and modular ESP32 firmware
 
-Connect. Discover. Monitor. Control.
+Connect. Inspect. Control.
 
 ![Version](https://img.shields.io/badge/version-0.1.0-7c3aed?style=for-the-badge)
 ![Status](https://img.shields.io/badge/status-PRE--ALPHA-f97316?style=for-the-badge)
-[![Electrobun](https://img.shields.io/badge/Electrobun-1.18-7c3aed?style=for-the-badge)](https://electrobun.dev/)
-[![React](https://img.shields.io/badge/React-18-149ECA?style=for-the-badge&logo=react&logoColor=white)](https://react.dev/)
-[![Bun](https://img.shields.io/badge/Bun-runtime-000000?style=for-the-badge&logo=bun&logoColor=white)](https://bun.sh/)
+[![Slint](https://img.shields.io/badge/Slint-1.16.1-2379F4?style=for-the-badge)](https://slint.dev/)
+[![Rust](https://img.shields.io/badge/language-Rust-000000?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![ESP32](https://img.shields.io/badge/target-ESP32-E7352C?style=for-the-badge&logo=espressif&logoColor=white)](https://www.espressif.com/en/products/socs/esp32)
-[![Rust firmware](https://img.shields.io/badge/firmware-Rust-000000?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
 
 > [!WARNING]
-> **Pinora v0.1.0 is a pre-alpha prototype.** Its architecture, protocol, APIs,
-> wiring, and module behavior may change without notice. It is intended for
-> experimentation and active development, not production or safety-critical use.
+> **Pinora is a pre-alpha prototype.** The UI, transport layer, wire protocol,
+> firmware modules, and hardware configuration are still evolving. Do not use
+> the project for production or safety-critical systems.
 
 </div>
 
----
-
 ## What is Pinora?
 
-Pinora is an experimental system for discovering, monitoring, and controlling
-hardware modules connected to an ESP32. It consists of two cooperating projects:
+Pinora is an experimental Rust system for connecting a desktop application to
+modular hardware running on an ESP32. After the latest refactor, the repository
+is split into three Rust crates:
 
-- An Electrobun desktop application built with React, TypeScript, and Bun
-- Modular ESP32 firmware written in Rust
+- `UI/` — a native desktop application built with Slint
+- `protocol/` — shared Serde message and module definitions
+- `Firmware_Templates/` — ESP-IDF firmware and hardware modules
 
-The firmware registers its available modules at runtime and publishes their
-events over a serial connection. The desktop application validates those
-messages, builds a live interface from the registrations, keeps module state in
-sync, and sends typed commands back to the ESP32.
+The shared `pinora-protocol` crate replaces the previous duplicated Rust and
+TypeScript protocol definitions. Both the desktop and firmware crates depend on
+it through a local path dependency.
 
-The current firmware combines two servos and a VL53L1X time-of-flight sensor into
-a two-axis LiDAR scanner. The desktop application provides device controls,
-serial-port selection, and an interactive LiDAR visualization.
+The project is currently focused on rebuilding the connection and protocol
+foundation. The Slint application provides transport-specific connection forms
+and a working serial connection path. The firmware reads newline-delimited JSON
+commands from its console UART and emits protocol messages as JSON lines.
 
 ## Project status
 
-| | State |
+| Area | Current state |
 |---|---|
-| **Release** | `v0.1.0` |
-| **Maturity** | Pre-alpha |
-| **Firmware target** | ESP32 / `xtensa-esp32-espidf` |
-| **ESP-IDF** | `v5.5.3` |
-| **Firmware edition** | Rust 2021 |
-| **Desktop stack** | Electrobun 1.18, Bun, React 18, TypeScript, Vite |
-| **Device interface** | Newline-delimited JSON over UART |
-| **Default baud rate** | `115200` |
+| Project version | `0.1.0` |
+| Maturity | Pre-alpha |
+| Desktop stack | Rust 2024, Slint `1.16.1`, `serialport` `4.10` |
+| Firmware stack | Rust 2021, ESP-IDF `v5.5.3`, `esp-idf-svc` `0.52.1` |
+| Firmware target | ESP32 / `xtensa-esp32-espidf` |
+| Firmware toolchain | `esp-1.93` |
+| Shared protocol | `pinora-protocol` `0.1.0`, Rust 2024, Serde JSON |
+| Working desktop transport | Serial |
+| Firmware wire format | One JSON object per line over the console UART |
+| Active firmware module | Infrared remote receiver on GPIO 12 |
 
-## System architecture
+## Architecture
 
 ```mermaid
 flowchart LR
-    UI["React webview"] <--> STATE["Zustand module store"]
-    UI <-->|"Typed Electrobun RPC"| BUN["Electrobun Bun process"]
-    BUN --> VALIDATE["Zod protocol validation"]
-    BUN <-->|"JSON lines over UART"| ESP["ESP32 firmware runtime"]
+    SLINT["Slint views and components"] <-->|"properties and callbacks"| BRIDGE["Rust UI bridge"]
+    BRIDGE <--> GATE["Transport gateway"]
+    GATE --> SERIAL["Serial transport"]
+    GATE -.-> WIFI["Wi-Fi stub"]
+    GATE -.-> BT["Bluetooth stub"]
+    SERIAL <-->|"newline-delimited bytes / JSON"| UART["ESP32 console UART"]
 
-    ESP --> REGISTRY["Module registry"]
-    ESP --> HARDWARE["Shared hardware context"]
-    REGISTRY --> LIDAR["LiDAR module"]
-    LIDAR --> SERVOX["X-axis servo"]
-    LIDAR --> SERVOY["Y-axis servo"]
-    LIDAR --> RANGE["VL53L1X rangefinder"]
-    HARDWARE --> I2C["I²C bus"]
-    I2C --> PWM["PCA9685"]
-    I2C --> RANGE
-    PWM --> SERVOX
-    PWM --> SERVOY
+    PROTOCOL["pinora-protocol"] --> UI["Desktop crate"]
+    PROTOCOL --> FW["Firmware crate"]
+    UART <--> FW
+    FW --> REGISTRY["Runtime module registry"]
+    FW --> EMITTER["Bounded event emitter"]
+    REGISTRY --> MODULES["Hardware modules"]
 ```
 
-The system is divided into four main layers:
+### Desktop application
 
-1. **Firmware modules** own hardware behavior, receive typed commands, and emit
-   registrations and events.
-2. **Serial protocol** carries one JSON object per line between the firmware and
-   desktop application.
-3. **Electrobun Bun process** owns native serial-port access, validates incoming
-   messages with Zod, and exposes typed RPC requests and messages to the webview.
-4. **React webview** receives validated messages over Electrobun RPC, maintains
-   module state with Zustand, and renders controls and visualizations.
+The desktop application is now a native Rust binary rather than an
+Electrobun/React application.
 
-The desktop boundary is entirely TypeScript: Electrobun runs the privileged Bun
-process and hosts the React UI in a webview. The Bun process handles
-`bun-serialport`; hardware access never runs inside the webview. Shared RPC and
-desktop protocol types live under `UI_Templates/src/shared/`.
+- `build.rs` compiles `ui/app-window.slint` with `slint-build`.
+- `src/main.rs` creates the Slint window and binds its callbacks to Rust.
+- `src/ui_bridge/transport_form.rs` maps form values and connection actions
+  between Slint and the transport layer.
+- `src/transport/transport_gate.rs` owns the selected transport behind a single
+  gateway.
+- `src/transport/serial_transport.rs` enumerates ports, opens the selected port,
+  and reads newline-terminated data on a background thread.
 
-## Current capabilities
+The current window lets the user choose Serial, Wi-Fi, or Bluetooth and displays
+the associated form. Serial connections are implemented. The Wi-Fi and
+Bluetooth types are placeholders, and their form submissions do not yet create
+working connections.
 
-- Discover serial ports and connect at `115200` baud
-- Register modules dynamically when the ESP32 announces them
-- Track runtime UUIDs, readable lookup IDs, and parent-child relationships
-- Validate incoming messages before adding them to application state
-- Forward validated serial messages from the Bun process to the React webview
-- Display live module state and send hardware commands
-- Control two servos through a PCA9685 PWM controller
-- Read distance measurements from a VL53L1X sensor
-- Run a two-axis LiDAR scan over a selected region of interest
-- Visualize LiDAR distance data on an interactive 181 × 181 canvas
+Incoming serial lines currently go to diagnostic output. Protocol decoding,
+module state, command writing, and module-specific Slint views are still to be
+connected.
 
-### Module support
+### Shared protocol
 
-| Module | Firmware | Active in firmware | Desktop support |
-|---|:---:|:---:|:---:|
-| LiDAR | ✅ | ✅ | Registration, events, scan controls, ROI, movement, heatmap |
-| Rangefinder | ✅ | ✅, as LiDAR child | Registration, events, and controls |
-| Servo | ✅ | ✅, as LiDAR children | Registration, events, and angle control |
-| LED | ✅ | ❌ | Registration, events, brightness, and toggle controls |
-| Button | ✅ | ❌ | Registration and read-only press state |
-| LED cluster | Partial | ❌ | Identifier only |
-| IMU | Planned | ❌ | Identifier only |
-| System log | ✅ | ✅ | Schema validation only; events are not yet stored |
+`protocol/` is the common wire-contract crate. It owns:
 
-## Folder structure
+- `IncomingCommand` and the currently enabled command variants
+- `ProtocolMessage`, registrations, module events, and system information
+- module types and module-specific payloads
+- Serde serialization and deserialization for JSON transport
+
+The command enum currently enables LED, stepper motor, and RFID commands. The
+event enum currently enables LED, button, system log, stepper motor, IMU, and
+RFID events. LiDAR, servo, and rangefinder payload types exist, but their top-level
+command/event variants are currently disabled while those paths are refactored.
+
+### Firmware
+
+The firmware uses ESP-IDF through `esp-idf-svc` and is organized around a small
+module runtime:
+
+- `ModuleCore` assigns runtime UUIDs and stores each module's type and readable ID.
+- The `Module` trait provides ticking, command handling, registration, and event
+  emission hooks.
+- A runtime `HashMap` dispatches incoming commands to modules by UUID.
+- `Emitter` uses a bounded channel and a background thread to serialize outgoing
+  `ProtocolMessage` values.
+- A separate reader thread parses one `IncomingCommand` from each UART line.
+
+The active `main.rs` configuration instantiates only the infrared remote receiver
+module. It samples GPIO 12 and decodes the timings of a 32-bit remote frame. Other
+module implementations are present but are either not instantiated or currently
+disabled from the firmware module tree.
+
+## Repository layout
 
 ```text
 .
-├── UI_Templates/                 # Desktop application
+├── UI/                              # Native Slint desktop crate
+│   ├── .cargo/config.toml           # Larger Windows debug stack
 │   ├── src/
-│   │   ├── bun/
-│   │   │   └── index.ts           # Electrobun main process and serial I/O
-│   │   ├── mainview/               # React webview
-│   │   │   ├── Modules/            # Module schemas and controls
-│   │   │   ├── components/         # Reusable UI
-│   │   │   ├── electrobun.ts       # Webview-side RPC handlers
-│   │   │   └── main.tsx            # React entry point
-│   │   ├── Runtime/
-│   │   │   └── ModuleStore.ts      # Zustand module state
-│   │   └── shared/
-│   │       ├── Protocol/            # TypeScript wire schemas
-│   │       └── rpc.ts               # Shared typed RPC contract
-│   ├── electrobun.config.ts
-│   ├── package.json
-│   ├── vite.config.ts
-│   └── bun.lock
-├── Firmware_Templates/            # ESP32 firmware
-│   ├── .cargo/config.toml          # ESP target, linker, and runner
-│   ├── .github/workflows/          # Firmware CI checks
+│   │   ├── main.rs                  # Application entry point
+│   │   ├── ui_bridge/               # Slint callback/property bindings
+│   │   └── transport/               # Serial and placeholder transports
+│   ├── ui/
+│   │   ├── app-window.slint         # Main window and connection form
+│   │   └── component/               # Reusable Slint components
+│   ├── build.rs                     # Slint compile step
+│   └── Cargo.toml
+├── protocol/                        # Shared pinora-protocol crate
 │   ├── src/
-│   │   ├── core/                   # Module and hardware foundations
-│   │   ├── module/                 # Hardware module implementations
-│   │   ├── protocol/               # Rust wire-protocol definitions
-│   │   ├── utilities/              # Logging and math helpers
-│   │   └── main.rs                 # Firmware setup and main loop
+│   │   ├── command.rs               # Incoming command envelope
+│   │   ├── registration.rs          # Outgoing protocol envelope
+│   │   ├── module_event.rs          # Event variants and system logs
+│   │   ├── global_definitions.rs    # Shared module identifiers
+│   │   └── module/                  # Module-specific wire types
+│   └── Cargo.toml
+├── Firmware_Templates/              # ESP32 firmware crate
+│   ├── .cargo/config.toml           # ESP target, linker, runner, and IDF version
+│   ├── src/
+│   │   ├── core/                    # Emitter, module core, hardware helpers
+│   │   ├── module/                  # Hardware module implementations
+│   │   ├── utilities/               # Shared firmware utilities
+│   │   └── main.rs                  # Hardware setup and runtime loop
 │   ├── Cargo.toml
 │   ├── rust-toolchain.toml
 │   └── sdkconfig.defaults
+├── pinora.toml                      # Pinora project metadata (UI path is stale)
+├── justfile                         # Helper recipes (UI recipes need migration)
 └── README.md
 ```
+
+> [!NOTE]
+> The repository uses a multi-crate layout with path dependencies, but it does
+> not currently contain a root Cargo workspace manifest. Run Cargo commands from
+> the individual crate directories as shown below.
+>
+> The UI path in `pinora.toml` and the `frontend`/`buildUI` recipes in the
+> `justfile` still reference the removed `UI_Templates/` directory. Until
+> those helpers are migrated, use the direct Cargo commands in this README.
 
 ## Getting started
 
 ### Prerequisites
 
-For the desktop application, install:
+For the shared protocol and desktop application:
 
-- [Bun](https://bun.sh/)
-- A USB serial driver for the ESP32 board, if required
+- A recent stable Rust toolchain with Rust 2024 edition support
+- Native build tools required by Rust on your operating system
+- Permission to access the target serial port
+- On Linux, the development packages required by the `serialport` crate, commonly
+  `pkg-config` and `libudev-dev`
 
-For the firmware, install the ESP Rust development environment and ensure the
-following commands are available:
+For the firmware, install the
+[ESP Rust development environment](https://docs.esp-rs.org/book/installation/index.html)
+and make sure `ldproxy` and `espflash` are available. The firmware directory pins
+the `esp-1.93` toolchain and configures the `xtensa-esp32-espidf` target.
 
-- `cargo`
-- The Espressif `esp` Rust toolchain
-- `ldproxy`
-- `espflash`
+### Check the shared protocol
 
-The firmware selects the `esp` toolchain automatically and targets
-`xtensa-esp32-espidf`.
+```bash
+cd protocol
+cargo check
+```
 
-### Build and run the firmware
+### Run the Slint desktop application
+
+```bash
+cd UI
+cargo run
+```
+
+To create an optimized desktop build:
+
+```bash
+cd UI
+cargo build --release
+```
+
+The application enumerates serial ports when it starts. Select a transport,
+choose the required values, and use the connection button. The serial baud-rate
+selector supports `9600`, `19200`, `38400`, `57600`, `115200`, `230400`,
+`460800`, and `921600`; an invalid or empty value falls back to `115200`.
+
+### Build and flash the firmware
 
 ```bash
 cd Firmware_Templates
@@ -182,115 +225,67 @@ cargo build
 cargo run --release
 ```
 
-The configured Cargo runner uses `espflash flash --monitor`, so
-`cargo run --release` builds the firmware, flashes the connected ESP32, and opens
-the serial monitor.
+The configured Cargo runner turns `cargo run --release` into an `espflash flash
+--monitor` operation. Stop the serial monitor before connecting from the desktop
+application because only one process can normally own the serial port at a time.
 
-To create a size-optimized build without flashing:
+To build without flashing:
 
 ```bash
 cd Firmware_Templates
 cargo build --release
 ```
 
-### Run the desktop application
+## Current hardware configuration
 
-```bash
-cd UI_Templates
-bun install
-bun run dev:hmr
+The active firmware entry point currently configures:
+
+- ESP32 console UART 0 with 2048-byte RX and TX buffers
+- An infrared remote receiver input on GPIO 12
+- SPI2 at 1 MHz with SCK on GPIO 18, MOSI on GPIO 19, MISO on GPIO 23, and CS
+  on GPIO 5
+
+The SPI driver is initialized for the in-progress RFID path, but the RFID module
+itself is not currently instantiated. The earlier LiDAR/I²C configuration is
+still present in source as disabled code and is not part of the active firmware
+runtime.
+
+## Wire protocol
+
+Pinora uses JSON messages separated by newlines:
+
+- Commands travel from the desktop side to the firmware as `IncomingCommand`.
+- Registrations, module events, and system information travel from the firmware
+  through `ProtocolMessage`.
+- Runtime modules are addressed by generated UUID.
+
+The current protocol source of truth is `protocol/src/`.
+
+### Command envelope
+
+```json
+{"id":"module-runtime-uuid","module_type":"Led","payload":{"command":"Toggle"}}
 ```
 
-Then:
-
-1. Select the ESP32 from the available serial ports.
-2. Connect and wait for module registrations.
-3. Use the generated module controls to interact with the hardware.
-
-The desktop serial runtime currently uses a fixed baud rate of `115200`.
-
-For Electrobun watch mode with bundled Vite assets instead of HMR:
-
-```bash
-cd UI_Templates
-bun run dev
-```
-
-Serial features run in Electrobun's Bun process and are reached from the React
-webview through typed RPC. They do not work when the Vite UI is opened as a
-standalone browser tab.
-
-### Build the desktop application
-
-```bash
-cd UI_Templates
-bun run build:canary
-```
-
-This runs the Vite production build and then creates an Electrobun canary build.
-
-## Hardware
-
-The active firmware configuration expects:
-
-- An ESP32 development board
-- A PCA9685 16-channel PWM controller
-- Two compatible hobby servos
-- A VL53L1X time-of-flight distance sensor
-- A shared I²C bus using GPIO 21 for SDA and GPIO 22 for SCL at 400 kHz
-- Servo X on PCA9685 channel `C0`
-- Servo Y on PCA9685 channel `C1`
-
-> [!WARNING]
-> Do not power servos directly from the ESP32's 3.3 V pin. Use a suitable
-> external supply, connect the grounds, verify voltage requirements, and test
-> with the mechanism unloaded. The current firmware moves both servos during
-> initialization.
-
-The current servo defaults are:
-
-| Setting | Value |
-|---|---:|
-| Physical angle range | 0° to 180° |
-| Logical pivot range | -90° to +90° |
-| Center offset | 90° |
-| Pulse range | 500–2500 µs |
-
-These values are currently defined in
-`Firmware_Templates/src/module/lidar.rs` and must be calibrated for the physical
-assembly.
-
-## Serial protocol
-
-Pinora uses one newline-terminated JSON object per message:
-
-- Commands travel from the desktop application to the ESP32.
-- Registrations, module events, and system logs travel from the ESP32 to the
-  desktop application.
-- Each module receives a runtime UUID when the firmware starts.
-
-The Rust definitions in `Firmware_Templates/src/protocol/` and TypeScript/Zod
-definitions in `UI_Templates/src/shared/Protocol/` must remain aligned.
-
-### Register a module
+### Registration envelope
 
 ```json
 {
   "type": "Registration",
   "payload": {
     "id": "generated-runtime-uuid",
-    "module_type": "Servo",
-    "lool_up_id": "servo_x",
-    "parent_id": "parent-lidar-uuid"
+    "module_type": "Led",
+    "lool_up_id": "status_led",
+    "parent_id": ""
   }
 }
 ```
 
 > [!NOTE]
-> `lool_up_id` is the current wire-format field name. Its spelling is retained
-> for compatibility during pre-alpha development.
+> `lool_up_id` is the current serialized field name. Its spelling is retained for
+> wire compatibility during pre-alpha development.
 
-### Send a module event
+### Module event envelope
 
 ```json
 {
@@ -299,91 +294,90 @@ definitions in `UI_Templates/src/shared/Protocol/` must remain aligned.
     "module_type": "Led",
     "event": {
       "event_type": "Brightness",
-      "id": "led-runtime-uuid",
+      "id": "module-runtime-uuid",
       "level": 80
     }
   }
 }
 ```
 
-### Send commands to the firmware
+## Implementation matrix
 
-Start a LiDAR scan:
-
-```json
-{"id":"lidar-runtime-uuid","module_type":"Lidar","payload":{"command":"StartScan"}}
-```
-
-Change the scan step:
-
-```json
-{"id":"lidar-runtime-uuid","module_type":"Lidar","payload":{"command":"SetStep","step":5}}
-```
-
-Move to a position:
-
-```json
-{"id":"lidar-runtime-uuid","module_type":"Lidar","payload":{"command":"MovePos","p":{"x":15,"y":-10}}}
-```
-
-Set a region of interest:
-
-```json
-{"id":"lidar-runtime-uuid","module_type":"Lidar","payload":{"command":"Roi","min":{"x":45,"y":-30},"max":{"x":-45,"y":30}}}
-```
+| Area | Protocol types | Firmware implementation | Active at startup | Slint UI |
+|---|:---:|:---:|:---:|:---:|
+| Serial transport | N/A | Console UART | Yes | Working connection/read path |
+| Wi-Fi transport | N/A | Emitter placeholder | No | Form and stub only |
+| Bluetooth transport | N/A | Emitter placeholder | No | Form and stub only |
+| Infrared remote receiver | Module identifier only | Yes | Yes | Not yet exposed |
+| LED | Commands and events | Yes | No | Not yet exposed |
+| Button | Events | Yes | No | Not yet exposed |
+| Stepper motor | Commands and events | Yes | No | Not yet exposed |
+| IMU | Events and shared axis types | Yes | No | Not yet exposed |
+| RFID | Commands and events | Yes | No | Not yet exposed |
+| LiDAR | Payload types; top-level variants disabled | Disabled from module tree | No | Not yet exposed |
+| Servo | Payload types; top-level variants disabled | Disabled from module tree | No | Not yet exposed |
+| Rangefinder | Payload types; top-level variants disabled | Disabled from module tree | No | Not yet exposed |
 
 ## Current limitations
 
-- The serial protocol is not versioned and may change.
-- Firmware pins, PWM channels, servo calibration, and scan defaults are
-  hard-coded.
-- Module UUIDs change after every restart.
-- The firmware currently activates only the composite LiDAR path.
-- UART is the only firmware transport.
-- The scan loop advances from firmware ticks rather than confirmed servo
-  settling.
-- Reconnect and device hot-plug behavior are basic.
-- Protocol definitions are duplicated between the Rust firmware and TypeScript
-  desktop application.
-- Some low-level firmware operations still need safer error recovery.
+- The Slint application currently covers connection setup, not the previous
+  module dashboard or LiDAR visualization.
+- Serial input is read and logged but is not yet deserialized into UI state.
+- The desktop transport layer does not yet write protocol commands to the serial
+  port.
+- Wi-Fi and Bluetooth connection paths are placeholders.
+- Port enumeration happens only at application startup; hot-plug refresh and
+  reconnect behavior are not implemented.
+- The firmware's active module selection and hardware pins are hard-coded in
+  `Firmware_Templates/src/main.rs`.
+- Several protocol and firmware modules are present but are not part of the
+  active runtime.
+- Root project helpers still contain the pre-refactor `UI_Templates/` path.
+- Runtime module UUIDs change on each firmware start.
+- The protocol is not versioned and may change during pre-alpha development.
 - Automated unit, integration, and hardware-in-the-loop tests are not yet
   included.
-- Desktop packaging has not been validated on every supported platform.
 
 ## Development checks
 
-Run the desktop checks:
+Run checks from each crate because there is no root Cargo workspace manifest:
 
 ```bash
-cd UI_Templates
-bun run build:canary
-```
-
-Run the firmware checks:
-
-```bash
-cd Firmware_Templates
+cd protocol
 cargo fmt --all -- --check
-cargo clippy --all-targets --all-features --workspace -- -D warnings
-cargo build --release
+cargo check
+
+cd ../UI
+cargo fmt --all -- --check
+cargo check
+
+cd ../Firmware_Templates
+cargo fmt --all -- --check
+cargo check
 ```
+
+Hardware behavior still needs to be validated on a connected ESP32 after a
+successful compile check.
 
 ## Contributing
 
 When contributing:
 
-1. Keep the Rust and TypeScript protocol definitions aligned.
-2. Preserve the one-JSON-object-per-line wire format.
-3. Validate incoming serial data before adding it to application state.
-4. Document changes to pins, addresses, calibration, or message schemas.
-5. Test changes against physical hardware when possible.
-6. Clearly identify behavior that has not been hardware-tested.
+1. Keep shared wire types in `protocol/` and consume them from both applications.
+2. Preserve the one-JSON-object-per-line framing unless the protocol is migrated
+   deliberately on both sides.
+3. Keep Slint declarations in `UI/ui/` and native behavior in the Rust bridge or
+   transport modules.
+4. Document changes to active modules, pins, addresses, calibration, or message
+   schemas.
+5. Test firmware changes on physical hardware when possible and identify any
+   behavior that has only been compile-checked.
 
 ## License
 
-No license has been added yet. Until one is provided, the source remains under
-the copyright of its author and should not be assumed to be open-source
-licensed.
+No repository-wide license has been added yet. The placeholder license inside
+`UI/` does not establish licensing terms for the entire project. Until a project
+license is provided, do not assume the repository is open-source licensed.
 
 ---
 

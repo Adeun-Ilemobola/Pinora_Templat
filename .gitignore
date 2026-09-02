@@ -14,23 +14,17 @@ Desktop.ini
 *.njsproj
 *.sln
 *.sw?
-target/
 
-# Pinora desktop app
-/UI_Templates/node_modules/
-/UI_Templates/build/
-/UI_Templates/dist/
-/UI_Templates/artifacts/
-/UI_Templates/.hutch/
-/UI_Templates/.cottontail-tmp/
-/UI_Templates/*.tsbuildinfo
+# Rust build output for every workspace crate
+**/target/
+**/.embuild/
 
-# Serial sidecar
-/UI_Templates/sidecars/serial/node_modules/
-/UI_Templates/sidecars/serial/package-lock.json
-# Firmware
-/Firmware_Templates/.embuild/
-/Firmware_Templates/target/
+# Workspace member lockfiles
+# Keep only the workspace-root Cargo.lock
 /Firmware_Templates/Cargo.lock
-/Firmware_Templates/.vscode/
-/Firmware_Templates/.github/**
+/protocol/Cargo.lock
+/UI/Cargo.lock
+
+# Firmware-generated configuration
+/Firmware_Templates/sdkconfig
+/Firmware_Templates/sdkconfig.old

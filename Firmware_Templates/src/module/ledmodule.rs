@@ -1,28 +1,16 @@
 
-use serde::{Deserialize, Serialize};
-
 use crate::core::emitter::Emitter;
 use crate::core::hardware::{ledc, LedTimer, OutputPin};
 use crate::core::modulecore::{Module, ModuleCore};
-use crate::protocol::command::{ModuleCommand  };
-use crate::protocol::global_definitions::ModuleType;
-use crate::protocol::module_event::{ ModuleEvent};
-use crate::protocol::registration::{  Registration};
 use crate::utilities::math::range_u32;
+use pinora_protocol::{
+    command::ModuleCommand,
+    global_definitions::ModuleType,
+    module_event::ModuleEvent,
+    registration::Registration,
+};
 
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
-#[serde(tag = "event_type")]
-pub enum LedEvent {
-    Brightness { id: String, level: u32 },
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
-#[serde(tag = "command")]
-pub enum LedCommandPayload {
-    SetState { state: u32 },
-    Toggle,
-}
+pub use pinora_protocol::module::ledmodule::{LedCommandPayload, LedEvent};
 pub struct Ledmodule<'d> {
     core: ModuleCore,
     state: u32,

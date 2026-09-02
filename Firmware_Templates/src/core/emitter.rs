@@ -1,4 +1,4 @@
-use crate::protocol::registration::{ProtocolMessage, SystemInfo};
+use pinora_protocol::registration::{ProtocolMessage, SystemInfo};
 use std::{
     sync::mpsc::{self, SyncSender, TrySendError},
     thread,

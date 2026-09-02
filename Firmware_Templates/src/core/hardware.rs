@@ -17,7 +17,7 @@ use esp_idf_svc::sys;
 use std::{ffi::CStr, ptr};
 
 use crate::core::emitter::Emitter;
-use crate::protocol::registration::SystemInfo;
+use pinora_protocol::registration::SystemInfo;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
@@ -260,8 +260,8 @@ fn format_bytes(bytes: usize) -> String {
     const MIB: f64 = 1024.0 * 1024.0;
 
     if bytes as f64 >= MIB {
-        format!("{:.2} MiB ({bytes} bytes)", bytes as f64 / MIB)
+        std::format!("{:.2} MiB ({bytes} bytes)", bytes as f64 / MIB)
     } else {
-        format!("{:.2} KiB ({bytes} bytes)", bytes as f64 / KIB)
+        std::format!("{:.2} KiB ({bytes} bytes)", bytes as f64 / KIB)
     }
 }

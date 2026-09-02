@@ -2,12 +2,12 @@ use crate::{
     core::{
         emitter::Emitter, hardware::{OutputPinCore, TimerState}, modulecore::{ Module, ModuleCore}
     },
-    protocol::{
-        command::{ModuleCommand},
-        global_definitions::{ModuleType},
-        module_event::{LogPriority, ModuleEvent, SysLogEvent},
-        registration::{ Registration},
-    },
+};
+use pinora_protocol::{
+    command::ModuleCommand,
+    global_definitions::ModuleType,
+    module_event::{LogPriority, ModuleEvent, SysLogEvent},
+    registration::Registration,
 };
 use uuid::Uuid;
 
@@ -17,6 +17,8 @@ use mfrc522::{
     Initialized, Mfrc522, MifareKey,
 };
 use serde::{Deserialize, Serialize};
+
+pub use pinora_protocol::module::rfid::{MddeRfid, RfidCommand, RfidEvent, WriteState};
 
 pub struct RGB<'d> {
     pub red: OutputPinCore<'d>,
@@ -31,25 +33,6 @@ pub enum RGBMode {
     Off
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq,)]
-#[serde(tag = "command")]
-pub enum RfidCommand {
-    WriteMode,
-    ReadMode,
-    WritePayload {
-        data: Vec<u8>,
-    },
-}
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
-#[serde(tag = "event_type")]
-pub  enum RfidEvent {
-    GetCard{id: String,  card_uid:String , card_data:String},
-    GetMode{id: String,mode:MddeRfid},
-    GetWriteState{ id:String , state:WriteState , info:String}
-    
-
-}
-
 fn rfid_spi_delay() {
     Ets::delay_us(1);
 }
@@ -58,16 +41,6 @@ type RfidDelay = fn();
 type RfidReader<'d> = Mfrc522<RfidSpiInterface<'d>, Initialized>;
 type RfidSpiInterface<'d> = SpiInterface<SpiSingleDeviceDriver<'d>, RfidDelay>;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum MddeRfid {
-    Read,
-    Write,
-}
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub enum WriteState {
-    Good,
-    Bad,
-}
 const USABLE_BLOCKS: [u8; 47] = [
     1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 21, 22, 24, 25, 26, 28, 29, 30, 32, 33,
     34, 36, 37, 38, 40, 41, 42, 44, 45, 46, 48, 49, 50, 52, 53, 54, 56, 57, 58, 60, 61, 62,

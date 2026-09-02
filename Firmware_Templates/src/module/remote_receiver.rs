@@ -8,8 +8,8 @@ use crate::{
         hardware::{InputPinCore, TimerState},
         modulecore::{Module, ModuleCore},
     },
-    protocol::{command::ModuleCommand, global_definitions::ModuleType},
 };
+use pinora_protocol::{command::ModuleCommand, global_definitions::ModuleType};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RemoteButton {

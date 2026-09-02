@@ -23,6 +23,7 @@ esp-idf-svc = { git = "https://github.com/esp-rs/esp-idf-svc.git" }
 
 
 [dependencies]
+pinora-protocol = { path = "../protocol" }
 esp-idf-svc = { version = "0.52.1", features = ["critical-section", "embassy-time-driver", "embassy-sync"] }
 embedded-hal-bus = { version = "0.3", features = ["std"] }
 uuid = { version = "1.24.0", features = ["v4"] }

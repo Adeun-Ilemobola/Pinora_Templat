@@ -2,20 +2,17 @@
 use crate::core::emitter::Emitter;
 use crate::core::hardware::{InputPin, InputPinCore, Pull};
 use crate::core::modulecore::{Module, ModuleCore};
-use crate::protocol::command::ModuleCommand;
-use crate::protocol::global_definitions::ModuleType;
-use crate::protocol::module_event::{ ModuleEvent};
-use crate::protocol::registration::{  Registration};
 use esp_idf_svc::hal::gpio::Level;
-use serde::{Deserialize, Serialize};
+use pinora_protocol::{
+    command::ModuleCommand,
+    global_definitions::ModuleType,
+    module_event::ModuleEvent,
+    registration::Registration,
+};
+
+pub use pinora_protocol::module::buttonmodule::ButtonEvent;
 
 static BUTTON_MODULE_MAX_TIME: u64 = 30; // Maximum time in milliseconds to consider a button press valid
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
-#[serde(tag = "event_type")]
-pub enum ButtonEvent {
-    Ckick { id: String },
-}
-
 pub struct Buttonmodule<'d> {
     core: ModuleCore,
     state: Level,      // debounced/committed level

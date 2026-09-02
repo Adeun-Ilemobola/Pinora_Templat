@@ -7,12 +7,13 @@ use esp_idf_svc::hal::adc::{
 };
 use esp_idf_svc::hal::gpio::ADCPin;
 
-use crate::{core::hardware::InputPin, protocol::{ registration::ProtocolMessage}};
+use crate::core::hardware::InputPin;
 use crate::core::modulecore::{Module, ModuleCore};
 use crate::module::buttonmodule::Buttonmodule;
-use crate::protocol::command::ModuleCommand;
-use crate::protocol::global_definitions::ModuleType;
 use crate::utilities::math::range_i16;
+use pinora_protocol::{
+    command::ModuleCommand, global_definitions::ModuleType, registration::ProtocolMessage,
+};
 
 pub struct JoyStick<'d, U, X, Y>
 where

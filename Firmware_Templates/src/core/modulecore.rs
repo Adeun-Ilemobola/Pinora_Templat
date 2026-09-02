@@ -2,8 +2,8 @@ use std::sync::mpsc::{TrySendError};
 
 use uuid::Uuid;
 
-use crate::{core::emitter::Emitter, protocol::{command::ModuleCommand, global_definitions::ModuleType, module_event::{ModuleEvent, SysLogEvent}, registration::{ProtocolMessage, Registration}}};
-
+use crate::{core::emitter::Emitter};
+use pinora_protocol::{command::ModuleCommand, global_definitions::ModuleType, module_event::{ModuleEvent, SysLogEvent}, registration::{ProtocolMessage, Registration}};
 #[derive(Debug, Clone)]
 pub struct ModuleCore {
     pub id: String,
