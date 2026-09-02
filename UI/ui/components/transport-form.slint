@@ -1,0 +1,92 @@
+import { HorizontalBox, VerticalBox } from "std-widgets.slint";
+import { InputCore, SelectorCore } from "form-controls.slint";
+import { TransportTypeS } from "../shared/types.slint";
+
+export component TransportForm inherits VerticalBox {
+    in-out property <TransportTypeS> selected-transport;
+    in property <[string]> transport-options;
+
+    in property <[string]> ports: [];
+    in property <[string]> baudrates: [];
+    in-out property <string> baudrate;
+    in-out property <string> port;
+
+    in-out property <string> wifi-ssid;
+    in-out property <string> wifi-password;
+
+    in-out property <string> bluetooth-name;
+    in-out property <string> bluetooth-pin;
+
+    spacing: 18px;
+    height: 146px;
+    vertical-stretch: 0;
+
+    SelectorCore {
+        label: "Transport type";
+        values: root.transport-options;
+
+        selection-changed(value) => {
+            if value == "Serial" {
+                root.selected-transport = TransportTypeS.Serial;
+            } else if value == "Wifi" {
+                root.selected-transport = TransportTypeS.Wifi;
+            } else if value == "Bluetooth" {
+                root.selected-transport = TransportTypeS.Bluetooth;
+            }
+        }
+    }
+
+    if root.selected-transport == TransportTypeS.Serial: HorizontalBox {
+        spacing: 12px;
+
+        SelectorCore {
+            label: "Port";
+            values: root.ports;
+            selection-changed(value) => { root.port = value; }
+        }
+
+        SelectorCore {
+            label: "Baud rate";
+            values: root.baudrates;
+            selection-changed(value) => { root.baudrate = value; }
+        }
+    }
+
+    if root.selected-transport == TransportTypeS.Wifi: HorizontalBox {
+        spacing: 12px;
+
+        InputCore {
+            label: "Network name";
+            placeholder: "Wi-Fi SSID";
+            value: root.wifi-ssid;
+            text-changed(value) => { root.wifi-ssid = value; }
+        }
+
+        InputCore {
+            label: "Password";
+            placeholder: "Wi-Fi password";
+            input-type: password;
+            value: root.wifi-password;
+            text-changed(value) => { root.wifi-password = value; }
+        }
+    }
+
+    if root.selected-transport == TransportTypeS.Bluetooth: HorizontalBox {
+        spacing: 12px;
+
+        InputCore {
+            label: "Device name";
+            placeholder: "Bluetooth device";
+            value: root.bluetooth-name;
+            text-changed(value) => { root.bluetooth-name = value; }
+        }
+
+        InputCore {
+            label: "PIN";
+            placeholder: "Pairing PIN";
+            input-type: number;
+            value: root.bluetooth-pin;
+            text-changed(value) => { root.bluetooth-pin = value; }
+        }
+    }
+}

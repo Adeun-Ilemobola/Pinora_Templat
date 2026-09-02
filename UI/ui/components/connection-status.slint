@@ -1,0 +1,41 @@
+import { ConnectionTypeS } from "../shared/types.slint";
+
+export component ConnectionStatus inherits Rectangle {
+    in property <ConnectionTypeS> state: ConnectionTypeS.Disconnected;
+
+    private property <color> state-color:
+        state == ConnectionTypeS.Connected ? #16a34a :
+        state == ConnectionTypeS.Connecting ? #d97706 :
+        state == ConnectionTypeS.Disconnected ? #94a3b8 : #ef4444;
+    private property <string> state-label:
+        state == ConnectionTypeS.Connected ? "Connected" :
+        state == ConnectionTypeS.Connecting ? "Connecting…" :
+        state == ConnectionTypeS.Disconnected ? "Disconnected" : "Connection error";
+
+    height: 32px;
+    min-width: 128px;
+    background: state-color.with-alpha(0.10);
+    border-radius: 16px;
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 8px;
+        alignment: center;
+
+        Rectangle {
+            width: 8px;
+            height: 8px;
+            border-radius: 4px;
+            background: root.state-color;
+        }
+
+        Text {
+            text: root.state-label;
+            color: root.state-color;
+            font-size: 13px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+}

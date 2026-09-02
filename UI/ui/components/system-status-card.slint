@@ -1,0 +1,119 @@
+import { HorizontalBox, VerticalBox } from "std-widgets.slint";
+import { Card } from "card.slint";
+import { ConnectionTypeS } from "../shared/types.slint";
+import { Theme } from "../shared/theme.slint";
+
+component Metric inherits Rectangle {
+    in property <string> label;
+    in property <string> value: "—";
+
+    height: 56px;
+    min-width: 120px;
+    horizontal-stretch: 1;
+    background: Theme.surface-raised;
+    border-radius: 8px;
+
+    VerticalBox {
+        padding-left: 12px;
+        padding-right: 12px;
+        padding-top: 6px;
+        padding-bottom: 6px;
+        spacing: 3px;
+
+        Text {
+            text: root.label;
+            color: Theme.text-muted;
+            font-size: 11px;
+        }
+
+        Text {
+            text: root.value == "" ? "—" : root.value;
+            color: Theme.text;
+            font-size: 15px;
+            font-weight: 650;
+            overflow: elide;
+        }
+    }
+}
+
+export component SystemStatusCard inherits Card {
+    in property <ConnectionTypeS> connection-state: ConnectionTypeS.Disconnected;
+    in property <string> esp-idf-version;
+    in property <string> total-heap;
+    in property <string> free-heap;
+    in property <string> lowest-free-heap;
+    in property <string> largest-allocation;
+    in property <string> maximum-app-slot;
+    in property <string> flash-size;
+
+    min-width: 320px;
+    min-height: 408px;
+    preferred-width: 480px;
+    preferred-height: 408px;
+    horizontal-stretch: 1;
+
+    VerticalBox {
+        padding: 20px;
+        spacing: 12px;
+
+        HorizontalBox {
+            spacing: 12px;
+            alignment: space-between;
+            height: 48px;
+            vertical-stretch: 0;
+
+            VerticalBox {
+                spacing: 4px;
+
+                Text {
+                    text: "ESP32 system";
+                    color: Theme.text;
+                    font-size: 19px;
+                    font-weight: 700;
+                }
+
+                Text {
+                    text: "Live firmware and memory information.";
+                    color: Theme.text-muted;
+                    font-size: 13px;
+                }
+            }
+
+            Rectangle {
+                width: 10px;
+                height: 10px;
+                border-radius: 5px;
+                background: root.connection-state == ConnectionTypeS.Connected
+                    ? #22c55e
+                    : #64748b;
+            }
+        }
+
+        HorizontalBox {
+            spacing: 10px;
+            height: 56px;
+            vertical-stretch: 0;
+            Metric { label: "ESP-IDF"; value: root.esp-idf-version; }
+            Metric { label: "Flash"; value: root.flash-size; }
+        }
+
+        HorizontalBox {
+            spacing: 10px;
+            height: 56px;
+            vertical-stretch: 0;
+            Metric { label: "Free heap"; value: root.free-heap; }
+            Metric { label: "Total heap"; value: root.total-heap; }
+        }
+
+        HorizontalBox {
+            spacing: 10px;
+            height: 56px;
+            vertical-stretch: 0;
+            Metric { label: "Lowest free"; value: root.lowest-free-heap; }
+            Metric { label: "Largest block"; value: root.largest-allocation; }
+        }
+
+        Metric { label: "Maximum app slot"; value: root.maximum-app-slot; }
+
+    }
+}

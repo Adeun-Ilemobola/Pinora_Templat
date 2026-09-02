@@ -1,0 +1,164 @@
+import { ScrollView, VerticalBox } from "std-widgets.slint";
+import { ConnectionCard } from "../components/connection-card.slint";
+import { SystemStatusCard } from "../components/system-status-card.slint";
+import { DashboardSummary } from "../components/dashboard-summary.slint";
+import { ConnectionTypeS, TransportTypeS } from "../shared/types.slint";
+import { Theme } from "../shared/theme.slint";
+
+component DashboardCards inherits Rectangle {
+    in property <bool> stacked: false;
+    in-out property <TransportTypeS> selected-transport;
+    in property <[string]> transport-options;
+    in property <ConnectionTypeS> connection-mode: ConnectionTypeS.Disconnected;
+    in property <[string]> ports: [];
+    in property <[string]> baudrates: [];
+    in-out property <string> baudrate;
+    in-out property <string> port;
+    in-out property <string> wifi-ssid;
+    in-out property <string> wifi-password;
+    in-out property <string> bluetooth-name;
+    in-out property <string> bluetooth-pin;
+
+    in property <string> esp-idf-version;
+    in property <string> total-heap;
+    in property <string> free-heap;
+    in property <string> lowest-free-heap;
+    in property <string> largest-allocation;
+    in property <string> maximum-app-slot;
+    in property <string> flash-size;
+
+    callback connect-requested();
+    callback disconnect-requested();
+
+    private property <length> card-width: stacked ? self.width : (self.width - 18px) / 2;
+
+    height: stacked ? 834px : 408px;
+    horizontal-stretch: 1;
+
+    ConnectionCard {
+        x: 0px;
+        y: 0px;
+        width: root.card-width;
+        height: 408px;
+        selected-transport <=> root.selected-transport;
+        transport-options: root.transport-options;
+        connection-mode: root.connection-mode;
+        ports: root.ports;
+        baudrates: root.baudrates;
+        baudrate <=> root.baudrate;
+        port <=> root.port;
+        wifi-ssid <=> root.wifi-ssid;
+        wifi-password <=> root.wifi-password;
+        bluetooth-name <=> root.bluetooth-name;
+        bluetooth-pin <=> root.bluetooth-pin;
+        connect-requested => { root.connect-requested(); }
+        disconnect-requested => { root.disconnect-requested(); }
+    }
+
+    SystemStatusCard {
+        x: root.stacked ? 0px : root.card-width + 18px;
+        y: root.stacked ? 426px : 0px;
+        width: root.card-width;
+        height: 408px;
+        connection-state: root.connection-mode;
+        esp-idf-version: root.esp-idf-version;
+        total-heap: root.total-heap;
+        free-heap: root.free-heap;
+        lowest-free-heap: root.lowest-free-heap;
+        largest-allocation: root.largest-allocation;
+        maximum-app-slot: root.maximum-app-slot;
+        flash-size: root.flash-size;
+    }
+}
+
+export component DashboardPage inherits Rectangle {
+    in-out property <TransportTypeS> selected-transport;
+    in property <[string]> transport-options;
+    in property <ConnectionTypeS> connection-mode: ConnectionTypeS.Disconnected;
+
+    in property <[string]> ports: [];
+    in property <[string]> baudrates: [];
+    in-out property <string> baudrate;
+    in-out property <string> port;
+    in-out property <string> wifi-ssid;
+    in-out property <string> wifi-password;
+    in-out property <string> bluetooth-name;
+    in-out property <string> bluetooth-pin;
+
+    in property <string> esp-idf-version;
+    in property <string> total-heap;
+    in property <string> free-heap;
+    in property <string> lowest-free-heap;
+    in property <string> largest-allocation;
+    in property <string> maximum-app-slot;
+    in property <string> flash-size;
+    in property <int> registered-module-count: 0;
+    in property <int> total-error-count: 0;
+
+    callback connect-requested();
+    callback disconnect-requested();
+
+    private property <bool> stacked-layout: self.width < 880px;
+
+    background: Theme.background;
+
+    dashboard-scroll := ScrollView {
+        viewport-width: self.visible-width;
+        viewport-height: root.stacked-layout ? 1304px : 878px;
+        horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
+
+        dashboard-content := VerticalBox {
+            width: dashboard-scroll.visible-width;
+            padding: root.width < 720px ? 20px : 28px;
+            spacing: 22px;
+
+            VerticalBox {
+                spacing: 4px;
+                height: 52px;
+                vertical-stretch: 0;
+
+                Text {
+                    text: "Dashboard";
+                    color: Theme.text;
+                    font-size: 28px;
+                    font-weight: 750;
+                }
+
+                Text {
+                    text: "Connection health and ESP32 system information at a glance.";
+                    color: Theme.text-muted;
+                    font-size: 14px;
+                }
+            }
+
+            DashboardCards {
+                stacked: root.stacked-layout;
+                selected-transport <=> root.selected-transport;
+                transport-options: root.transport-options;
+                connection-mode: root.connection-mode;
+                ports: root.ports;
+                baudrates: root.baudrates;
+                baudrate <=> root.baudrate;
+                port <=> root.port;
+                wifi-ssid <=> root.wifi-ssid;
+                wifi-password <=> root.wifi-password;
+                bluetooth-name <=> root.bluetooth-name;
+                bluetooth-pin <=> root.bluetooth-pin;
+                connect-requested => { root.connect-requested(); }
+                disconnect-requested => { root.disconnect-requested(); }
+                esp-idf-version: root.esp-idf-version;
+                total-heap: root.total-heap;
+                free-heap: root.free-heap;
+                lowest-free-heap: root.lowest-free-heap;
+                largest-allocation: root.largest-allocation;
+                maximum-app-slot: root.maximum-app-slot;
+                flash-size: root.flash-size;
+            }
+
+            DashboardSummary {
+                module-count: root.registered-module-count;
+                error-count: root.total-error-count;
+            }
+        }
+    }
+}

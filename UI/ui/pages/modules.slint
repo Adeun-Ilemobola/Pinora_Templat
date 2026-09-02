@@ -1,0 +1,55 @@
+import { VerticalBox } from "std-widgets.slint";
+import { Card } from "../components/card.slint";
+import { Theme } from "../shared/theme.slint";
+
+export component ModulesPage inherits Rectangle {
+    background: Theme.background;
+
+    VerticalBox {
+        padding: 28px;
+        spacing: 22px;
+
+        VerticalBox {
+            spacing: 4px;
+            Text {
+                text: "Modules";
+                color: Theme.text;
+                font-size: 28px;
+                font-weight: 750;
+            }
+            Text {
+                text: "Registered ESP32 modules will be managed here.";
+                color: Theme.text-muted;
+                font-size: 14px;
+            }
+        }
+
+        Card {
+            min-height: 220px;
+            horizontal-stretch: 1;
+
+            VerticalBox {
+                padding: 24px;
+                alignment: center;
+                spacing: 8px;
+
+                Text {
+                    text: "No modules to display yet";
+                    color: Theme.text;
+                    font-size: 18px;
+                    font-weight: 650;
+                    horizontal-alignment: center;
+                }
+
+                Text {
+                    text: "Connected modules will appear here as they register.";
+                    color: Theme.text-muted;
+                    font-size: 13px;
+                    horizontal-alignment: center;
+                }
+            }
+        }
+
+        Rectangle { vertical-stretch: 1; }
+    }
+}

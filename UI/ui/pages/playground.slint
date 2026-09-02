@@ -1,0 +1,55 @@
+import { VerticalBox } from "std-widgets.slint";
+import { Card } from "../components/card.slint";
+import { Theme } from "../shared/theme.slint";
+
+export component PlaygroundPage inherits Rectangle {
+    background: Theme.background;
+
+    VerticalBox {
+        padding: 28px;
+        spacing: 22px;
+
+        VerticalBox {
+            spacing: 4px;
+            Text {
+                text: "Playground";
+                color: Theme.text;
+                font-size: 28px;
+                font-weight: 750;
+            }
+            Text {
+                text: "A workspace for testing module commands and interactions.";
+                color: Theme.text-muted;
+                font-size: 14px;
+            }
+        }
+
+        Card {
+            min-height: 220px;
+            horizontal-stretch: 1;
+
+            VerticalBox {
+                padding: 24px;
+                alignment: center;
+                spacing: 8px;
+
+                Text {
+                    text: "Playground ready";
+                    color: Theme.text;
+                    font-size: 18px;
+                    font-weight: 650;
+                    horizontal-alignment: center;
+                }
+
+                Text {
+                    text: "Interactive controls can be added here without crowding the dashboard.";
+                    color: Theme.text-muted;
+                    font-size: 13px;
+                    horizontal-alignment: center;
+                }
+            }
+        }
+
+        Rectangle { vertical-stretch: 1; }
+    }
+}

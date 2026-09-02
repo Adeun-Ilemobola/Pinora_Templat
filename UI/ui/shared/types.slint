@@ -1,0 +1,33 @@
+// Types exported from the root UI become Rust types through `slint::include_modules!()`.
+export enum ModuleTypeS {
+    Servo,
+    Led,
+    Imu,
+    LedCluster,
+    Button,
+    Lidar,
+    Rangefinder,
+    SysLog,
+    JoyStick,
+    StepperMotor,
+    Rfid,
+    RemoteReceiver,
+}
+
+export enum TransportTypeS {
+    Serial,
+    Wifi,
+    Bluetooth,
+}
+
+export enum ConnectionTypeS {
+    Disconnected,
+    Connecting,
+    Connected,
+    Error,
+}
+
+export struct ModuleView {
+    id: string,
+    module-type: ModuleTypeS,
+}

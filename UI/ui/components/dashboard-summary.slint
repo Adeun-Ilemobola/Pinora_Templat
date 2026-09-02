@@ -1,0 +1,150 @@
+import { HorizontalBox, VerticalBox } from "std-widgets.slint";
+import { Card } from "card.slint";
+import { Theme } from "../shared/theme.slint";
+
+component SummaryMetric inherits Card {
+    in property <string> label;
+    in property <int> value;
+    in property <color> accent: Theme.accent;
+
+    min-height: 82px;
+    min-width: 180px;
+    preferred-width: 480px;
+    horizontal-stretch: 1;
+
+    HorizontalLayout {
+        padding: 18px;
+        spacing: 14px;
+
+        Rectangle {
+            width: 4px;
+            border-radius: 2px;
+            background: root.accent;
+        }
+
+        VerticalBox {
+            spacing: 3px;
+
+            Text {
+                text: root.label;
+                color: Theme.text-muted;
+                font-size: 12px;
+            }
+
+            Text {
+                text: root.value;
+                color: Theme.text;
+                font-size: 25px;
+                font-weight: 750;
+            }
+        }
+    }
+}
+
+export component DashboardSummary inherits VerticalBox {
+    in property <int> module-count: 0;
+    in property <int> error-count: 0;
+
+    spacing: 16px;
+    height: 318px;
+    horizontal-stretch: 1;
+    vertical-stretch: 0;
+
+    HorizontalBox {
+        spacing: 16px;
+
+        SummaryMetric {
+            label: "Registered modules";
+            value: root.module-count;
+        }
+
+        SummaryMetric {
+            label: "Total errors";
+            value: root.error-count;
+            accent: root.error-count > 0 ? #ef4444 : #22c55e;
+        }
+    }
+
+    Card {
+        min-height: 220px;
+        horizontal-stretch: 1;
+
+        VerticalBox {
+            padding: 20px;
+            spacing: 14px;
+
+            Text {
+                text: "System logs";
+                color: Theme.text;
+                font-size: 18px;
+                font-weight: 700;
+            }
+
+            Rectangle {
+                height: 38px;
+                background: Theme.surface-raised;
+                border-radius: 7px;
+
+                HorizontalLayout {
+                    padding-left: 14px;
+                    padding-right: 14px;
+                    spacing: 12px;
+
+                    Text {
+                        text: "Time";
+                        color: Theme.text-muted;
+                        font-size: 12px;
+                        font-weight: 650;
+                        width: 100px;
+                        vertical-alignment: center;
+                    }
+                    Text {
+                        text: "Level";
+                        color: Theme.text-muted;
+                        font-size: 12px;
+                        font-weight: 650;
+                        width: 90px;
+                        vertical-alignment: center;
+                    }
+                    Text {
+                        text: "Source";
+                        color: Theme.text-muted;
+                        font-size: 12px;
+                        font-weight: 650;
+                        width: 140px;
+                        vertical-alignment: center;
+                    }
+                    Text {
+                        text: "Message";
+                        color: Theme.text-muted;
+                        font-size: 12px;
+                        font-weight: 650;
+                        horizontal-stretch: 1;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            VerticalBox {
+                alignment: center;
+                vertical-stretch: 1;
+                spacing: 5px;
+
+                Text {
+                    text: "No logs yet";
+                    color: Theme.text;
+                    font-size: 15px;
+                    font-weight: 650;
+                    horizontal-alignment: center;
+                }
+
+                Text {
+                    text: "The table is ready for a log model when its structure is defined.";
+                    color: Theme.text-muted;
+                    font-size: 12px;
+                    horizontal-alignment: center;
+                }
+            }
+        }
+    }
+}

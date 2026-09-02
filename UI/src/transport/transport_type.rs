@@ -47,7 +47,6 @@ impl ConnectionType {
             Self::Connecting => ConnectionTypeS::Connecting,
             Self::Connected => ConnectionTypeS::Connected,
             Self::Error => ConnectionTypeS::Error,
-            _ => ConnectionTypeS::Error,
         }
     }
 }
@@ -92,6 +91,7 @@ impl TransportType {
     pub fn to_slint_model() -> slint::ModelRc<slint::SharedString> {
         let values = Self::to_array()
             .iter()
+            .filter(|value| **value != Self::None)
             .map(|value| value.as_str().into())
             .collect::<Vec<_>>();
 

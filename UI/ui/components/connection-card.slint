@@ -1,0 +1,94 @@
+import { Button, HorizontalBox, VerticalBox } from "std-widgets.slint";
+import { Card } from "card.slint";
+import { ConnectionStatus } from "connection-status.slint";
+import { TransportForm } from "transport-form.slint";
+import { ConnectionTypeS, TransportTypeS } from "../shared/types.slint";
+import { Theme } from "../shared/theme.slint";
+
+export component ConnectionCard inherits Card {
+    in-out property <TransportTypeS> selected-transport;
+    in property <[string]> transport-options;
+    in property <ConnectionTypeS> connection-mode: ConnectionTypeS.Disconnected;
+
+    in property <[string]> ports: [];
+    in property <[string]> baudrates: [];
+    in-out property <string> baudrate;
+    in-out property <string> port;
+    in-out property <string> wifi-ssid;
+    in-out property <string> wifi-password;
+    in-out property <string> bluetooth-name;
+    in-out property <string> bluetooth-pin;
+
+    callback connect-requested();
+    callback disconnect-requested();
+
+    min-width: 320px;
+    min-height: 408px;
+    preferred-width: 480px;
+    preferred-height: 408px;
+    horizontal-stretch: 1;
+
+    VerticalBox {
+        padding: 20px;
+        spacing: 20px;
+
+        VerticalBox {
+            spacing: 4px;
+            height: 48px;
+            vertical-stretch: 0;
+
+            Text {
+                text: "Connection";
+                color: Theme.text;
+                font-size: 19px;
+                font-weight: 700;
+            }
+
+            Text {
+                text: "Configure how this dashboard talks to the controller.";
+                color: Theme.text-muted;
+                font-size: 13px;
+                wrap: word-wrap;
+            }
+        }
+
+        TransportForm {
+            selected-transport <=> root.selected-transport;
+            transport-options: root.transport-options;
+            ports: root.ports;
+            baudrates: root.baudrates;
+            baudrate <=> root.baudrate;
+            port <=> root.port;
+            wifi-ssid <=> root.wifi-ssid;
+            wifi-password <=> root.wifi-password;
+            bluetooth-name <=> root.bluetooth-name;
+            bluetooth-pin <=> root.bluetooth-pin;
+        }
+
+        Rectangle { vertical-stretch: 1; }
+
+        HorizontalBox {
+            spacing: 12px;
+            alignment: space-between;
+
+            ConnectionStatus { state: root.connection-mode; }
+
+            Button {
+                min-width: 112px;
+                height: 38px;
+                text: root.connection-mode == ConnectionTypeS.Connected
+                    ? "Disconnect"
+                    : "Connect";
+                enabled: root.connection-mode != ConnectionTypeS.Connecting;
+
+                clicked => {
+                    if root.connection-mode == ConnectionTypeS.Connected {
+                        root.disconnect-requested();
+                    } else {
+                        root.connect-requested();
+                    }
+                }
+            }
+        }
+    }
+}

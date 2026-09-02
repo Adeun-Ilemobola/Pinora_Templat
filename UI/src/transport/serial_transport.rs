@@ -4,7 +4,7 @@ use crate::{
 };
 use serialport::SerialPort;
 use std::sync::{
-    Arc, Mutex,
+    Arc,
     atomic::{AtomicBool, Ordering},
 };
 use std::thread::JoinHandle;
@@ -117,7 +117,7 @@ impl SerialTransport {
                     continue;
                 }
                 line_buff.extend_from_slice(&buffer_ves);
-                
+
                 while let Some(index) = line_buff.iter().position(|byte| *byte == b'\n') {
                     let line: Vec<u8> = line_buff.drain(..=index).collect();
 

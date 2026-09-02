@@ -1,0 +1,81 @@
+import { Theme } from "../shared/theme.slint";
+
+component TabButton inherits Rectangle {
+    callback activated();
+    in property <string> label;
+    in property <bool> active;
+
+    width: 112px;
+    height: 52px;
+    background: touch-area.has-hover ? #ffffff0a : transparent;
+
+    Text {
+        text: root.label;
+        color: root.active ? Theme.text : Theme.text-muted;
+        font-size: 14px;
+        font-weight: root.active ? 700 : 500;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    Rectangle {
+        x: 16px;
+        y: parent.height - 3px;
+        width: parent.width - 32px;
+        height: 3px;
+        border-radius: 2px;
+        background: root.active ? Theme.accent : transparent;
+    }
+
+    touch-area := TouchArea {
+        clicked => { root.activated(); }
+    }
+}
+
+export component TopTabs inherits Rectangle {
+    in-out property <int> current-tab: 0;
+
+    height: 60px;
+    background: Theme.surface;
+
+    HorizontalLayout {
+        padding-left: 24px;
+        padding-right: 24px;
+        spacing: 4px;
+        alignment: start;
+
+        Text {
+            text: "PINORA";
+            color: Theme.accent;
+            font-size: 17px;
+            font-weight: 800;
+            width: 124px;
+            vertical-alignment: center;
+        }
+
+        TabButton {
+            label: "Dashboard";
+            active: root.current-tab == 0;
+            activated => { root.current-tab = 0; }
+        }
+
+        TabButton {
+            label: "Modules";
+            active: root.current-tab == 1;
+            activated => { root.current-tab = 1; }
+        }
+
+        TabButton {
+            label: "Playground";
+            active: root.current-tab == 2;
+            activated => { root.current-tab = 2; }
+        }
+    }
+
+    Rectangle {
+        y: parent.height - 1px;
+        width: parent.width;
+        height: 1px;
+        background: Theme.border;
+    }
+}

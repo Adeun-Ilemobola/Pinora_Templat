@@ -8,7 +8,7 @@ pub struct WifiTransport {
 }
 
 impl WifiTransport {
-    pub fn new(ssid: String, password: String , eventCallback: Box<dyn FnMut()>) -> Self {
+    pub fn new(ssid: String, password: String, _event_callback: Box<dyn FnMut()>) -> Self {
         WifiTransport { ssid, password }
     }
 
