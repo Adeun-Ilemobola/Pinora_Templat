@@ -3,16 +3,41 @@ import { TopTabs } from "components/top-tabs.slint";
 import { DashboardPage } from "pages/dashboard.slint";
 import { ModulesPage } from "pages/modules.slint";
 import { PlaygroundPage } from "pages/playground.slint";
-import { ConnectionTypeS, TransportTypeS } from "shared/types.slint";
+import { ConnectionTypeS, TransportTypeS , ModuleView } from "shared/types.slint";
 import { Theme } from "shared/theme.slint";
 
 // Re-exported types are intentionally part of the generated Rust interface.
 export {
     ConnectionTypeS,
-    ModuleTypeS,
+    UiModuleType,
     ModuleView,
     TransportTypeS,
 } from "shared/types.slint";
+export { ModuleUpdates } from "shared/module-updates.slint";
+export {
+    Unsigned32,
+    ServoState,
+    LedState,
+    RangefinderDistanceMode,
+    RangefinderState,
+    ButtonState,
+    LogPriority,
+    SysLogState,
+    RemoteButton,
+    RemoteReceiverState,
+    PivotPoint,
+    StepperStateType,
+    StepperMotorState,
+    Axes,
+    RawAxes,
+    MpuDeviceMode,
+    ImuState,
+    MddeRfid,
+    WriteState,
+    RfidState,
+    LedClusterState,
+    JoyStickState,
+} from "module_definitions/mod.slint";
 
 export component AppWindow inherits Window {
     in-out property <int> current-tab: 0;
@@ -39,6 +64,9 @@ export component AppWindow inherits Window {
     in property <string> flash_size;
     in property <int> registered_module_count: 0;
     in property <int> total_error_count: 0;
+
+
+     in-out property <[ModuleView]> module-list;
 
     callback request_Make_Connection();
     callback request_Make_Disconnect();
@@ -85,7 +113,9 @@ export component AppWindow inherits Window {
             disconnect-requested => { root.request_Make_Disconnect(); }
         }
 
-        if root.current-tab == 1: ModulesPage {}
+        if root.current-tab == 1: ModulesPage {
+              module-list: root.module-list;
+        }
         if root.current-tab == 2: PlaygroundPage {}
     }
 }

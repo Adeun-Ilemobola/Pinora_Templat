@@ -91,8 +91,9 @@ the associated form. Serial connections are implemented. The Wi-Fi and
 Bluetooth types are placeholders, and their form submissions do not yet create
 working connections.
 
-Incoming serial lines currently go to diagnostic output. Protocol decoding,
-module state, command writing, and module-specific Slint views are still to be
+Incoming serial lines are decoded into protocol messages, routed through the
+module controller, and published to Slint on the UI event loop. The remote
+receiver module has a live module-specific view. Command writing is not yet
 connected.
 
 ### Shared protocol
@@ -139,7 +140,9 @@ disabled from the firmware module tree.
 │   │   └── transport/               # Serial and placeholder transports
 │   ├── ui/
 │   │   ├── app-window.slint         # Main window and connection form
-│   │   └── component/               # Reusable Slint components
+│   │   ├── components/              # Reusable Slint components
+│   │   ├── module_definitions/      # Slint module state types
+│   │   └── shared/                  # Shared Slint types and update globals
 │   ├── build.rs                     # Slint compile step
 │   └── Cargo.toml
 ├── protocol/                        # Shared pinora-protocol crate
@@ -160,8 +163,8 @@ disabled from the firmware module tree.
 │   ├── Cargo.toml
 │   ├── rust-toolchain.toml
 │   └── sdkconfig.defaults
-├── pinora.toml                      # Pinora project metadata (UI path is stale)
-├── justfile                         # Helper recipes (UI recipes need migration)
+├── pinora.toml                      # Pinora project metadata
+├── justfile                         # Build, check, run, and flash recipes
 └── README.md
 ```
 
@@ -169,10 +172,6 @@ disabled from the firmware module tree.
 > The repository uses a multi-crate layout with path dependencies, but it does
 > not currently contain a root Cargo workspace manifest. Run Cargo commands from
 > the individual crate directories as shown below.
->
-> The UI path in `pinora.toml` and the `frontend`/`buildUI` recipes in the
-> `justfile` still reference the removed `UI_Templates/` directory. Until
-> those helpers are migrated, use the direct Cargo commands in this README.
 
 ## Getting started
 
@@ -308,7 +307,7 @@ The current protocol source of truth is `protocol/src/`.
 | Serial transport | N/A | Console UART | Yes | Working connection/read path |
 | Wi-Fi transport | N/A | Emitter placeholder | No | Form and stub only |
 | Bluetooth transport | N/A | Emitter placeholder | No | Form and stub only |
-| Infrared remote receiver | Module identifier only | Yes | Yes | Not yet exposed |
+| Infrared remote receiver | Registration and button events | Yes | Yes | Working live module view |
 | LED | Commands and events | Yes | No | Not yet exposed |
 | Button | Events | Yes | No | Not yet exposed |
 | Stepper motor | Commands and events | Yes | No | Not yet exposed |
@@ -320,19 +319,16 @@ The current protocol source of truth is `protocol/src/`.
 
 ## Current limitations
 
-- The Slint application currently covers connection setup, not the previous
-  module dashboard or LiDAR visualization.
-- Serial input is read and logged but is not yet deserialized into UI state.
+- The Slint application does not yet include LiDAR visualization.
 - The desktop transport layer does not yet write protocol commands to the serial
   port.
 - Wi-Fi and Bluetooth connection paths are placeholders.
-- Port enumeration happens only at application startup; hot-plug refresh and
-  reconnect behavior are not implemented.
+- Port enumeration happens only at application startup; hot-plug refresh is not
+  implemented.
 - The firmware's active module selection and hardware pins are hard-coded in
   `Firmware_Templates/src/main.rs`.
 - Several protocol and firmware modules are present but are not part of the
   active runtime.
-- Root project helpers still contain the pre-refactor `UI_Templates/` path.
 - Runtime module UUIDs change on each firmware start.
 - The protocol is not versioned and may change during pre-alpha development.
 - Automated unit, integration, and hardware-in-the-loop tests are not yet

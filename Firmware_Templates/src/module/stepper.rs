@@ -117,8 +117,6 @@ impl<'d> StepperMotor<'d> {
             pivot_limits: PivotLimits::new(-90.0, 90.0),
             motion_mode,
         };
-        if cluster_id.is_some() {}
-
         motor.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetAngle {
             id: motor.id().to_string(),
             angle: Self::step_to_angle(motor.step),

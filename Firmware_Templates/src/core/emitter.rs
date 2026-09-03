@@ -14,18 +14,15 @@ pub enum TransportType {
 #[derive(Debug, Clone)]
 pub struct Emitter {
     pub  sender: SyncSender<ProtocolMessage>,
-    transport: TransportType,
 }
 
 impl Emitter {
     pub fn new(transport_type: Option<TransportType>) -> Emitter{
         let transport = transport_type.unwrap_or(TransportType::Serialized);
 
-        let new_emitter = Emitter {
+        Emitter {
             sender: Self::build_sender(transport),
-            transport,
-        };
-        new_emitter
+        }
     }
 
     fn build_sender(transport: TransportType) -> SyncSender<ProtocolMessage> {

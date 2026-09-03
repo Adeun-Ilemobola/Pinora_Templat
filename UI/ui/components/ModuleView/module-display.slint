@@ -1,0 +1,65 @@
+import { VerticalBox } from "std-widgets.slint";
+import { ModuleView, UiModuleType } from "../../shared/types.slint";
+import { Card } from "../card.slint";
+import {
+    RemoteReceiverState,
+    RemoteButton
+} from "../../module_definitions/remote_receiver.slint";
+import { ModuleUpdates } from "../../shared/module-updates.slint";
+
+export component RemoteReceiverView inherits Card {
+    width: 350px;
+    height: 200px;
+    in property <string> module-id;
+    private property <RemoteReceiverState> state;
+    private property <int> update-revision: ModuleUpdates.remote-receiver-revision;
+
+    changed update-revision => {
+        if ModuleUpdates.remote-receiver-id == root.module-id {
+            root.state = ModuleUpdates.remote-receiver-state;
+        }
+    }
+
+    function ButtonToString(b: RemoteButton) -> string {
+        if (b == RemoteButton.Power) { return "Power"; }
+        if (b == RemoteButton.VolumeUp) { return "Volume Up"; }
+        if (b == RemoteButton.FunctionStop) { return "Function/Stop"; }
+        if (b == RemoteButton.Previous) { return "Previous"; }
+        if (b == RemoteButton.PlayPause) { return "Play/Pause"; }
+        if (b == RemoteButton.Next) { return "Next"; }
+        if (b == RemoteButton.Down) { return "Down"; }
+        if (b == RemoteButton.VolumeDown) { return "Volume Down"; }
+        if (b == RemoteButton.Up) { return "Up"; }
+        if (b == RemoteButton.Zero) { return "0"; }
+        if (b == RemoteButton.Equalizer) { return "Equalizer"; }
+        if (b == RemoteButton.StopRepeat) { return "Stop/Repeat"; }
+        if (b == RemoteButton.One) { return "1"; }
+        if (b == RemoteButton.Two) { return "2"; }
+        if (b == RemoteButton.Three) { return "3"; }
+        if (b == RemoteButton.Four) { return "4"; }
+        if (b == RemoteButton.Five) { return "5"; }
+        if (b == RemoteButton.Six) { return "6"; }
+        if (b == RemoteButton.Seven) { return "7"; }
+        if (b == RemoteButton.Eight) { return "8"; }
+        if (b == RemoteButton.Nine) { return "9"; }
+
+        return "";
+    }
+
+    VerticalBox {
+        padding: 2px;
+
+        Text {
+            text: ButtonToString(root.state.key);
+            font-size: 24px;
+        }
+    }
+}
+
+export component DisplayCore {
+    in property <ModuleView> modData;
+
+    if modData.module-type == UiModuleType.RemoteReceiver : RemoteReceiverView {
+        module-id: modData.id;
+    }
+}

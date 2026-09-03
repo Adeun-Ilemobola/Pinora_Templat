@@ -77,9 +77,6 @@ impl<'d> Module for Buttonmodule<'d> {
     fn core(&self) -> &ModuleCore {
         &self.core
     }
-    fn get_module_type(&self) -> &ModuleType {
-        &self.core.module_type
-    }
     fn handle_command(
         &mut self,
         _command: &ModuleCommand,

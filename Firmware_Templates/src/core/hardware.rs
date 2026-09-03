@@ -20,7 +20,6 @@ use crate::core::emitter::Emitter;
 use pinora_protocol::registration::SystemInfo;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::time::Duration;
 
 pub struct OutputPinCore<'d> {
     pin_number: u8,
@@ -98,9 +97,6 @@ impl<'d> OutputPinCore<'d> {
 
 pub fn rtos_sleep_ms(ms: u32) {
     FreeRtos::delay_ms(ms);
-}
-pub fn thread_sleep_ms(ms: u64) {
-    std::thread::sleep(Duration::from_millis(ms));
 }
 pub fn now_us() -> f64 {
     unsafe { sys::esp_timer_get_time() as f64 }

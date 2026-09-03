@@ -1,0 +1,13 @@
+export enum LogPriority {
+    Low,
+    Medium,
+    High,
+    Critical,
+}
+
+export struct SysLogState {
+    text: string,
+    has-raw-err: bool,
+    raw-err: string,
+    priority: LogPriority,
+}

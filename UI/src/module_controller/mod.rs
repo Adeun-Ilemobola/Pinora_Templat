@@ -1,36 +1,35 @@
 pub mod module_definition;
+mod module_methods;
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex};
 
 use pinora_protocol::{
     ButtonEvent, ImuEvent, LedEvent, LogPriority, ModuleEvent, ModuleType, ProtocolMessage,
-    RemoteButtonEvent, RfidEvent, StepperMotorEvent, SystemInfo,
+    RemoteButtonEvent, RfidEvent, StepperMotorEvent,
 };
 use slint::ComponentHandle;
 
-use crate::ModuleTypeS;
+use crate::AppWindow;
 use crate::module_controller::module_definition::{
     ButtonState, ImuState, LedState, LidarState, ModuleState, RangefinderState,
     RemoteReceiverState, RfidState, ServoState, StepperMotorState, SysLogState,
 };
-use crate::{AppWindow, transport::transport_gate::Transport};
+use crate::ui_bridge::publication::{
+    publish_dashboard_counts, publish_module_list, publish_remote_receiver, publish_system_info,
+};
+use crate::{ModuleView, UiModuleType};
 
 pub struct ModuleController {
-    link: Arc<Mutex<Transport>>,
     collections: HashMap<String, ModuleState>,
     registered_module_ids: HashSet<String>,
-    system_info: Option<SystemInfo>,
     total_errors: u32,
     ui: slint::Weak<AppWindow>,
 }
 
 impl ModuleController {
-    pub fn new(link: Arc<Mutex<Transport>>, ui: &AppWindow) -> Self {
+    pub fn new(ui: &AppWindow) -> Self {
         ModuleController {
-            link: Arc::clone(&link),
             collections: HashMap::new(),
             registered_module_ids: HashSet::new(),
-            system_info: None,
             total_errors: 0,
             ui: ui.as_weak(),
         }
@@ -73,19 +72,10 @@ impl ModuleController {
                 }
                 self.registered_module_ids.insert(module_id);
                 self.publish_dashboard_counts();
+                publish_module_list(&self.ui, self.build_ui_module());
             }
             ProtocolMessage::System(system_info) => {
-                let system_info_for_ui = system_info.clone();
-                let _ = self.ui.upgrade_in_event_loop(move |ui| {
-                    ui.set_esp_idf_version(system_info_for_ui.esp_idf_version.into());
-                    ui.set_total_heap(system_info_for_ui.total_heap.into());
-                    ui.set_current_free_heap(system_info_for_ui.current_free_heap.into());
-                    ui.set_lowest_free_heap(system_info_for_ui.lowest_free_heap.into());
-                    ui.set_largest_allocation(system_info_for_ui.largest_allocation.into());
-                    ui.set_maximum_app_slot(system_info_for_ui.maximum_app_slot.into());
-                    ui.set_flash_size(system_info_for_ui.flash.into());
-                });
-                self.system_info = Some(system_info);
+                publish_system_info(&self.ui, system_info);
             }
             ProtocolMessage::ModuleEvent(event) => {
                 if matches!(
@@ -96,33 +86,35 @@ impl ModuleController {
                     self.total_errors = self.total_errors.saturating_add(1);
                     self.publish_dashboard_counts();
                 }
-                self.handle_state_change(event);
+                let module_id = Self::module_event_id(&event).map(str::to_owned);
+                self.apply_module_event(module_id.as_deref(), event);
             }
         }
     }
 
-    fn handle_state_change(&mut self, event: ModuleEvent) {
-        if let Some(id) = Self::module_event_id(&event).map(str::to_owned) {
-            if self.module_exists(&id) {
-                if let Some(state) = self.collections.get_mut(&id) {
-                    state.update(event);
-                }
+    fn apply_module_event(&mut self, module_id: Option<&str>, event: ModuleEvent) {
+        let Some(module_id) = module_id else {
+            return;
+        };
+        let Some(state) = self.collections.get_mut(module_id) else {
+            return;
+        };
+
+        match (state, event) {
+            (ModuleState::Led(state), ModuleEvent::Led(event)) => state.update(event),
+            (ModuleState::Button(state), ModuleEvent::Button(event)) => state.update(event),
+            (ModuleState::SysLog(state), ModuleEvent::SysLog(event)) => state.update(event),
+            (ModuleState::RemoteReceiver(state), ModuleEvent::RemoteReceiver(event)) => {
+                state.update(event);
+                publish_remote_receiver(&self.ui, state.clone());
             }
+            (ModuleState::StepperMotor(state), ModuleEvent::StepperMotor(event)) => {
+                state.update(event);
+            }
+            (ModuleState::Imu(state), ModuleEvent::Imu(event)) => state.update(event),
+            (ModuleState::Rfid(state), ModuleEvent::Rfid(event)) => state.update(event),
+            _ => {}
         }
-    }
-
-    fn module_exists(&self, id: &str) -> bool {
-        self.collections.contains_key(id)
-    }
-
-    fn publish_dashboard_counts(&self) {
-        let module_count = self.registered_module_ids.len().min(i32::MAX as usize) as i32;
-        let error_count = self.total_errors.min(i32::MAX as u32) as i32;
-
-        let _ = self.ui.upgrade_in_event_loop(move |ui| {
-            ui.set_registered_module_count(module_count);
-            ui.set_total_error_count(error_count);
-        });
     }
 
     fn module_event_id(event: &ModuleEvent) -> Option<&str> {
@@ -131,40 +123,57 @@ impl ModuleController {
             ModuleEvent::Button(ButtonEvent::Ckick { id }) => Some(id),
             ModuleEvent::SysLog(_) => None,
             ModuleEvent::RemoteReceiver(RemoteButtonEvent::Click { id, .. }) => Some(id),
-            ModuleEvent::StepperMotor(event) => match event {
+            ModuleEvent::StepperMotor(
                 StepperMotorEvent::GetAngle { id, .. }
                 | StepperMotorEvent::GetPivotMin { id, .. }
                 | StepperMotorEvent::GetPivotMax { id, .. }
                 | StepperMotorEvent::GetMode { id, .. }
                 | StepperMotorEvent::GetOrigin { id, .. }
-                | StepperMotorEvent::GetPivotPoint { id, .. } => Some(id),
-            },
-            ModuleEvent::Imu(event) => match event {
-                ImuEvent::Gyro { id, .. } | ImuEvent::Accel { id, .. } => Some(id),
-                ImuEvent::Mode { .. } => None,
-            },
-            ModuleEvent::Rfid(event) => match event {
+                | StepperMotorEvent::GetPivotPoint { id, .. },
+            ) => Some(id),
+            ModuleEvent::Imu(ImuEvent::Gyro { id, .. } | ImuEvent::Accel { id, .. }) => Some(id),
+            ModuleEvent::Imu(ImuEvent::Mode { .. }) => None,
+            ModuleEvent::Rfid(
                 RfidEvent::GetCard { id, .. }
                 | RfidEvent::GetMode { id, .. }
-                | RfidEvent::GetWriteState { id, .. } => Some(id),
-            },
+                | RfidEvent::GetWriteState { id, .. },
+            ) => Some(id),
         }
     }
 
-    fn module_type_to_slint(ty: ModuleType) -> ModuleTypeS {
-        match ty {
-            ModuleType::Servo => ModuleTypeS::Servo,
-            ModuleType::Led => ModuleTypeS::Led,
-            ModuleType::Imu => ModuleTypeS::Imu,
-            ModuleType::LedCluster => ModuleTypeS::LedCluster,
-            ModuleType::Button => ModuleTypeS::Button,
-            ModuleType::Lidar => ModuleTypeS::Lidar,
-            ModuleType::Rangefinder => ModuleTypeS::Rangefinder,
-            ModuleType::SysLog => ModuleTypeS::SysLog,
-            ModuleType::JoyStick => ModuleTypeS::JoyStick,
-            ModuleType::StepperMotor => ModuleTypeS::StepperMotor,
-            ModuleType::Rfid => ModuleTypeS::Rfid,
-            ModuleType::RemoteReceiver => ModuleTypeS::RemoteReceiver,
+    fn publish_dashboard_counts(&self) {
+        let module_count = self.registered_module_ids.len().min(i32::MAX as usize) as i32;
+        let error_count = self.total_errors.min(i32::MAX as u32) as i32;
+
+        publish_dashboard_counts(&self.ui, module_count, error_count);
+    }
+
+    pub fn build_ui_module(&self) -> Vec<ModuleView> {
+        let mut ui_list = Vec::new();
+
+        for (id, module) in &self.collections {
+            let ui_module = ModuleView {
+                module_type: match module {
+                    ModuleState::Servo(_) => UiModuleType::Servo,
+                    ModuleState::Led(_) => UiModuleType::Led,
+                    ModuleState::Imu(_) => UiModuleType::Imu,
+                    ModuleState::LedCluster(_) => UiModuleType::LedCluster,
+                    ModuleState::Button(_) => UiModuleType::Button,
+                    ModuleState::Lidar(_) => UiModuleType::Lidar,
+                    ModuleState::Rangefinder(_) => UiModuleType::Rangefinder,
+                    ModuleState::SysLog(_) => UiModuleType::SysLog,
+                    ModuleState::JoyStick(_) => UiModuleType::JoyStick,
+                    ModuleState::StepperMotor(_) => UiModuleType::StepperMotor,
+                    ModuleState::Rfid(_) => UiModuleType::Rfid,
+                    ModuleState::RemoteReceiver(_) => UiModuleType::RemoteReceiver,
+                },
+
+                id: id.into(),
+            };
+
+            ui_list.push(ui_module);
         }
+
+        ui_list
     }
 }

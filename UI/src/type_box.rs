@@ -1,4 +1,3 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
-pub type EventCallback = Arc<Mutex<Box<dyn FnMut(Vec<u8>) + Send + 'static>>>;
-pub type Callback<T> = Arc<Mutex<Box<dyn FnMut(T) + Send + 'static>>>;
+pub type EventCallback = Arc<dyn Fn(Vec<u8>) + Send + Sync + 'static>;

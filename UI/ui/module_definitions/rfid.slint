@@ -1,0 +1,23 @@
+export enum MddeRfid {
+    Read,
+    Write,
+}
+
+export enum WriteState {
+    Good,
+    Bad,
+}
+
+export struct RfidState {
+    id: string,
+    has-card-uid: bool,
+    card-uid: string,
+    has-card-data: bool,
+    card-data: string,
+    has-mode: bool,
+    mode: MddeRfid,
+    has-write-state: bool,
+    write-state: WriteState,
+    has-info: bool,
+    info: string,
+}

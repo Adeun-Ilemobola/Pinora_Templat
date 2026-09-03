@@ -1,0 +1,6 @@
+// Slint's `int` is signed 32-bit. Two 16-bit words preserve Rust `u32`
+// values without truncation or sentinel values.
+export struct Unsigned32 {
+    high-word: int,
+    low-word: int,
+}

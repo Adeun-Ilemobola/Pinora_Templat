@@ -14,24 +14,16 @@ slint::include_modules!();
 fn main() -> Result<(), Box<dyn Error>> {
     let ui = AppWindow::new()?;
 
-    let shared = Arc::new(Mutex::new(Transport::new()));
-    let transport_gateway: Arc<Mutex<Transport>> = Arc::clone(&shared);
+    let transport_gateway = Arc::new(Mutex::new(Transport::new()));
 
-    let module_controller_core = Arc::new(Mutex::new(ModuleController::new(
-        Arc::clone(&transport_gateway),
-        &ui,
-    )));
-    let mc_gate: Arc<Mutex<ModuleController>> = Arc::clone(&module_controller_core);
+    let controller = Mutex::new(ModuleController::new(&ui));
+    let event_callback: type_box::EventCallback = Arc::new(move |data| {
+        let mut controller = controller.lock().unwrap();
 
-    ui_bridge::transport_form::bind(
-        &ui,
-        Arc::clone(&transport_gateway),
-        Box::new(move |data| {
-            let mut controller = mc_gate.lock().unwrap();
+        controller.incoming_event(data);
+    });
 
-            controller.incoming_event(data);
-        }),
-    );
+    ui_bridge::transport_form::bind(&ui, Arc::clone(&transport_gateway), event_callback);
     ui.run()?;
 
     Ok(())

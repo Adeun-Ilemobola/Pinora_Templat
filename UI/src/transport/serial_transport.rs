@@ -11,14 +11,13 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 
 pub struct SerialTransport {
-    pub name: String,
-    pub rate: u32,
-    pub serial_buf: Vec<u8>,
+    name: String,
+    rate: u32,
 
-    pub serial: Option<Box<dyn SerialPort>>,
-    pub event_callback: EventCallback,
-    pub reader_thread: Option<JoinHandle<()>>,
-    pub reader_running: Arc<AtomicBool>,
+    serial: Option<Box<dyn SerialPort>>,
+    event_callback: EventCallback,
+    reader_thread: Option<JoinHandle<()>>,
+    reader_running: Arc<AtomicBool>,
 }
 
 impl SerialTransport {
@@ -26,22 +25,16 @@ impl SerialTransport {
         SerialTransport {
             name: "".to_string(),
             rate: 0,
-            serial_buf: Vec::new(),
             serial: None,
             event_callback,
-            reader_running: Arc::new(AtomicBool::new(true)),
+            reader_running: Arc::new(AtomicBool::new(false)),
             reader_thread: None,
         }
     }
-    pub fn get_name(&self) -> &str {
-        &self.name
-    }
-    pub fn get_rate(&self) -> u32 {
-        self.rate
-    }
 
-    pub fn stop_reader(&mut self) {
+    fn shutdown(&mut self) {
         self.reader_running.store(false, Ordering::Relaxed);
+        self.serial.take();
 
         if let Some(thread) = self.reader_thread.take() {
             let _ = thread.join();
@@ -63,19 +56,13 @@ impl SerialTransport {
     }
 
     pub fn disconnect(&mut self) -> Result<(), TransportError> {
-        // Implement the disconnection logic here
-        self.stop_reader();
-        self.serial
-            .take()
-            .ok_or_else(|| TransportError::ConnectionFailed {
-                message: "Serial port is not open".to_string(),
-                raw_error: None,
-            })?;
-
+        self.shutdown();
         Ok(())
     }
+
     pub fn connect(&mut self) -> Result<ConnectionState, TransportError> {
-        // Implement the connection logic here
+        self.shutdown();
+
         if self.name.is_empty() || self.rate == 0 {
             return Err(TransportError::ConnectionFailed {
                 message: "Serial port name or rate is not set".to_string(),
@@ -106,27 +93,20 @@ impl SerialTransport {
             let mut line_buff: Vec<u8> = vec![];
 
             while running.load(Ordering::Relaxed) {
-                let buffer_ves = match reader_port.read(&mut buffer) {
-                    Ok(count) if count > 0 => {
-                        let data = buffer[..count].to_vec();
-                        data
-                    }
+                let bytes_read = match reader_port.read(&mut buffer) {
+                    Ok(count) if count > 0 => buffer[..count].to_vec(),
                     _ => Vec::new(),
                 };
-                if buffer_ves.is_empty() {
+                if bytes_read.is_empty() {
                     continue;
                 }
-                line_buff.extend_from_slice(&buffer_ves);
+
+                line_buff.extend_from_slice(&bytes_read);
 
                 while let Some(index) = line_buff.iter().position(|byte| *byte == b'\n') {
                     let line: Vec<u8> = line_buff.drain(..=index).collect();
-
-                    if let Ok(mut callback) = callback.lock() {
-                        (callback)(line);
-                    }
+                    callback(line);
                 }
-
-                buffer = [0; 1024];
             }
         });
 
@@ -137,5 +117,11 @@ impl SerialTransport {
             transport_type: Some(TransportType::Serial),
             error: None,
         })
+    }
+}
+
+impl Drop for SerialTransport {
+    fn drop(&mut self) {
+        self.shutdown();
     }
 }

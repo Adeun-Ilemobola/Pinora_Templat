@@ -77,9 +77,6 @@ impl<'d> Module for Ledmodule<'d> {
     fn core(&self) -> &ModuleCore {
         &self.core
     }
-    fn get_module_type(&self) -> &ModuleType {
-        &self.core.module_type
-    }
     fn handle_command(&mut self, command: &ModuleCommand) -> anyhow::Result<()> {
         match command {
             ModuleCommand::Led(led_command) => match led_command {

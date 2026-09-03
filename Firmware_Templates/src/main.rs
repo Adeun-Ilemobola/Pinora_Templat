@@ -2,16 +2,11 @@ pub mod core;
 pub mod module;
 pub mod utilities;
 
-use crate::core::emitter::{Emitter , TransportType};
+use crate::core::emitter::Emitter;
 use crate::core::hardware::*;
 use crate::core::modulecore::Module;
 use crate::module::remote_receiver::RemoteReceiverButton;
-use crate::module::stepper::{StepperMotor, StepperPinAuto, StepperPinMode, StepperPins};
 use pinora_protocol::command::IncomingCommand;
-use esp_idf_svc::hal::spi::{
-    config::{Config as SpiConfig, DriverConfig, MODE_0},
-    SpiDeviceDriver,
-};
 use std::io;
 use std::io::{BufRead, ErrorKind};
 use std::sync::mpsc;
@@ -63,15 +58,6 @@ fn main() -> anyhow::Result<()> {
     //     p.pins.gpio22,
     //     &I2cConfig::new().baudrate(100.kHz().into()),
     // )?;
-    let spi = SpiDeviceDriver::new_single(
-        p.spi2,
-        p.pins.gpio18,       //SCK, | -> purple
-        p.pins.gpio19,       // MOSI |  -> blue
-        Some(p.pins.gpio23), // MISO |  -> green
-        Some(p.pins.gpio5),  // SDA / CS | -> gray
-        &DriverConfig::new(),
-        &SpiConfig::new().baudrate(1_000_000.Hz()).data_mode(MODE_0),
-    )?;
     // MRC522 RST      -> GPIO 16
 
     //    LEFT                                      RIGHT

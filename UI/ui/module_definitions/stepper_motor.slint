@@ -1,0 +1,29 @@
+export enum StepperStateType {
+    Idle,
+    Moving,
+    Homing,
+    Pivot,
+}
+
+export enum PivotPoint {
+    Min,
+    Max,
+}
+
+export struct StepperMotorState {
+    id: string,
+    has-angle: bool,
+    angle: float,
+    has-step: bool,
+    step: float,
+    has-pivot-min: bool,
+    pivot-min: float,
+    has-pivot-max: bool,
+    pivot-max: float,
+    has-mode: bool,
+    mode: StepperStateType,
+    has-origin: bool,
+    origin: float,
+    has-pivot-point: bool,
+    pivot-point: PivotPoint,
+}

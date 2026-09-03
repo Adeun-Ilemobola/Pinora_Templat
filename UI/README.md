@@ -1,38 +1,28 @@
-# Slint Rust Template
+# Pinora Desktop UI
 
-A template for a Rust application that's using [Slint](https://slint.rs/) for the user interface.
+The Pinora desktop application is a native Rust application built with
+[Slint](https://slint.dev/). It connects to Pinora hardware over serial,
+decodes newline-delimited protocol messages, maintains module state, and
+publishes supported updates to the UI event loop.
 
-## About
+## Run
 
-This template helps you get started developing a Rust application with Slint as toolkit
-for the user interface. It demonstrates the integration between the `.slint` UI markup and
-Rust code, how to react to callbacks, get and set properties, and use basic widgets.
+Install Rust, then run from this directory:
 
-## Usage
+```bash
+cargo run --locked
+```
 
-1. Install Rust by following its [getting-started guide](https://www.rust-lang.org/learn/get-started).
-   Once this is done, you should have the `rustc` compiler and the `cargo` build system installed in your `PATH`.
-2. Download and extract the [ZIP archive of this repository](https://github.com/slint-ui/slint-rust-template/archive/refs/heads/main.zip).
-3. Rename the extracted directory and change into it:
-    ```
-    mv slint-rust-template-main my-project
-    cd my-project    
-    ```
-4. Build with `cargo`:
-    ```
-    cargo build
-    ```
-5. Run the application binary:
-    ```
-    cargo run
-    ```
+The connection form enumerates serial ports at startup. Select a port and baud
+rate, then connect. Wi-Fi and Bluetooth forms are present but their transports
+are currently placeholders.
 
-We recommend using an IDE for development, along with our [LSP-based IDE integration for `.slint` files](https://github.com/slint-ui/slint/blob/master/tools/lsp/README.md). You can also load this project directly in [Visual Studio Code](https://code.visualstudio.com) and install our [Slint extension](https://marketplace.visualstudio.com/items?itemName=Slint.slint).
+## Validate
 
-## Next Steps
+```bash
+cargo check --locked
+cargo clippy --locked
+```
 
-We hope that this template helps you get started, and that you enjoy exploring making user interfaces with Slint. To learn more
-about the Slint APIs and the `.slint` markup language, check out our [online documentation](https://slint.dev/docs).
-
-Don't forget to edit this readme to replace it by yours, and edit the `name =` field in `Cargo.toml` to match the name of your
-project.
+Slint sources live under `ui/`; Rust transport, controller, and UI publication
+code lives under `src/`.

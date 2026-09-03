@@ -12,6 +12,8 @@ harness = false # do not use the built-in cargo test harness -> resolve rust-ana
 
 [profile.release]
 opt-level = "s"
+lto = "fat"
+codegen-units = 1
 
 [profile.dev]
 debug = true    # Symbols are nice, and they don't increase the size on Flash
@@ -48,4 +50,3 @@ mfrc522 = "=0.8.0"
 
 [build-dependencies]
 embuild = "0.33.3"
-

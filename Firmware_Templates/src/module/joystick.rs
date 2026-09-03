@@ -121,10 +121,6 @@ where
         &self.core
     }
 
-    fn get_module_type(&self) -> &ModuleType {
-        &self.core.module_type
-    }
-
     fn handle_command(&mut self, _command: &ModuleCommand) -> anyhow::Result<()> {
         Ok(())
     }

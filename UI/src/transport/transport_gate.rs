@@ -29,33 +29,26 @@ impl Transport {
         rate: u32,
         event_callback: EventCallback,
     ) -> ConnectionType {
-        let serial_transport = SerialTransport::new(event_callback);
+        let mut serial_transport = SerialTransport::new(event_callback);
+        serial_transport.set_port(name, rate);
         self.core = Some(TransportCore::Serial(serial_transport));
-        match self.core {
-            Some(TransportCore::Serial(ref mut serial_transport)) => {
-                serial_transport.set_port(name, rate);
-
-                match self.connect() {
-                    Ok(connection_state) => {
-                        if connection_state.connection_type == ConnectionType::Connected {
-                            println!("Serial transport connected successfully.");
-                            return ConnectionType::Connected;
-                        } else {
-                            println!(
-                                "Serial transport connection state: {:?}",
-                                connection_state.connection_type
-                            );
-                            return ConnectionType::Error;
-                        }
-                    }
-                    Err(e) => {
-                        println!("Failed to connect serial transport: {:?}", e);
-                        return ConnectionType::Error;
-                    }
-                }
+        match self.connect() {
+            Ok(connection_state)
+                if connection_state.connection_type == ConnectionType::Connected =>
+            {
+                println!("Serial transport connected successfully.");
+                ConnectionType::Connected
             }
-            _ => {
-                return ConnectionType::Error;
+            Ok(connection_state) => {
+                println!(
+                    "Serial transport connection state: {:?}",
+                    connection_state.connection_type
+                );
+                ConnectionType::Error
+            }
+            Err(error) => {
+                println!("Failed to connect serial transport: {:?}", error);
+                ConnectionType::Error
             }
         }
     }
@@ -98,5 +91,11 @@ impl Transport {
             Some(TransportCore::Bluetooth(_)) => TransportType::Bluetooth,
             None => TransportType::None,
         }
+    }
+}
+
+impl Default for Transport {
+    fn default() -> Self {
+        Self::new()
     }
 }

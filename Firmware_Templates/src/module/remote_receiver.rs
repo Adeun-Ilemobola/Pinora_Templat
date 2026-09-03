@@ -4,20 +4,17 @@ use esp_idf_svc::hal::gpio::Level;
 
 use crate::core::{
     emitter::Emitter,
-    hardware::{InputPinCore, TimerState},
+    hardware::InputPinCore,
     modulecore::{Module, ModuleCore},
 };
 use pinora_protocol::{
-    command::ModuleCommand,
-    global_definitions::ModuleType,
-    ModuleEvent::{ RemoteReceiver},
+    command::ModuleCommand, global_definitions::ModuleType, ModuleEvent::RemoteReceiver,
     Registration, RemoteButton, RemoteButtonEvent,
 };
 
 pub struct RemoteReceiverButton<'d> {
     core: ModuleCore,
     state: Level,
-    step_timer: TimerState,
     // invalidate: TimerState,
     pin_driver: InputPinCore<'d>,
     test_time: Instant,
@@ -39,7 +36,6 @@ impl<'d> RemoteReceiverButton<'d> {
             test_time: Instant::now(),
             buffer_raw: vec![],
             ignore_initial: true,
-            step_timer: TimerState::from_ms(100.6),
 
             remote_button: RemoteButton::None,
         };
@@ -51,75 +47,80 @@ impl<'d> RemoteReceiverButton<'d> {
         });
         Ok(r)
     }
-    fn extract(&mut self) {
-        let mut bits: Vec<u8> = Vec::new();
-        // let mut i = 3;
-
+    fn extract(&mut self) -> bool {
         let mut start_index = None;
 
-        for i in 0..self.buffer_raw.len() - 1 {
+        // Find NEC leader:
+        // ~9ms LOW followed by ~4.5ms HIGH
+        for i in 0..self.buffer_raw.len().saturating_sub(1) {
             let (level_a, time_a) = self.buffer_raw[i];
             let (level_b, time_b) = self.buffer_raw[i + 1];
 
             if level_a == Level::Low
-                && time_a.as_micros() > 8_000
-                && time_a.as_micros() < 10_000
+                && (8_000..=10_000).contains(&time_a.as_micros())
                 && level_b == Level::High
-                && time_b.as_micros() > 4_000
-                && time_b.as_micros() < 5_000
+                && (3_500..=5_500).contains(&time_b.as_micros())
             {
                 start_index = Some(i + 2);
                 break;
             }
         }
-        match start_index {
-            Some(mut i) => {
-                while i + 1 < self.buffer_raw.len() {
-                    let low = self.buffer_raw[i];
-                    let high = self.buffer_raw[i + 1];
 
-                    // low should be around 560 us
+        let Some(start) = start_index else {
+            return false;
+        };
 
-                    let bit = if high.1.as_micros() > 1000 { 1 } else { 0 };
-
-                    bits.push(bit);
-
-                    i += 2;
-                }
-            }
-            None => {
-                return;
-            }
-        }
-        if bits.len() != 32 {
-            return;
-        }
-        let mut data: Vec<u8> = Vec::new();
-
-        for chunk in bits.chunks(8) {
-            let mut value: u8 = 0;
-
-            for (bit_index, bit) in chunk.iter().enumerate() {
-                if *bit == 1 {
-                    value |= 1 << bit_index;
-                }
-            }
-
-            // println!(
-            //     "decimal: {} | hex: 0x{:02X} | binary: {:08b}",
-            //     value, value, value
-            // );
-            data.push(value);
+        // 32 bits × 2 timing entries per bit
+        if self.buffer_raw.len() < start + 64 {
+            return false;
         }
 
+        let mut data = [0u8; 4];
+
+        for bit_index in 0..32 {
+            let low = self.buffer_raw[start + bit_index * 2];
+            let high = self.buffer_raw[start + bit_index * 2 + 1];
+
+            if low.0 != Level::Low
+                || !(350..=800).contains(&low.1.as_micros())
+                || high.0 != Level::High
+            {
+                return false;
+            }
+
+            let bit = match high.1.as_micros() {
+                350..=900 => 0,
+                1_200..=2_200 => 1,
+                _ => return false,
+            };
+
+            if bit == 1 {
+                data[bit_index / 8] |= 1 << (bit_index % 8);
+            }
+        }
+
+        // Validate NEC inverse bytes FIRST
         if data[0] ^ data[1] != 0xFF {
-            return;
+            return false;
         }
 
         if data[2] ^ data[3] != 0xFF {
-            return;
+            return false;
         }
+
+        // Only print VALID packets
+        // println!(
+        //     "VALID COMMAND: decimal={} | hex=0x{:02X} | binary={:08b}",
+        //     data[2], data[2], data[2]
+        // );
+
         self.remote_button = RemoteButton::from_command(data[2]);
+        self.emit(RemoteReceiver(RemoteButtonEvent::Click {
+            id: self.id().to_string(),
+            key: self.remote_button.clone(),
+        }));
+        self.remote_button = RemoteButton::None;
+        true
     }
 }
 
@@ -139,37 +140,14 @@ impl<'d> Module for RemoteReceiverButton<'d> {
             self.state = data_now;
         }
 
-        if self.step_timer.ready() && self.buffer_raw.len() > 2 {
-            // println!(
-            //     "---------------- FRAME len={} ----------------",
-            //     self.buffer_raw.len()
-            // );
-
-            // for (index, item) in self.buffer_raw.iter().enumerate() {
-            //     println!("[{}] {:?} - {} us", index, item.0, item.1.as_micros());
-            // }
+        if !self.buffer_raw.is_empty() && self.test_time.elapsed() > Duration::from_millis(15) {
             self.extract();
             self.buffer_raw.clear();
-            self.step_timer.reset();
         }
-
-        if self.remote_button != RemoteButton::None {
-            if self.step_timer.ready() {
-                self.emit(RemoteReceiver(RemoteButtonEvent::Click {
-                    id: self.id().to_string(),
-                    key: self.remote_button.clone(),
-                }));
-                self.remote_button = RemoteButton::None;
-            }
-        }
-
         Ok(())
     }
     fn core(&self) -> &ModuleCore {
         &self.core
-    }
-    fn get_module_type(&self) -> &ModuleType {
-        &self.core.module_type
     }
     fn handle_command(&mut self, _command: &ModuleCommand) -> anyhow::Result<()> {
         Ok(())

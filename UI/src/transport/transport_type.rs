@@ -1,4 +1,9 @@
-use crate::slint_generatedAppWindow::{ConnectionTypeS, TransportTypeS};
+use pinora_protocol::ModuleType;
+
+use crate::{
+    UiModuleType,
+    slint_generatedAppWindow::{ConnectionTypeS, TransportTypeS},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ConnectionType {
@@ -8,39 +13,6 @@ pub enum ConnectionType {
     Error,
 }
 impl ConnectionType {
-    pub const fn to_array() -> [Self; 4] {
-        [
-            Self::Disconnected,
-            Self::Connecting,
-            Self::Connected,
-            Self::Error,
-        ]
-    }
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s {
-            "Disconnected" => Some(Self::Disconnected),
-            "Connecting" => Some(Self::Connecting),
-            "Connected" => Some(Self::Connected),
-            "Error" => Some(Self::Error),
-            _ => None,
-        }
-    }
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Disconnected => "Disconnected",
-            Self::Connecting => "Connecting",
-            Self::Connected => "Connected",
-            Self::Error => "Error",
-        }
-    }
-    pub fn to_slint_model() -> slint::ModelRc<slint::SharedString> {
-        let values = Self::to_array()
-            .iter()
-            .map(|value| value.as_str().into())
-            .collect::<Vec<_>>();
-
-        slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(values)))
-    }
     pub fn to_slint(&self) -> ConnectionTypeS {
         match self {
             Self::Disconnected => ConnectionTypeS::Disconnected,
@@ -70,15 +42,6 @@ pub enum TransportType {
 impl TransportType {
     pub const fn to_array() -> [Self; 4] {
         [Self::None, Self::Serial, Self::Wifi, Self::Bluetooth]
-    }
-    pub fn from_str(s: &str) -> Option<Self> {
-        match s {
-            "None" => Some(Self::None),
-            "Serial" => Some(Self::Serial),
-            "Wifi" => Some(Self::Wifi),
-            "Bluetooth" => Some(Self::Bluetooth),
-            _ => None,
-        }
     }
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -164,7 +127,7 @@ impl BaudRate {
             Self::B921600 => "921600",
         }
     }
-    pub fn from_str(s: &str) -> Self {
+    pub fn from_label(s: &str) -> Self {
         match s {
             "9600" => Self::B9600,
             "19200" => Self::B19200,
@@ -204,4 +167,42 @@ pub struct ConnectionState {
     pub connection_type: ConnectionType,
     pub transport_type: Option<TransportType>,
     pub error: Option<TransportError>,
+}
+
+impl From<ModuleType> for UiModuleType {
+    fn from(ty: ModuleType) -> Self {
+        match ty {
+            ModuleType::Servo => UiModuleType::Servo,
+            ModuleType::Led => UiModuleType::Led,
+            ModuleType::Imu => UiModuleType::Imu,
+            ModuleType::LedCluster => UiModuleType::LedCluster,
+            ModuleType::Button => UiModuleType::Button,
+            ModuleType::Lidar => UiModuleType::Lidar,
+            ModuleType::Rangefinder => UiModuleType::Rangefinder,
+            ModuleType::SysLog => UiModuleType::SysLog,
+            ModuleType::JoyStick => UiModuleType::JoyStick,
+            ModuleType::StepperMotor => UiModuleType::StepperMotor,
+            ModuleType::Rfid => UiModuleType::Rfid,
+            ModuleType::RemoteReceiver => UiModuleType::RemoteReceiver,
+        }
+    }
+}
+
+impl From<UiModuleType> for ModuleType {
+    fn from(ty: UiModuleType) -> Self {
+        match ty {
+            UiModuleType::Servo => ModuleType::Servo,
+            UiModuleType::Led => ModuleType::Led,
+            UiModuleType::Imu => ModuleType::Imu,
+            UiModuleType::LedCluster => ModuleType::LedCluster,
+            UiModuleType::Button => ModuleType::Button,
+            UiModuleType::Lidar => ModuleType::Lidar,
+            UiModuleType::Rangefinder => ModuleType::Rangefinder,
+            UiModuleType::SysLog => ModuleType::SysLog,
+            UiModuleType::JoyStick => ModuleType::JoyStick,
+            UiModuleType::StepperMotor => ModuleType::StepperMotor,
+            UiModuleType::Rfid => ModuleType::Rfid,
+            UiModuleType::RemoteReceiver => ModuleType::RemoteReceiver,
+        }
+    }
 }

@@ -6,7 +6,7 @@ version = "0.1.0"
 
 [paths]
 firmware = "Firmware_Templates"
-ui = "UI_Templates"
+ui = "UI"
 config = ".espConfig"
 
 # [device]

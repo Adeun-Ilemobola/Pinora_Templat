@@ -1,11 +1,19 @@
-import { VerticalBox } from "std-widgets.slint";
+import { VerticalBox , ScrollView, GridBox } from "std-widgets.slint";
 import { Card } from "../components/card.slint";
 import { Theme } from "../shared/theme.slint";
-
+import { ModuleView } from "../shared/types.slint";
+import { DisplayCore  } from "../components/ModuleView/module-display.slint";
 export component ModulesPage inherits Rectangle {
     background: Theme.background;
+    in-out property <[ModuleView]> module-list;
+    ScrollView {
 
-    VerticalBox {
+    if module-list.length > 0 : GridBox{
+        for module in module-list: DisplayCore {
+            modData <=> module;
+        }
+    }
+    if module-list.length == 0 : VerticalBox {
         padding: 28px;
         spacing: 22px;
 
@@ -52,4 +60,5 @@ export component ModulesPage inherits Rectangle {
 
         Rectangle { vertical-stretch: 1; }
     }
+}
 }

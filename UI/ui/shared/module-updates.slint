@@ -1,0 +1,7 @@
+import { RemoteReceiverState } from "../module_definitions/remote_receiver.slint";
+
+export global ModuleUpdates {
+    in-out property <string> remote-receiver-id;
+    in-out property <RemoteReceiverState> remote-receiver-state;
+    in-out property <int> remote-receiver-revision: 0;
+}

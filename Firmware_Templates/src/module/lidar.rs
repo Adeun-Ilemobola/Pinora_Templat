@@ -196,9 +196,6 @@ impl<'d> Module for Lidar<'d> {
     fn core(&self) -> &ModuleCore {
         &self.core
     }
-    fn get_module_type(&self) -> &ModuleType {
-        &self.core.module_type
-    }
     fn tick(&mut self) -> Result<(), ()> {
         if self.curr_scan_mode != ScanState::Scanning {
             return Ok(());

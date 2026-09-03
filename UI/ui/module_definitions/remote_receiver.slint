@@ -1,0 +1,29 @@
+export enum RemoteButton {
+    None,
+    Power,
+    VolumeUp,
+    FunctionStop,
+    Previous,
+    PlayPause,
+    Next,
+    Down,
+    VolumeDown,
+    Up,
+    Zero,
+    Equalizer,
+    StopRepeat,
+    One,
+    Two,
+    Three,
+    Four,
+    Five,
+    Six,
+    Seven,
+    Eight,
+    Nine,
+}
+
+export struct RemoteReceiverState {
+    id: string,
+    key: RemoteButton,
+}

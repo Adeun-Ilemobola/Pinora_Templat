@@ -1,0 +1,18 @@
+export enum RangefinderDistanceMode {
+    Short,
+    Long,
+}
+
+export struct RangefinderState {
+    id: string,
+    has-millimeters: bool,
+    millimeters: int,
+    has-is-ranging: bool,
+    is-ranging: bool,
+    has-timing-budget-milliseconds: bool,
+    timing-budget-milliseconds: int,
+    has-distance-mode: bool,
+    distance-mode: RangefinderDistanceMode,
+    has-invalid-measurement-status: bool,
+    invalid-measurement-status: string,
+}

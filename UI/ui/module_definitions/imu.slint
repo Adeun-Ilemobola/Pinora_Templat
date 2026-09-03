@@ -1,0 +1,32 @@
+export struct RawAxes {
+    x: int,
+    y: int,
+    z: int,
+}
+
+export struct Axes {
+    x: float,
+    y: float,
+    z: float,
+}
+
+export enum MpuDeviceMode {
+    Collecting,
+    Idle,
+    Off,
+}
+
+export struct ImuState {
+    has-id: bool,
+    id: string,
+    has-gyro-raw-axes: bool,
+    gyro-raw-axes: RawAxes,
+    has-gyro-axes: bool,
+    gyro-axes: Axes,
+    has-accel-raw-axes: bool,
+    accel-raw-axes: RawAxes,
+    has-accel-axes: bool,
+    accel-axes: Axes,
+    has-mode: bool,
+    mode: MpuDeviceMode,
+}

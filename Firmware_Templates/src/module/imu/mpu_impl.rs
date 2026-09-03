@@ -104,7 +104,6 @@ impl<'d> MpuDevice<'d> {
             },
             bias_collection_gyro: vec![],
         };
-        if parent_id.is_some() {}
         imu.registration(Registration{
             id:imu.id().to_string(),
             module_type:ModuleType::Imu,
