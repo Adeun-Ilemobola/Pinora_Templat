@@ -1,7 +1,7 @@
 
 use crate::{
     core::{
-        emitter::Emitter, hardware::SharedI2cDevice, modulecore::{Module, ModuleCore}
+        emitter::Emitter, hardware::SharedI2cDevice, modulecore::{Module, ModuleCore, ModuleError}
     },
     module::imu::imu_type::{
         ACCEL_SENSITIVITY, ACCEL_XOUT_H, Axes, GYRO_SENSITIVITY, GYRO_XOUT_H, ImuError, ImuEvent, ImuModel, Mpu, MpuDevice, MpuDeviceErr, MpuDeviceMode, RawAxes
@@ -13,7 +13,7 @@ use pinora_protocol::{
     command::ModuleCommand,
     global_definitions::ModuleType,
     module_event::{LogPriority, ModuleEvent, SysLogEvent},
-    registration::{ProtocolMessage, Registration},
+    registration::ProtocolMessage,
 };
 
 impl<'d> Mpu<'d> {
@@ -73,7 +73,7 @@ impl<'d> MpuDevice<'d> {
         
         let  imu = MpuDevice {
             mpu: new_mpi,
-            core: ModuleCore::new(ModuleType::Imu, core_id, sender.clone()),
+            core: ModuleCore::new(ModuleType::Imu, core_id, parent_id, sender.clone()),
             mode: MpuDeviceMode::Collecting,
             point_count: 1,
             point_count_max: 200,
@@ -104,13 +104,6 @@ impl<'d> MpuDevice<'d> {
             },
             bias_collection_gyro: vec![],
         };
-        imu.registration(Registration{
-            id:imu.id().to_string(),
-            module_type:ModuleType::Imu,
-            lool_up_id:core_id.to_string(),
-            parent_id:parent_id.unwrap_or_default()
-            
-        });
         imu.emit(ModuleEvent::Imu(ImuEvent::Mode { mode: imu.mode.clone() }));
 
         Ok(imu)
@@ -141,7 +134,7 @@ impl<'d> MpuDevice<'d> {
 
         Ok(RawAxes { x, y, z })
     }
-    pub fn tick(&mut self) -> Result<(), ()> {
+    fn tick_inner(&mut self) -> Result<(), ()> {
         let new_gyro = self.raw_gyro().map_err(|err| {
             self.emit(ModuleEvent::SysLog(SysLogEvent{
                 priority:LogPriority::Critical,
@@ -223,6 +216,10 @@ impl<'d> MpuDevice<'d> {
     }
 }
 impl<'d> Module for MpuDevice<'d> {
+    fn tick(&mut self) -> Result<(), ModuleError> {
+        self.tick_inner().map_err(ModuleError::from)
+    }
+
     fn core(&self) -> &ModuleCore {
         &self.core
     }

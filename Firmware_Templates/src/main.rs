@@ -10,9 +10,9 @@ use pinora_protocol::command::IncomingCommand;
 use std::io;
 use std::io::{BufRead, ErrorKind};
 use std::sync::mpsc;
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::collections::HashMap;
 
-type ModuleHandle<'a> = Rc<RefCell<dyn Module + 'a>>;
+type ModuleHandle<'a> = Box<dyn Module + 'a>;
 
 fn configure_console_uart() -> anyhow::Result<()> {
     use esp_idf_svc::sys;
@@ -48,7 +48,7 @@ fn main() -> anyhow::Result<()> {
     let sync_sender = Emitter::new(None);
 
     configure_console_uart()?;
-    print_esp_system_info(sync_sender.clone());
+    print_esp_system_info(sync_sender.clone())?;
     let mut modules: HashMap<String, ModuleHandle<'_>> = HashMap::new();
     let p = Peripherals::take()?;
     let mut last_yield_us = now_us();
@@ -80,17 +80,15 @@ fn main() -> anyhow::Result<()> {
     // let lidar_id = lidar.borrow().get_id();
     // modules.insert(lidar_id, lidar.clone());
 
-    let temote_receiver = Rc::new(RefCell::new(
-        RemoteReceiverButton::new(
-            InputPinCore::new(p.pins.gpio12, Pull::UpDown)
-                .map_err(|err| anyhow::anyhow!("{err:?}"))?,
-            "er".to_string(),
-            sync_sender.clone(),
-        )
-        .map_err(|err| anyhow::anyhow!("{err:?}"))?,
-    ));
-
-    modules.insert(temote_receiver.borrow().id().to_owned(), temote_receiver.clone());
+    let remote_receiver = RemoteReceiverButton::new(
+        InputPinCore::new(p.pins.gpio12, Pull::UpDown)
+            .map_err(|err| anyhow::anyhow!("{err:?}"))?,
+        "er".to_string(),
+        sync_sender.clone(),
+    )
+    .map_err(|err| anyhow::anyhow!("{err:?}"))?;
+    let remote_receiver_id = remote_receiver.id().to_owned();
+    modules.insert(remote_receiver_id, Box::new(remote_receiver));
 
     // const MPU_ADDRESS: u8 = 0x68;
     // let imu_i2c = RcDevice::new(shared_i2c.clone());
@@ -114,20 +112,23 @@ fn main() -> anyhow::Result<()> {
 
     // modules.insert(rfid.borrow().id().to_owned(), rfid.clone());
 
+    for module in modules.values() {
+        module.register()?;
+    }
+
     let (command_sender, command_receiver) = mpsc::channel::<IncomingCommand>();
     std::thread::spawn(move || {
         serial_command_reader(command_sender);
     });
 
     loop {
-        // for module in modules.values() {
-        //     let _ = module.borrow_mut().tick();
-        // }
-        let _ = temote_receiver.borrow_mut().tick();
+        for module in modules.values_mut() {
+            let _ = module.tick();
+        }
 
         if let Ok(command) = command_receiver.try_recv() {
             if let Some(module) = modules.get_mut(&command.id) {
-                module.borrow_mut().handle_command(&command.command)?;
+                module.handle_command(&command.command)?;
             } else {
                 log::error!(
                     "No top-level module found for command id={} command={:?}",

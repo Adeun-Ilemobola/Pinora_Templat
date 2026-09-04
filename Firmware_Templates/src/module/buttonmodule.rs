@@ -1,13 +1,12 @@
 
 use crate::core::emitter::Emitter;
 use crate::core::hardware::{InputPin, InputPinCore, Pull};
-use crate::core::modulecore::{Module, ModuleCore};
+use crate::core::modulecore::{Module, ModuleCore, ModuleError};
 use esp_idf_svc::hal::gpio::Level;
 use pinora_protocol::{
     command::ModuleCommand,
     global_definitions::ModuleType,
     module_event::ModuleEvent,
-    registration::Registration,
 };
 
 pub use pinora_protocol::module::buttonmodule::ButtonEvent;
@@ -28,7 +27,7 @@ impl<'d> Buttonmodule<'d> {
         T: InputPin + 'd,
     {
         let  buttonmodule = Buttonmodule {
-            core: ModuleCore::new(ModuleType::Button, &lool_up_id , sender),
+            core: ModuleCore::new(ModuleType::Button, &lool_up_id, None, sender),
             state: Level::High,
             pin_driver: InputPinCore::new(pin, Pull::Up)?,
             last_state: Level::High,
@@ -36,15 +35,7 @@ impl<'d> Buttonmodule<'d> {
             prev_state: Level::High,
         };
 
-       buttonmodule.registration(Registration{
-        id:buttonmodule.id().to_string(),
-        lool_up_id :lool_up_id.clone(),
-        module_type:ModuleType::Button,
-        parent_id:String::new()
-       });
-       
-
-        Ok(buttonmodule)
+       Ok(buttonmodule)
     }
     pub fn update_state(&mut self) -> anyhow::Result<()> {
         let current_state = self.pin_driver.now()?;
@@ -74,6 +65,12 @@ impl<'d> Buttonmodule<'d> {
     
 }
 impl<'d> Module for Buttonmodule<'d> {
+    fn tick(&mut self) -> Result<(), ModuleError> {
+        self.poll()
+            .map(|_| ())
+            .map_err(|_| ModuleError::OperationFailed)
+    }
+
     fn core(&self) -> &ModuleCore {
         &self.core
     }

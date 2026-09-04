@@ -16,7 +16,7 @@ use esp_idf_svc::sys;
 // use pwm_pca9685::{Address, Pca9685};
 use std::{ffi::CStr, ptr};
 
-use crate::core::emitter::Emitter;
+use crate::core::emitter::{Emitter, EmitterError};
 use pinora_protocol::registration::SystemInfo;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -196,7 +196,7 @@ impl<'d> HardwareContext<'d> {
     }
 }
 
-pub fn print_esp_system_info(emit:Emitter) {
+pub fn print_esp_system_info(emit: Emitter) -> Result<(), EmitterError> {
     unsafe {
         // -------------------------
         // RAM / heap information
@@ -247,7 +247,7 @@ pub fn print_esp_system_info(emit:Emitter) {
             largest_allocation: format_bytes(largest_free_block),
             maximum_app_slot: format_bytes(app_partition_size as usize),
             flash,
-        });
+        })
     }
 }
 

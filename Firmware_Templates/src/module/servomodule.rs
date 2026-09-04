@@ -1,6 +1,6 @@
 use crate::core::emitter::Emitter;
 use crate::core::hardware::SharedPwm;
-use crate::core::modulecore::{ Module, ModuleCore};
+use crate::core::modulecore::{ Module, ModuleCore, ModuleError};
 use crate::utilities::math::{pulse_us_to_tick, range_i32};
 
 use anyhow::Ok;
@@ -8,7 +8,6 @@ use pinora_protocol::{
     command::ModuleCommand,
     global_definitions::ModuleType,
     module_event::ModuleEvent,
-    registration::Registration,
 };
 use pwm_pca9685::Channel;
 
@@ -39,7 +38,7 @@ impl<'d> ServoModule<'d> {
         sender: Emitter,
     ) -> anyhow::Result<ServoModule<'d>> {
         let mut s = ServoModule {
-            core: ModuleCore::new(ModuleType::Servo, &manuel_id, sender),
+            core: ModuleCore::new(ModuleType::Servo, &manuel_id, cluster_id, sender),
             pwm,
             config: config.clone(),
             offset: config.offset,
@@ -49,13 +48,6 @@ impl<'d> ServoModule<'d> {
             channel: channel.clone(),
             pivot:0
         };
-        s.registration(Registration {
-            id: s.id().to_string(),
-            module_type: ModuleType::Servo,
-            lool_up_id: manuel_id.clone(),
-            parent_id: cluster_id.clone().unwrap_or_default(),
-        });
-
         s.set_offset(s.offset)?;
         s.set_angle(0)?;
 
@@ -183,6 +175,10 @@ impl<'d> ServoModule<'d> {
 }
 
 impl<'d> Module for ServoModule<'d> {
+    fn tick(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
+
     fn core(&self) -> &ModuleCore {
         &self.core
     }

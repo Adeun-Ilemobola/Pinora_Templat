@@ -5,11 +5,11 @@ use esp_idf_svc::hal::gpio::Level;
 use crate::core::{
     emitter::Emitter,
     hardware::InputPinCore,
-    modulecore::{Module, ModuleCore},
+    modulecore::{Module, ModuleCore, ModuleError},
 };
 use pinora_protocol::{
     command::ModuleCommand, global_definitions::ModuleType, ModuleEvent::RemoteReceiver,
-    Registration, RemoteButton, RemoteButtonEvent,
+    RemoteButton, RemoteButtonEvent,
 };
 
 pub struct RemoteReceiverButton<'d> {
@@ -30,7 +30,7 @@ impl<'d> RemoteReceiverButton<'d> {
         sender: Emitter,
     ) -> Result<RemoteReceiverButton<'d>, ()> {
         let r = RemoteReceiverButton {
-            core: ModuleCore::new(ModuleType::RemoteReceiver, &core_id, sender),
+            core: ModuleCore::new(ModuleType::RemoteReceiver, &core_id, None, sender),
             pin_driver: pin,
             state: Level::Low,
             test_time: Instant::now(),
@@ -39,12 +39,6 @@ impl<'d> RemoteReceiverButton<'d> {
 
             remote_button: RemoteButton::None,
         };
-        r.registration(Registration {
-            id: r.id().to_string(),
-            module_type: ModuleType::RemoteReceiver,
-            lool_up_id: core_id,
-            parent_id: String::new(),
-        });
         Ok(r)
     }
     fn extract(&mut self) -> bool {
@@ -125,7 +119,7 @@ impl<'d> RemoteReceiverButton<'d> {
 }
 
 impl<'d> Module for RemoteReceiverButton<'d> {
-    fn tick(&mut self) -> Result<(), ()> {
+    fn tick(&mut self) -> Result<(), ModuleError> {
         if self.ignore_initial {
             self.ignore_initial = false;
             return Ok(());

@@ -1,13 +1,12 @@
 
 use crate::core::emitter::Emitter;
 use crate::core::hardware::{ledc, LedTimer, OutputPin};
-use crate::core::modulecore::{Module, ModuleCore};
+use crate::core::modulecore::{Module, ModuleCore, ModuleError};
 use crate::utilities::math::range_u32;
 use pinora_protocol::{
     command::ModuleCommand,
     global_definitions::ModuleType,
     module_event::ModuleEvent,
-    registration::Registration,
 };
 
 pub use pinora_protocol::module::ledmodule::{LedCommandPayload, LedEvent};
@@ -32,20 +31,11 @@ impl<'d> Ledmodule<'d> {
         let pwm = ledc::LedcDriver::new(channel, timer, pin)?;
 
         let  ledmodule = Ledmodule {
-            core: ModuleCore::new(ModuleType::Led, &manuel_id , sender),
+            core: ModuleCore::new(ModuleType::Led, &manuel_id, cluster_id, sender),
             state: 0,
             pwm,
         };
       
-      ledmodule.registration(Registration{
-        id:ledmodule.id().to_string(),
-         module_type:ModuleType::Led,
-         lool_up_id:manuel_id.clone(),
-         parent_id: cluster_id.clone().unwrap_or_default()
-
-      });
-
-
         Ok(ledmodule)
     }
 
@@ -74,6 +64,10 @@ impl<'d> Ledmodule<'d> {
 }
 
 impl<'d> Module for Ledmodule<'d> {
+    fn tick(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
+
     fn core(&self) -> &ModuleCore {
         &self.core
     }

@@ -1,5 +1,6 @@
 use pinora_protocol::registration::{ProtocolMessage, SystemInfo};
 use std::{
+    fmt,
     sync::mpsc::{self, SyncSender, TrySendError},
     thread,
 };
@@ -10,6 +11,19 @@ pub enum TransportType {
     Bluetooth,
     Serialized,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EmitterError {
+    Disconnected,
+}
+
+impl fmt::Display for EmitterError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("event emitter is disconnected")
+    }
+}
+
+impl std::error::Error for EmitterError {}
 
 #[derive(Debug, Clone)]
 pub struct Emitter {
@@ -22,6 +36,26 @@ impl Emitter {
 
         Emitter {
             sender: Self::build_sender(transport),
+        }
+    }
+
+    pub fn emit_reliable(&self, message: ProtocolMessage) -> Result<(), EmitterError> {
+        self.sender
+            .send(message)
+            .map_err(|_| EmitterError::Disconnected)
+    }
+
+    pub fn try_emit(&self, message: ProtocolMessage) {
+        match self.sender.try_send(message) {
+            Ok(()) => {}
+
+            Err(TrySendError::Full(_)) => {
+                log::warn!("Event queue is full; dropping runtime message");
+            }
+
+            Err(TrySendError::Disconnected(_)) => {
+                log::error!("Event emitter is disconnected");
+            }
         }
     }
 
@@ -53,33 +87,11 @@ impl Emitter {
 
         Ok(())
     }
-    pub fn system_info(&self ,data: SystemInfo){
-         match  self.sender.try_send(ProtocolMessage::System(data)) {
-            Ok(()) => {}
-
-            Err(TrySendError::Full(_)) => {
-                log::warn!("Event queue is full for ");
-            }
-
-            Err(TrySendError::Disconnected(_)) => {
-                log::error!("Event emitter is disconnected");
-            }
-        }
-
+    pub fn system_info(&self, data: SystemInfo) -> Result<(), EmitterError> {
+        self.emit_reliable(ProtocolMessage::System(data))
     }
-    pub fn  any(&self , data:ProtocolMessage){
 
-         match  self.sender.try_send(data) {
-            Ok(()) => {}
-
-            Err(TrySendError::Full(_)) => {
-                log::warn!("Event queue is full for ");
-            }
-
-            Err(TrySendError::Disconnected(_)) => {
-                log::error!("Event emitter is disconnected");
-            }
-        }
-
+    pub fn any(&self, data: ProtocolMessage) {
+        self.try_emit(data);
     }
 }

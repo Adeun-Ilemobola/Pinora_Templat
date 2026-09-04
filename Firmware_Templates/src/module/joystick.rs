@@ -8,7 +8,8 @@ use esp_idf_svc::hal::adc::{
 use esp_idf_svc::hal::gpio::ADCPin;
 
 use crate::core::hardware::InputPin;
-use crate::core::modulecore::{Module, ModuleCore};
+use crate::core::emitter::EmitterError;
+use crate::core::modulecore::{Module, ModuleCore, ModuleError};
 use crate::module::buttonmodule::Buttonmodule;
 use crate::utilities::math::range_i16;
 use pinora_protocol::{
@@ -54,7 +55,7 @@ where
         };
 
         Ok(Self {
-            core: ModuleCore::new(ModuleType::JoyStick, "JoyStick" , sender.clone()),
+            core: ModuleCore::new(ModuleType::JoyStick, "JoyStick", None, sender.clone()),
             button: Buttonmodule::new(mb, "mb".to_string() , sender.clone())?,
             x_channel: AdcChannelDriver::new(adc.clone(), ax, &config)?,
             y_channel: AdcChannelDriver::new(adc, ay, &config)?,
@@ -89,7 +90,7 @@ where
         (self.x_value, self.y_value)
     }
 
-    pub fn tick(&mut self) -> anyhow::Result<()> {
+    fn tick_inner(&mut self) -> anyhow::Result<()> {
         self.read_x()?;
         self.read_y()?;
 
@@ -116,6 +117,16 @@ where
     X: AdcChannel<AdcUnit = U>,
     Y: AdcChannel<AdcUnit = U>,
 {
+    fn register(&self) -> Result<(), EmitterError> {
+        self.emit_registration()?;
+        self.button.register()?;
+        Ok(())
+    }
+
+    fn tick(&mut self) -> Result<(), ModuleError> {
+        self.tick_inner()
+            .map_err(|_| ModuleError::OperationFailed)
+    }
 
     fn core(&self) -> &ModuleCore {
         &self.core

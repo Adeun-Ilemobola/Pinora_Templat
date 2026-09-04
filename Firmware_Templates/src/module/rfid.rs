@@ -1,13 +1,12 @@
 use crate::{
     core::{
-        emitter::Emitter, hardware::{OutputPinCore, TimerState}, modulecore::{ Module, ModuleCore}
+        emitter::Emitter, hardware::{OutputPinCore, TimerState}, modulecore::{ Module, ModuleCore, ModuleError}
     },
 };
 use pinora_protocol::{
     command::ModuleCommand,
     global_definitions::ModuleType,
     module_event::{LogPriority, ModuleEvent, SysLogEvent},
-    registration::Registration,
 };
 use uuid::Uuid;
 
@@ -86,7 +85,7 @@ impl<'d> Rfid<'d> {
         log::info!("MFRC522 detected (version 0x{version:02X})");
 
         let dor = Self {
-            core: ModuleCore::new(ModuleType::Rfid, core_id, sender),
+            core: ModuleCore::new(ModuleType::Rfid, core_id, parent_id, sender),
             temp_read_data: vec![],
             temp_write_data: vec![],
             next_acc: TimerState::from_ms(20.0),
@@ -100,17 +99,10 @@ impl<'d> Rfid<'d> {
             write_state_msg: "All Good".to_string(),
         };
 
-        dor.registration(Registration {
-            id: dor.id().to_string(),
-            module_type: dor.get_module_type().clone(),
-            lool_up_id: core_id.to_string(),
-            parent_id: parent_id.clone().unwrap_or_default(),
-        });
-
         Ok(dor)
     }
 
-    pub fn tick(&mut self) -> anyhow::Result<(), ()> {
+    fn tick_inner(&mut self) -> Result<(), ()> {
         if !self.next_acc.ready() {
             return Ok(());
         }
@@ -372,6 +364,10 @@ impl<'d> Rfid<'d> {
 }
 
 impl<'d> Module for Rfid<'d> {
+    fn tick(&mut self) -> Result<(), ModuleError> {
+        self.tick_inner().map_err(ModuleError::from)
+    }
+
     fn core(&self) -> &ModuleCore {
         &self.core
     }

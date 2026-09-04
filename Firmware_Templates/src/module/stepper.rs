@@ -4,16 +4,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     core::{
-        emitter::Emitter,
+        emitter::{Emitter, EmitterError},
         hardware::{OutputPinCore, TimerState},
-        modulecore::{Module, ModuleCore},
+        modulecore::{Module, ModuleCore, ModuleError},
     },
 };
 use pinora_protocol::{
     command::ModuleCommand,
     global_definitions::ModuleType,
     module_event::ModuleEvent,
-    registration::Registration,
 };
 
 pub use pinora_protocol::module::stepper::{
@@ -105,7 +104,7 @@ impl<'d> StepperMotor<'d> {
         sender: Emitter,
     ) -> anyhow::Result<StepperMotor<'d>> {
         let motor = StepperMotor {
-            core: ModuleCore::new(ModuleType::StepperMotor, &manuel_id, sender),
+            core: ModuleCore::new(ModuleType::StepperMotor, &manuel_id, cluster_id, sender),
             // pins: pins_bus,
             step_timer: TimerState::from_ms(1.25),
             target_step: 0.0,
@@ -117,19 +116,6 @@ impl<'d> StepperMotor<'d> {
             pivot_limits: PivotLimits::new(-90.0, 90.0),
             motion_mode,
         };
-        motor.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetAngle {
-            id: motor.id().to_string(),
-            angle: Self::step_to_angle(motor.step),
-            step: motor.step,
-        }));
-
-        motor.registration(Registration {
-            id: motor.id().to_string(),
-            module_type: ModuleType::StepperMotor,
-            lool_up_id: manuel_id.clone(),
-            parent_id: cluster_id.clone().unwrap_or_default(),
-        });
-
         Ok(motor)
     }
     pub fn angle_to_step(angle: f32) -> f32 {
@@ -158,7 +144,7 @@ impl<'d> StepperMotor<'d> {
         self.target_step = Self::angle_to_step(angle);
     }
 
-    pub fn tick(&mut self) -> anyhow::Result<()> {
+    fn tick_inner(&mut self) -> anyhow::Result<()> {
         match self.mode {
             StepperState::Idle => {}
 
@@ -301,6 +287,21 @@ impl<'d> StepperMotor<'d> {
 }
 
 impl<'d> Module for StepperMotor<'d> {
+    fn register(&self) -> Result<(), EmitterError> {
+        self.emit_registration()?;
+        self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetAngle {
+            id: self.id().to_string(),
+            angle: Self::step_to_angle(self.step),
+            step: self.step,
+        }));
+        Ok(())
+    }
+
+    fn tick(&mut self) -> Result<(), ModuleError> {
+        self.tick_inner()
+            .map_err(|_| ModuleError::OperationFailed)
+    }
+
     fn core(&self) -> &ModuleCore {
         &self.core
     }

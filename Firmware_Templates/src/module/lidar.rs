@@ -3,8 +3,9 @@ use std::sync::mpsc::SyncSender;
 use crate::core::hardware::{I2cDriver, TimerState};
 
 use crate::core::{
+    emitter::EmitterError,
     hardware::SharedPwm,
-    modulecore::{Module, ModuleCore},
+    modulecore::{Module, ModuleCore, ModuleError},
 };
 use crate::module::range_finder::Rangefinder;
 use crate::module::servomodule::ServoModule;
@@ -14,7 +15,7 @@ use pinora_protocol::{
     command::ModuleCommand,
     global_definitions::ModuleType,
     module_event::{LogPriority, ModuleEvent, SysLogEvent},
-    registration::{ProtocolMessage, Registration},
+    registration::ProtocolMessage,
 };
 use pwm_pca9685::Channel;
 const POINTS_PER_CHUNK: usize = 100;
@@ -57,7 +58,7 @@ impl<'d> Lidar<'d> {
         rangefinder_i2c: RcDevice<I2cDriver<'d>>,
         sender: SyncSender<ProtocolMessage>,
     ) -> anyhow::Result<Lidar<'d>> {
-        let mc = ModuleCore::new(ModuleType::Lidar, &manuel_id, sender.clone());
+        let mc = ModuleCore::new(ModuleType::Lidar, &manuel_id, None, sender.clone());
         let config = ServoCapability {
             max_angle: 180,
             min_angle: 0,
@@ -123,13 +124,6 @@ impl<'d> Lidar<'d> {
                 }));
             }
         }
-        new_lidar.Registration(Registration {
-            id: new_lidar.id().to_string(),
-            lool_up_id: manuel_id.clone(),
-            module_type: ModuleType::Lidar,
-            parent_id: String::new(),
-        });
-
         new_lidar.curr_point_bottom = new_lidar.max_point.clone();
         new_lidar.move_to_point();
         new_lidar.curr_point_bottom = new_lidar.min_point.clone();
@@ -147,8 +141,6 @@ impl<'d> Lidar<'d> {
 
         Ok(new_lidar)
     }
-
-    pub fn tick(&mut self) {}
 
     fn flush_point_map(&mut self) {
         if self.point_map.is_empty() {
@@ -193,19 +185,28 @@ impl<'d> Lidar<'d> {
 }
 
 impl<'d> Module for Lidar<'d> {
+    fn register(&self) -> Result<(), EmitterError> {
+        self.emit_registration()?;
+        self.servo_x.register()?;
+        self.servo_y.register()?;
+        self.rangefinder.register()?;
+        Ok(())
+    }
+
     fn core(&self) -> &ModuleCore {
         &self.core
     }
-    fn tick(&mut self) -> Result<(), ()> {
+    fn tick(&mut self) -> Result<(), ModuleError> {
         if self.curr_scan_mode != ScanState::Scanning {
             return Ok(());
         }
 
         let range_botton = match self.rangefinder.get_range() {
-            Some(r) => r,
-            None => {
+            Ok(Some(r)) => r,
+            Ok(None) => {
                 return Ok(());
             }
+            Err(error) => return Err(error),
         };
 
         //  let range_top = match self.rangefinder_top.get_range() {

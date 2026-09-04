@@ -1,11 +1,10 @@
 use crate::core::emitter::Emitter;
 use crate::core::hardware::RangefinderI2c;
-use crate::core::modulecore::{Module, ModuleCore};
+use crate::core::modulecore::{Module, ModuleCore, ModuleError};
 use pinora_protocol::{
     command::ModuleCommand,
     global_definitions::ModuleType,
     module_event::{LogPriority, ModuleEvent, SysLogEvent},
-    registration::Registration,
 };
 use vl53l1x_uld::{DistanceMode, IOVoltage, RangeStatus, DEFAULT_ADDRESS, VL53L1X};
 
@@ -45,7 +44,7 @@ impl<'d> Rangefinder<'d> {
             .map_err(|error| anyhow::anyhow!("VL53L1X initialization failed: {error:?}"))?;
 
         let rangefinder = Self {
-            core: ModuleCore::new(ModuleType::Rangefinder, &manual_id, sender),
+            core: ModuleCore::new(ModuleType::Rangefinder, &manual_id, cluster_id, sender),
             sensor,
             range_mm: 0,
             is_ranging: false,
@@ -53,13 +52,6 @@ impl<'d> Rangefinder<'d> {
             inter_measurement_ms: 60,
             distance_mode: DistanceMode::Long,
         };
-
-        rangefinder.registration(Registration {
-            id: rangefinder.id().to_string(),
-            module_type: ModuleType::Rangefinder,
-            lool_up_id: manual_id,
-            parent_id: cluster_id.unwrap_or_default(),
-        });
 
         Ok(rangefinder)
     }
@@ -104,7 +96,7 @@ impl<'d> Rangefinder<'d> {
         Ok(())
     }
 
-    pub fn get_range(&mut self) -> Option<u16> {
+    pub fn get_range(&mut self) -> Result<Option<u16>, ModuleError> {
         let ready = match self.sensor.is_data_ready() {
             Ok(ready) => ready,
             Err(error) => {
@@ -114,12 +106,12 @@ impl<'d> Rangefinder<'d> {
                     priority: LogPriority::Critical,
                 }));
 
-                return None;
+                return Err(ModuleError::OperationFailed);
             }
         };
 
         if !ready {
-            return None;
+            return Ok(None);
         }
 
         let status = match self.sensor.get_range_status() {
@@ -130,7 +122,7 @@ impl<'d> Rangefinder<'d> {
                     raw_err: Some(format!("{error:?}")),
                     priority: LogPriority::Critical,
                 }));
-                return None;
+                return Err(ModuleError::OperationFailed);
             }
         };
 
@@ -143,7 +135,7 @@ impl<'d> Rangefinder<'d> {
                     priority: LogPriority::Critical,
                 }));
 
-                return None;
+                return Err(ModuleError::OperationFailed);
             }
         };
 
@@ -154,7 +146,7 @@ impl<'d> Rangefinder<'d> {
                 priority: LogPriority::Critical,
             }));
 
-            return None;
+            return Err(ModuleError::OperationFailed);
         }
 
         if status != RangeStatus::Valid {
@@ -163,29 +155,32 @@ impl<'d> Rangefinder<'d> {
                 raw_err: None,
                 priority: LogPriority::Critical,
             }));
-            return None;
+            return Err(ModuleError::OperationFailed);
         }
         self.range_mm = distance;
 
-        Some(self.range_mm)
+        Ok(Some(self.range_mm))
     }
 }
 
 impl<'d> Module for Rangefinder<'d> {
-    fn  tick(&mut self)->Result<() , ()> {
+    fn tick(&mut self) -> Result<(), ModuleError> {
         if !self.is_ranging {
-            return  Err(());
+            return Ok(());
         }
         match self.get_range() {
-            Some(rang) => {
+            Ok(Some(rang)) => {
                 self.emit(ModuleEvent::Rangefinder(RangefinderEvent::Range {
                     id: self.id().to_string(),
                     millimeters: rang,
                 }));
                 
             }
-            None => {
-                return  Err(());
+            Ok(None) => {
+                return Ok(());
+            }
+            Err(error) => {
+                return Err(error);
             }
         }
 
