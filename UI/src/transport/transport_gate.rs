@@ -92,6 +92,19 @@ impl Transport {
             None => TransportType::None,
         }
     }
+
+    pub fn send_command(&mut self, command: &str) -> Result<(), TransportError> {
+        match &mut self.core {
+            Some(TransportCore::Serial(serial_transport)) => serial_transport.send_command(command),
+            Some(TransportCore::Wifi(wifi_transport)) => wifi_transport.send_command(command),
+            Some(TransportCore::Bluetooth(bluetooth_transport)) => bluetooth_transport.send_command(command),
+            None => Err(TransportError::ConnectionFailed {
+                message: "No transport set".to_string(),
+                raw_error: None,
+            }),
+        }
+    }
+
 }
 
 impl Default for Transport {

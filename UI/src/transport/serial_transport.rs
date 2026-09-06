@@ -69,14 +69,32 @@ impl SerialTransport {
                 raw_error: None,
             });
         }
-        let port = serialport::new(self.name.clone(), self.rate)
+        let mut port = serialport::new(self.name.clone(), self.rate)
             .timeout(Duration::from_millis(10))
             .open()
             .map_err(|e| TransportError::ConnectionFailed {
                 message: "Failed to open serial port".to_string(),
                 raw_error: Some(e.to_string()),
             })?;
+        port.write_data_terminal_ready(false)
+            .map_err(|e| TransportError::ConnectionFailed {
+                message: "Failed to set DTR".to_string(),
+                raw_error: Some(e.to_string()),
+            })?;
 
+        port.write_request_to_send(true)
+            .map_err(|e| TransportError::ConnectionFailed {
+                message: "Failed to assert RTS".to_string(),
+                raw_error: Some(e.to_string()),
+            })?;
+
+        std::thread::sleep(Duration::from_millis(100));
+
+        port.write_request_to_send(false)
+            .map_err(|e| TransportError::ConnectionFailed {
+                message: "Failed to release RTS".to_string(),
+                raw_error: Some(e.to_string()),
+            })?;
         let mut reader_port = port
             .try_clone()
             .map_err(|e| TransportError::ConnectionFailed {
@@ -117,6 +135,52 @@ impl SerialTransport {
             transport_type: Some(TransportType::Serial),
             error: None,
         })
+    }
+
+    pub fn send_command(&mut self, command: &str) -> Result<(), TransportError> {
+        if let Some(serial) = &mut self.serial {
+            serial
+                .write_all(command.as_bytes())
+                .map_err(|e| TransportError::ConnectionFailed {
+                    message: "Failed to send command".to_string(),
+                    raw_error: Some(e.to_string()),
+                })?;
+            serial
+                .flush()
+                .map_err(|e| TransportError::ConnectionFailed {
+                    message: "Failed to flush serial port".to_string(),
+                    raw_error: Some(e.to_string()),
+                })?;
+            Ok(())
+        } else {
+            Err(TransportError::ConnectionFailed {
+                message: "Serial port not connected".to_string(),
+                raw_error: None,
+            })
+        }
+    }
+
+    fn esp_start(&mut self) -> Result<(), TransportError> {
+        if let Some(serial) = &mut self.serial {
+            serial
+                .write_all(b"esp_start")
+                .map_err(|e| TransportError::ConnectionFailed {
+                    message: "Failed to send esp_start command".to_string(),
+                    raw_error: Some(e.to_string()),
+                })?;
+            serial
+                .flush()
+                .map_err(|e| TransportError::ConnectionFailed {
+                    message: "Failed to flush serial port".to_string(),
+                    raw_error: Some(e.to_string()),
+                })?;
+            Ok(())
+        } else {
+            Err(TransportError::ConnectionFailed {
+                message: "Serial port not connected".to_string(),
+                raw_error: None,
+            })
+        }
     }
 }
 

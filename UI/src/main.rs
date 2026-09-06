@@ -15,8 +15,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     let ui = AppWindow::new()?;
 
     let transport_gateway = Arc::new(Mutex::new(Transport::new()));
-
-    let controller = Mutex::new(ModuleController::new(&ui));
+      let transport = Arc::clone(&transport_gateway);
+    let controller = Mutex::new(
+        ModuleController::new(
+            &ui,
+            Arc::new(move |command| {
+               let transport = transport.lock().unwrap();
+               
+                println!("Command received: {}", command);
+            }),
+        )
+    );
     let event_callback: type_box::EventCallback = Arc::new(move |data| {
         let mut controller = controller.lock().unwrap();
 

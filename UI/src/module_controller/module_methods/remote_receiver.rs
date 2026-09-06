@@ -1,5 +1,10 @@
-use crate::{RemoteButton, RemoteReceiverState};
+use std::sync::Arc;
+
+use crate::{
+    AppWindow, ModuleUpdates, RemoteButton, RemoteReceiverState, type_box::CommandsEventCallback,
+};
 use pinora_protocol::{RemoteButton as ProtocolRemoteButton, RemoteButtonEvent};
+use slint::ComponentHandle;
 
 impl From<ProtocolRemoteButton> for RemoteButton {
     fn from(button: ProtocolRemoteButton) -> Self {
@@ -60,7 +65,21 @@ impl From<RemoteButton> for ProtocolRemoteButton {
 }
 
 impl RemoteReceiverState {
-    pub fn new() -> Self {
+    pub fn new(t_command: CommandsEventCallback, ui: slint::Weak<AppWindow>) -> Self {
+        let t_command = Arc::clone(&t_command);
+       
+
+      
+        ui.upgrade_in_event_loop(move |ui| {
+            let updates = ui.global::<ModuleUpdates>();
+            updates.on_remoteReceiverChanged(move |value| { 
+             
+
+                t_command(value.to_string());
+            });
+        })
+        .unwrap();
+
         Self::default()
     }
 

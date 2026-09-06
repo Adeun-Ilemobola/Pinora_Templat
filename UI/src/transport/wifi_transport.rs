@@ -32,4 +32,8 @@ impl WifiTransport {
             error: None,
         })
     }
+    pub fn send_command(&self, command: &str) -> Result<(), TransportError> {
+        // Implement the command sending logic here
+        Ok(())
+    }
 }

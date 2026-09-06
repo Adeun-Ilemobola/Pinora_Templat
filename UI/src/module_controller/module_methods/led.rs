@@ -1,6 +1,6 @@
 use pinora_protocol::LedEvent;
 
-use crate::LedState;
+use crate::{LedState, Unsigned32};
 
 impl LedState {
     pub fn new() -> Self {
@@ -14,5 +14,9 @@ impl LedState {
                 self.brightness = level.into();
             }
         }
+    }
+
+    pub fn set_brightness(&mut self, level: Unsigned32) {
+        self.brightness = level.into();
     }
 }

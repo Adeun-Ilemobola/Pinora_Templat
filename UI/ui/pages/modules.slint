@@ -1,30 +1,40 @@
-import { VerticalBox , ScrollView, GridBox } from "std-widgets.slint";
+import { VerticalBox, ScrollView } from "std-widgets.slint";
+
 import { Card } from "../components/card.slint";
 import { Theme } from "../shared/theme.slint";
 import { ModuleView } from "../shared/types.slint";
-import { DisplayCore  } from "../components/ModuleView/module-display.slint";
+import { DisplayCore } from "../components/ModuleView/module-display.slint";
+
 export component ModulesPage inherits Rectangle {
     background: Theme.background;
-    in-out property <[ModuleView]> module-list;
-    ScrollView {
 
-    if module-list.length > 0 : GridBox{
-        for module in module-list: DisplayCore {
+    in-out property <[ModuleView]> module-list;
+
+    
+
+    if module-list.length > 0 : scroll := FlexboxLayout  {
+        width: parent.width;
+        height: parent.height;
+      
+        for module in root.module-list : DisplayCore {
             modData <=> module;
         }
     }
+
     if module-list.length == 0 : VerticalBox {
         padding: 28px;
         spacing: 22px;
 
         VerticalBox {
             spacing: 4px;
+
             Text {
                 text: "Modules";
                 color: Theme.text;
                 font-size: 28px;
                 font-weight: 750;
             }
+
             Text {
                 text: "Registered ESP32 modules will be managed here.";
                 color: Theme.text-muted;
@@ -58,7 +68,8 @@ export component ModulesPage inherits Rectangle {
             }
         }
 
-        Rectangle { vertical-stretch: 1; }
+        Rectangle {
+            vertical-stretch: 1;
+        }
     }
-}
 }

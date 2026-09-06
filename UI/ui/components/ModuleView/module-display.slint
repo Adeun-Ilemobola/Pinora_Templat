@@ -1,6 +1,7 @@
-import { VerticalBox } from "std-widgets.slint";
+import { VerticalBox, Button } from "std-widgets.slint";
 import { ModuleView, UiModuleType } from "../../shared/types.slint";
 import { Card } from "../card.slint";
+
 import {
     RemoteReceiverState,
     RemoteButton
@@ -17,8 +18,17 @@ export component RemoteReceiverView inherits Card {
     changed update-revision => {
         if ModuleUpdates.remote-receiver-id == root.module-id {
             root.state = ModuleUpdates.remote-receiver-state;
+            root.state.id = ModuleUpdates.remote-receiver-id;
         }
     }
+    callback get-id() -> string;
+
+    get-id => {
+        root.module-id
+    }
+
+   
+    
 
     function ButtonToString(b: RemoteButton) -> string {
         if (b == RemoteButton.Power) { return "Power"; }
@@ -47,12 +57,45 @@ export component RemoteReceiverView inherits Card {
     }
 
     VerticalBox {
-        padding: 2px;
+        padding: 12px;
+        VerticalBox {
+            spacing: 3px;
 
-        Text {
-            text: ButtonToString(root.state.key);
-            font-size: 24px;
+            Text {
+                text: "Remote Receiver";
+                font-size: 19px;
+                width: self.preferred-width;
+                height: self.preferred-height;
+            }
+            Text {
+                text: root.module-id;
+                font-size: 10px;
+                color: #88888892;
+                                width: self.preferred-width;
+                height: self.preferred-height;
+            }
         }
+        div := Rectangle{
+            height: 1.2px;
+            background: #88888892;
+        }
+
+       ButtonTez := Text {
+            text: ButtonToString(root.state.key);
+            font-size: 25px;
+            // width: self.preferred-width;
+            // height: self.preferred-height;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+        Button {
+            text: "test";
+            clicked => {
+                ModuleUpdates.remoteReceiverChanged(module-id)
+            }
+        }
+
+    
     }
 }
 
@@ -60,6 +103,9 @@ export component DisplayCore {
     in property <ModuleView> modData;
 
     if modData.module-type == UiModuleType.RemoteReceiver : RemoteReceiverView {
+         x: 0px;
+        y: 0px;
+       
         module-id: modData.id;
     }
 }

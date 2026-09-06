@@ -4,6 +4,10 @@ import { SystemStatusCard } from "../components/system-status-card.slint";
 import { DashboardSummary } from "../components/dashboard-summary.slint";
 import { ConnectionTypeS, TransportTypeS } from "../shared/types.slint";
 import { Theme } from "../shared/theme.slint";
+import { Card } from "../components/card.slint";
+
+
+
 
 component DashboardCards inherits Rectangle {
     in property <bool> stacked: false;
@@ -18,6 +22,8 @@ component DashboardCards inherits Rectangle {
     in-out property <string> wifi-password;
     in-out property <string> bluetooth-name;
     in-out property <string> bluetooth-pin;
+    
+    
 
     in property <string> esp-idf-version;
     in property <string> total-heap;
@@ -103,8 +109,8 @@ export component DashboardPage inherits Rectangle {
     background: Theme.background;
 
     dashboard-scroll := ScrollView {
-        viewport-width: self.visible-width;
-        viewport-height: root.stacked-layout ? 1304px : 878px;
+        content-width: self.visible-width;
+        content-height: root.stacked-layout ? 1304px : 878px;
         horizontal-scrollbar-policy: ScrollBarPolicy.always-off;
 
         dashboard-content := VerticalBox {

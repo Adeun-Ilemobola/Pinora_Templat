@@ -1,6 +1,7 @@
 pub mod module_definition;
 mod module_methods;
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use pinora_protocol::{
     ButtonEvent, ImuEvent, LedEvent, LogPriority, ModuleEvent, ModuleType, ProtocolMessage,
@@ -13,6 +14,7 @@ use crate::module_controller::module_definition::{
     ButtonState, ImuState, LedState, LidarState, ModuleState, RangefinderState,
     RemoteReceiverState, RfidState, ServoState, StepperMotorState, SysLogState,
 };
+use crate::type_box::CommandsEventCallback;
 use crate::ui_bridge::publication::{
     publish_dashboard_counts, publish_module_list, publish_remote_receiver, publish_system_info,
 };
@@ -23,15 +25,17 @@ pub struct ModuleController {
     registered_module_ids: HashSet<String>,
     total_errors: u32,
     ui: slint::Weak<AppWindow>,
+    t_command: CommandsEventCallback,
 }
 
 impl ModuleController {
-    pub fn new(ui: &AppWindow) -> Self {
+    pub fn new(ui: &AppWindow, t_command: CommandsEventCallback) -> Self {
         ModuleController {
             collections: HashMap::new(),
             registered_module_ids: HashSet::new(),
             total_errors: 0,
             ui: ui.as_weak(),
+            t_command,
         }
     }
 
@@ -62,7 +66,7 @@ impl ModuleController {
                     }
                     ModuleType::Rfid => Some(ModuleState::Rfid(RfidState::new())),
                     ModuleType::RemoteReceiver => {
-                        Some(ModuleState::RemoteReceiver(RemoteReceiverState::new()))
+                        Some(ModuleState::RemoteReceiver(RemoteReceiverState::new( Arc::clone(&self.t_command) , self.ui.clone())))
                     }
                     ModuleType::LedCluster | ModuleType::JoyStick => None,
                 };
@@ -148,6 +152,7 @@ impl ModuleController {
         publish_dashboard_counts(&self.ui, module_count, error_count);
     }
 
+   
     pub fn build_ui_module(&self) -> Vec<ModuleView> {
         let mut ui_list = Vec::new();
 
@@ -176,4 +181,6 @@ impl ModuleController {
 
         ui_list
     }
+
+
 }
