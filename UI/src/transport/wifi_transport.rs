@@ -1,6 +1,7 @@
 use crate::transport::transport_type::{
     ConnectionState, ConnectionType, TransportError, TransportType,
 };
+use pinora_protocol::{IncomingCommand, ModuleCommand};
 
 pub struct WifiTransport {
     ssid: String,
@@ -32,7 +33,7 @@ impl WifiTransport {
             error: None,
         })
     }
-    pub fn send_command(&self, command: &str) -> Result<(), TransportError> {
+    pub fn send_command(&self, command: IncomingCommand) -> Result<(), TransportError> {
         // Implement the command sending logic here
         Ok(())
     }

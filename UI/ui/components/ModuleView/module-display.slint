@@ -6,19 +6,21 @@ import {
     RemoteReceiverState,
     RemoteButton
 } from "../../module_definitions/remote_receiver.slint";
-import { ModuleUpdates } from "../../shared/module-updates.slint";
+import { RemoteReceiverUpdates } from "../../module_definitions/remote_receiver.slint";
+import { LedView } from "../../module_definitions/led.slint";
+
 
 export component RemoteReceiverView inherits Card {
     width: 350px;
     height: 200px;
     in property <string> module-id;
     private property <RemoteReceiverState> state;
-    private property <int> update-revision: ModuleUpdates.remote-receiver-revision;
+    private property <int> update-revision: RemoteReceiverUpdates.remote-receiver-revision;
 
     changed update-revision => {
-        if ModuleUpdates.remote-receiver-id == root.module-id {
-            root.state = ModuleUpdates.remote-receiver-state;
-            root.state.id = ModuleUpdates.remote-receiver-id;
+        if RemoteReceiverUpdates.remote-receiver-id == root.module-id {
+            root.state = RemoteReceiverUpdates.remote-receiver-state;
+            root.state.id = RemoteReceiverUpdates.remote-receiver-id;
         }
     }
     callback get-id() -> string;
@@ -91,7 +93,7 @@ export component RemoteReceiverView inherits Card {
         Button {
             text: "test";
             clicked => {
-                ModuleUpdates.remoteReceiverChanged(module-id)
+                RemoteReceiverUpdates.remoteReceiverChanged(module-id)
             }
         }
 
@@ -102,10 +104,19 @@ export component RemoteReceiverView inherits Card {
 export component DisplayCore {
     in property <ModuleView> modData;
 
-    if modData.module-type == UiModuleType.RemoteReceiver : RemoteReceiverView {
-         x: 0px;
-        y: 0px;
-       
-        module-id: modData.id;
+    // A layout propagates the active conditional view's constraints to the
+    // outer flex item. Bare conditional children don't contribute layout info.
+    VerticalLayout {
+        padding: 0px;
+        spacing: 0px;
+        alignment: start;
+
+        if modData.module-type == UiModuleType.RemoteReceiver : RemoteReceiverView {
+            module-id: modData.id;
+        }
+
+        if modData.module-type == UiModuleType.Led : LedView {
+            module-id: modData.id;
+        }
     }
 }

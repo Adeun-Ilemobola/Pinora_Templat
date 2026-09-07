@@ -10,14 +10,29 @@ export component ModulesPage inherits Rectangle {
 
     in-out property <[ModuleView]> module-list;
 
-    
-
-    if module-list.length > 0 : scroll := FlexboxLayout  {
+    if module-list.length > 0 : scroll := ScrollView {
         width: parent.width;
         height: parent.height;
-      
-        for module in root.module-list : DisplayCore {
-            modData <=> module;
+
+        // Wrap at the visible width. Preserve access to an individual module
+        // whose own minimum width is larger than the available viewport.
+        content-width: max(self.visible-width, modules.min-width);
+        content-height: max(self.visible-height, modules.preferred-height);
+
+        modules := FlexboxLayout {
+            width: scroll.content-width;
+            height: self.preferred-height;
+            padding: 4px;
+            spacing: 12px;
+            flex-direction: row;
+            flex-wrap: wrap;
+            alignment: start;
+            cross-axis-alignment: start;
+            cross-axis-line-alignment: start;
+
+            for module in root.module-list : DisplayCore {
+                modData <=> module;
+            }
         }
     }
 

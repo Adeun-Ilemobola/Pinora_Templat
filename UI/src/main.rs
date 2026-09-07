@@ -16,16 +16,17 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let transport_gateway = Arc::new(Mutex::new(Transport::new()));
       let transport = Arc::clone(&transport_gateway);
-    let controller = Mutex::new(
+    let controller = Arc::new(Mutex::new(
         ModuleController::new(
             &ui,
             Arc::new(move |command| {
-               let transport = transport.lock().unwrap();
+               let mut transport = transport.lock().unwrap();
+               let _ = transport.send_command(command.clone()).map_err(|e| println!("Failed to send command: {:?}", e));
                
-                println!("Command received: {}", command);
+              
             }),
         )
-    );
+    ));
     let event_callback: type_box::EventCallback = Arc::new(move |data| {
         let mut controller = controller.lock().unwrap();
 

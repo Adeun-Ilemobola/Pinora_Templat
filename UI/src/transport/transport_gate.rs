@@ -1,3 +1,5 @@
+use pinora_protocol::{IncomingCommand, ModuleCommand};
+
 use crate::{
     transport::{
         bluetooth_transport::BluetoothTransport,
@@ -93,7 +95,7 @@ impl Transport {
         }
     }
 
-    pub fn send_command(&mut self, command: &str) -> Result<(), TransportError> {
+    pub fn send_command(&mut self, command: IncomingCommand) -> Result<(), TransportError> {
         match &mut self.core {
             Some(TransportCore::Serial(serial_transport)) => serial_transport.send_command(command),
             Some(TransportCore::Wifi(wifi_transport)) => wifi_transport.send_command(command),

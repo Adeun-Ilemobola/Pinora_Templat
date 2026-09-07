@@ -27,3 +27,13 @@ export struct RemoteReceiverState {
     id: string,
     key: RemoteButton,
 }
+
+export global RemoteReceiverUpdates {
+  
+    in-out property <string> remote-receiver-id;
+    in-out property <RemoteReceiverState> remote-receiver-state;
+    in-out property <int> remote-receiver-revision: 0;
+    callback remoteReceiverChanged(string);
+
+    
+}

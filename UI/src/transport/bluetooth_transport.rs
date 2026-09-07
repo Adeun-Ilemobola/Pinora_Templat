@@ -1,6 +1,7 @@
 use crate::transport::transport_type::{
     ConnectionState, ConnectionType, TransportError, TransportType,
 };
+use pinora_protocol::{IncomingCommand, ModuleCommand};
 
 pub struct BluetoothTransport {
     device_name: String,
@@ -38,7 +39,7 @@ impl BluetoothTransport {
             error: None,
         })
     }
-    pub fn send_command(&self, command: &str) -> Result<(), TransportError> {
+    pub fn send_command(&self, command: IncomingCommand) -> Result<(), TransportError> {
         // Implement the command sending logic here
         Ok(())
     }

@@ -5,12 +5,15 @@ pub mod utilities;
 use crate::core::emitter::Emitter;
 use crate::core::hardware::*;
 use crate::core::modulecore::Module;
+use crate::module::ledmodule::Ledmodule;
 use crate::module::remote_receiver::RemoteReceiverButton;
 use pinora_protocol::command::IncomingCommand;
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::io;
 use std::io::{BufRead, ErrorKind};
+use std::rc::Rc;
 use std::sync::mpsc;
-use std::collections::HashMap;
 
 type ModuleHandle<'a> = Box<dyn Module + 'a>;
 
@@ -52,12 +55,12 @@ fn main() -> anyhow::Result<()> {
     let mut modules: HashMap<String, ModuleHandle<'_>> = HashMap::new();
     let p = Peripherals::take()?;
     let mut last_yield_us = now_us();
-    // let i2c = I2cDriver::new(
-    //     p.i2c0,
-    //     p.pins.gpio21,
-    //     p.pins.gpio22,
-    //     &I2cConfig::new().baudrate(100.kHz().into()),
-    // )?;
+    let i2c = I2cDriver::new(
+        p.i2c0,
+        p.pins.gpio21,
+        p.pins.gpio22,
+        &I2cConfig::new().baudrate(100.kHz().into()),
+    )?;
     // MRC522 RST      -> GPIO 16
 
     //    LEFT                                      RIGHT
@@ -65,10 +68,11 @@ fn main() -> anyhow::Result<()> {
     //│ SDA │ SCK │ MOSI │ MISO │ IRQ │ GND │ RST │ 3.3V │
     //└──────────────────────────────────────────────┘
 
-    // let shared_i2c = Rc::new(RefCell::new(i2c));
+    let shared_i2c = Rc::new(RefCell::new(i2c));
     // let shared_spi = Rc::new(RefCell::new(spi));
 
-    // let hardware = HardwareContext::new(p.ledc.timer0, shared_i2c.clone())?;
+    let hardware = HardwareContext::new(p.ledc.timer0, shared_i2c.clone())?;
+    let shared = Rc::new(RefCell::new(hardware));
     // let rangefinder_i2c = RcDevice::new(hardware.i2c_bus.clone());
 
     // let lidar = Rc::new(RefCell::new(Lidar::new(
@@ -80,15 +84,15 @@ fn main() -> anyhow::Result<()> {
     // let lidar_id = lidar.borrow().get_id();
     // modules.insert(lidar_id, lidar.clone());
 
-    let remote_receiver = RemoteReceiverButton::new(
-        InputPinCore::new(p.pins.gpio12, Pull::UpDown)
-            .map_err(|err| anyhow::anyhow!("{err:?}"))?,
-        "er".to_string(),
-        sync_sender.clone(),
-    )
-    .map_err(|err| anyhow::anyhow!("{err:?}"))?;
-    let remote_receiver_id = remote_receiver.id().to_owned();
-    modules.insert(remote_receiver_id, Box::new(remote_receiver));
+    // let remote_receiver = RemoteReceiverButton::new(
+    //     InputPinCore::new(p.pins.gpio12, Pull::UpDown)
+    //         .map_err(|err| anyhow::anyhow!("{err:?}"))?,
+    //     "er".to_string(),
+    //     sync_sender.clone(),
+    // )
+    // .map_err(|err| anyhow::anyhow!("{err:?}"))?;
+    // let remote_receiver_id = remote_receiver.id().to_owned();
+    // modules.insert(remote_receiver_id, Box::new(remote_receiver));
 
     // const MPU_ADDRESS: u8 = 0x68;
     // let imu_i2c = RcDevice::new(shared_i2c.clone());
@@ -112,6 +116,56 @@ fn main() -> anyhow::Result<()> {
 
     // modules.insert(rfid.borrow().id().to_owned(), rfid.clone());
 
+    let led1 = {
+        let hardware = shared.borrow();
+
+        Ledmodule::new(
+            p.pins.gpio12,
+            p.ledc.channel0,
+            "led1".to_string(),
+            &hardware.led_timer,
+            None,
+            sync_sender.clone(),
+        )?
+    };
+    let led1_id = led1.id().to_owned();
+    modules.insert(led1_id, Box::new(led1));
+
+
+    let led2 = {
+        let hardware = shared.borrow();
+
+        Ledmodule::new(
+            p.pins.gpio14,
+            p.ledc.channel1,
+            "led2".to_string(),
+            &hardware.led_timer,
+            None,
+            sync_sender.clone(),
+        )?
+    };
+
+    let led2_id = led2.id().to_owned();
+    modules.insert(led2_id, Box::new(led2));
+
+
+    let led3 = {
+        let hardware = shared.borrow();
+
+        Ledmodule::new(
+            p.pins.gpio27,
+            p.ledc.channel2,
+            "led3".to_string(),
+            &hardware.led_timer,
+            None,
+            sync_sender.clone(),
+        )?
+    };
+
+    let led3_id = led3.id().to_owned();
+    modules.insert(led3_id, Box::new(led3));
+
+
     for module in modules.values() {
         module.register()?;
     }
@@ -129,6 +183,7 @@ fn main() -> anyhow::Result<()> {
         if let Ok(command) = command_receiver.try_recv() {
             if let Some(module) = modules.get_mut(&command.id) {
                 module.handle_command(&command.command)?;
+            } else if command.id == "SSI" {
             } else {
                 log::error!(
                     "No top-level module found for command id={} command={:?}",
@@ -138,7 +193,7 @@ fn main() -> anyhow::Result<()> {
             }
         }
         let now = now_us();
-        
+
         if now - last_yield_us >= 650_000.0 {
             rtos_sleep_ms(1);
             last_yield_us = now_us();

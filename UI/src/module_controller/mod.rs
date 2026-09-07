@@ -16,7 +16,7 @@ use crate::module_controller::module_definition::{
 };
 use crate::type_box::CommandsEventCallback;
 use crate::ui_bridge::publication::{
-    publish_dashboard_counts, publish_module_list, publish_remote_receiver, publish_system_info,
+    publish_dashboard_counts, publish_module_list, publish_system_info,
 };
 use crate::{ModuleView, UiModuleType};
 
@@ -53,7 +53,10 @@ impl ModuleController {
                 let module_id = registration.id;
                 let state = match registration.module_type {
                     ModuleType::Servo => Some(ModuleState::Servo(ServoState::new())),
-                    ModuleType::Led => Some(ModuleState::Led(LedState::new())),
+                    ModuleType::Led => Some(ModuleState::Led(LedState::new(
+                        Arc::clone(&self.t_command),
+                        self.ui.clone(),
+                    ))),
                     ModuleType::Imu => Some(ModuleState::Imu(ImuState::new())),
                     ModuleType::Button => Some(ModuleState::Button(ButtonState::new())),
                     ModuleType::Lidar => Some(ModuleState::Lidar(LidarState::new())),
@@ -65,18 +68,19 @@ impl ModuleController {
                         Some(ModuleState::StepperMotor(StepperMotorState::new()))
                     }
                     ModuleType::Rfid => Some(ModuleState::Rfid(RfidState::new())),
-                    ModuleType::RemoteReceiver => {
-                        Some(ModuleState::RemoteReceiver(RemoteReceiverState::new( Arc::clone(&self.t_command) , self.ui.clone())))
-                    }
+                    ModuleType::RemoteReceiver => Some(ModuleState::RemoteReceiver(
+                        RemoteReceiverState::new(Arc::clone(&self.t_command), self.ui.clone()),
+                    )),
                     ModuleType::LedCluster | ModuleType::JoyStick => None,
                 };
 
                 if let Some(state) = state {
                     self.collections.insert(module_id.clone(), state);
+                    self.registered_module_ids.insert(module_id);
+                    self.publish_dashboard_counts();
+                    publish_module_list(&self.ui, self.build_ui_module());
+                   
                 }
-                self.registered_module_ids.insert(module_id);
-                self.publish_dashboard_counts();
-                publish_module_list(&self.ui, self.build_ui_module());
             }
             ProtocolMessage::System(system_info) => {
                 publish_system_info(&self.ui, system_info);
@@ -105,12 +109,15 @@ impl ModuleController {
         };
 
         match (state, event) {
-            (ModuleState::Led(state), ModuleEvent::Led(event)) => state.update(event),
+            (ModuleState::Led(state), ModuleEvent::Led(event)) => {
+                state.update(event);
+                state.publish(&self.ui);
+            }
             (ModuleState::Button(state), ModuleEvent::Button(event)) => state.update(event),
             (ModuleState::SysLog(state), ModuleEvent::SysLog(event)) => state.update(event),
             (ModuleState::RemoteReceiver(state), ModuleEvent::RemoteReceiver(event)) => {
                 state.update(event);
-                publish_remote_receiver(&self.ui, state.clone());
+                state.publish(&self.ui);
             }
             (ModuleState::StepperMotor(state), ModuleEvent::StepperMotor(event)) => {
                 state.update(event);
@@ -152,7 +159,6 @@ impl ModuleController {
         publish_dashboard_counts(&self.ui, module_count, error_count);
     }
 
-   
     pub fn build_ui_module(&self) -> Vec<ModuleView> {
         let mut ui_list = Vec::new();
 
@@ -179,8 +185,10 @@ impl ModuleController {
             ui_list.push(ui_module);
         }
 
+        for m in ui_list.iter() {
+            println!("UI module: {:?}", m);
+        }
+
         ui_list
     }
-
-
 }

@@ -2,6 +2,7 @@ use crate::{
     transport::transport_type::{ConnectionState, ConnectionType, TransportError, TransportType},
     type_box::EventCallback,
 };
+use pinora_protocol::{IncomingCommand, ModuleCommand, command};
 use serialport::SerialPort;
 use std::sync::{
     Arc,
@@ -137,10 +138,16 @@ impl SerialTransport {
         })
     }
 
-    pub fn send_command(&mut self, command: &str) -> Result<(), TransportError> {
+    pub fn send_command(&mut self, command: IncomingCommand) -> Result<(), TransportError> {
+        println!(" [SerialTransport] <-> [send_command ]Sending command: {:?}", command);
+        let command_bytes = serde_json::to_string(&command).map_err(|e| TransportError::ConnectionFailed {
+            message: "Failed to serialize command".to_string(),
+            raw_error: Some(e.to_string()),
+        })?;
+        let command_bytes = command_bytes + "\n";
         if let Some(serial) = &mut self.serial {
             serial
-                .write_all(command.as_bytes())
+                .write_all(command_bytes.as_bytes())
                 .map_err(|e| TransportError::ConnectionFailed {
                     message: "Failed to send command".to_string(),
                     raw_error: Some(e.to_string()),
@@ -160,28 +167,6 @@ impl SerialTransport {
         }
     }
 
-    fn esp_start(&mut self) -> Result<(), TransportError> {
-        if let Some(serial) = &mut self.serial {
-            serial
-                .write_all(b"esp_start")
-                .map_err(|e| TransportError::ConnectionFailed {
-                    message: "Failed to send esp_start command".to_string(),
-                    raw_error: Some(e.to_string()),
-                })?;
-            serial
-                .flush()
-                .map_err(|e| TransportError::ConnectionFailed {
-                    message: "Failed to flush serial port".to_string(),
-                    raw_error: Some(e.to_string()),
-                })?;
-            Ok(())
-        } else {
-            Err(TransportError::ConnectionFailed {
-                message: "Serial port not connected".to_string(),
-                raw_error: None,
-            })
-        }
-    }
 }
 
 impl Drop for SerialTransport {

@@ -3,7 +3,7 @@ use std::rc::Rc;
 use pinora_protocol::SystemInfo;
 use slint::{ComponentHandle, VecModel};
 
-use crate::{AppWindow, ModuleUpdates, ModuleView, RemoteReceiverState};
+use crate::{AppWindow, ModuleView, RemoteReceiverState, RemoteReceiverUpdates};
 
 pub fn publish_module_list(ui: &slint::Weak<AppWindow>, list: Vec<ModuleView>) {
     let _ = ui.upgrade_in_event_loop(move |ui| {
@@ -31,19 +31,3 @@ pub fn publish_dashboard_counts(ui: &slint::Weak<AppWindow>, module_count: i32, 
     });
 }
 
-pub fn publish_remote_receiver(ui: &slint::Weak<AppWindow>, state: RemoteReceiverState) {
-    let id = state.id.clone();
-    let schedule_result = ui.upgrade_in_event_loop(move |app| {
-        let updates = app.global::<ModuleUpdates>();
-
-        updates.set_remote_receiver_id(id);
-        updates.set_remote_receiver_state(state);
-
-        let revision = updates.get_remote_receiver_revision();
-        updates.set_remote_receiver_revision(revision.wrapping_add(1));
-    });
-
-    if let Err(error) = schedule_result {
-        eprintln!("RemoteReceiver UI scheduling failed: {}", error);
-    }
-}
