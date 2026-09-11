@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { IncomingCommand } from "../IncomingCommand";
+
 import { createStore, StoreApi } from "zustand/vanilla";
 
 export const RangePointSchema = z.object({
@@ -98,7 +98,7 @@ type LidarInstance = {
     id: string;
     kind: string;
     look_up_id: string;
- 
+
 
 }
 
@@ -108,7 +108,7 @@ export interface LidarModule extends LidarInstance {
 
 
 export function createLidar(data: LidarInstance): StoreApi<LidarModule> {
-    return createStore<LidarModule>((set) => ({
+    return createStore<LidarModule>(() => ({
         id: data.id,
         kind: "Lidar",
         look_up_id: data.look_up_id,

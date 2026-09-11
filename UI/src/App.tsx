@@ -1,34 +1,14 @@
-import { useState } from "react";
+import { createHashRouter } from "react-router";
+import { RouterProvider } from "react-router/dom";
+import { AppLayout } from "@/components/AppLayout";
+import Dashboard from "@/page/Dashboard";
 import "./index.css";
-import { TransporForm } from "./components/TransporForm";
-import { useModuleFront } from "./lib/Modulefront";
-import { LedView } from "./lib/Modules/Led";
 
-function App() {
-  const stat = useModuleFront(store =>store.PortStat);
-  return (
-    <main className="bg-background text-foreground min-h-screen flex flex-col ">
-      <h1>Welcome to Tauri + React</h1>
+// Hash routing works with Tauri's asset URLs without a server fallback.
+const router = createHashRouter([
+  { path: "/", Component: AppLayout, children: [{ index: true, Component: Dashboard }] },
+]);
 
-      <TransporForm />
-
-      {stat === "Connected" && <>
-        <LedView
-          id="led1"
-        />
-        <LedView
-          id="led2"
-        />
-        <LedView
-          id="led3"
-        />
-      </>}
-
-
-      
-      
-    </main>
-  );
+export default function App() {
+  return <RouterProvider router={router} />;
 }
-
-export default App;

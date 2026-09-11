@@ -3,12 +3,12 @@ import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { createLed, LedEvent, type LedModule } from './Modules/Led';
 import { createLidar, LidarEvent, type LidarModule } from './Modules/lidar';
 import { StoreApi } from 'zustand/vanilla'
-import { create, useStore } from 'zustand'
+import { create } from 'zustand'
 import { ModuleType } from "./protocol/module-type";
 import { ProtocolMessage, ProtocolMessageKey, ProtocolMessageValue } from "./protocol/message";
 import { Registration } from "./protocol/registration";
 import { SystemInfo } from "./protocol/system";
-import { EventPackage, ModuleEvent, SysLogEvent } from "./protocol/event";
+import { EventPackage } from "./protocol/event";
 
 
 export type AnyModule = LedModule | LidarModule;
@@ -46,6 +46,8 @@ interface ModuleCoreArchive {
     ModuleRegistry: ModuleRegistry;
     LookUpId: Record<string, string>;
     logs: ProtocolMessage[];
+    systemInfo: SystemInfo | null;
+    clearLogs: () => void;
 
 }
 
@@ -64,7 +66,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
         await get().Disconnect();
         await get().InitializeListeners();
 
-        invoke("start_port", { name: portName, rate: rate })
+        await invoke("start_port", { name: portName, rate: rate })
             .then((result) => {
                 console.log("Connection result:", result);
                 set({ PortError: null, PortStat: "Connected", PortState: { name: portName, rate: rate } });
@@ -77,6 +79,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
             });
     },
     Disconnect: async () => {
+        set({ systemInfo: null });
         try {
             await invoke("stop_port");
 
@@ -84,6 +87,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
 
             set({
                 PortStat: "Disconnected",
+                PortError: null,
                 PortState: {
                     name: "",
                     rate: 0
@@ -139,6 +143,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
 
     },
     HandleEvent: (event: ProtocolMessage) => {
+        set(state => ({ logs: [...state.logs, event] }));
         // Implementation for handling events
         try {
             const key = Object.keys(event)[0] as ProtocolMessageKey;
@@ -154,18 +159,6 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
                 case "System":
                     get().SystemEvent(value as SystemInfo);
                     break;
-            }
-            const logStore = get().logs;
-            if (logStore) {
-                logStore.push(event);
-                // Handle SysLog-specific event here
-            }
-
-
-            for (const [id, store] of Object.entries(
-                useModuleFront.getState().ModuleRegistry
-            )) {
-                console.log(id, store.getState());
             }
         } catch (error) {
             console.error("{HandleEvent} Failed to handle event:", error);
@@ -252,11 +245,13 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
         }
     },
     SystemEvent: (event: SystemInfo) => {
-        console.log("Handling SystemEvent:", event);
+        set({ systemInfo: event });
     },
     ModuleRegistry: {},
     LookUpId: {},
     logs: [] ,
+    systemInfo: null,
+    clearLogs: () => set({ logs: [] }),
     BuildViewCache: (): {id: string, look_up_id: string , kind: string }[] => {
         // Implement the logic to build the view cache here
         return Object.entries(get().LookUpId).map(([look_up_id, id]) => ({

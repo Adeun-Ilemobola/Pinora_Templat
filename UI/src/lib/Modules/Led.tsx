@@ -1,10 +1,12 @@
 
 import { createStore, StoreApi } from 'zustand/vanilla'
-import { getModule } from '../ModuleGeter';
+import { useEffect, useState } from 'react';
 import { useStore } from 'zustand';
 import { useModuleFront } from '../Modulefront';
 import { IncomingCommand } from '../IncomingCommand';
-import { Card , CardContent , CardHeader } from '@/components/ui/card';
+import { ModuleCard } from '@/components/ModuleCard';
+import { Slider } from '@/components/ui/slider';
+import { Badge } from '@/components/ui/badge';
 import { Button } from "@/components/ui/button"
 
 import { z } from "zod";
@@ -80,7 +82,7 @@ export function createLed(data: LedInstance): StoreApi<LedModule> {
         handleEvent: (event : LedEvent) => {
             const [key, value] = Object.entries(event)[0] ;
             // Handle incoming events for the LED module
-           
+
             if (key === "Brightness") {
                 console.log("[LedModule - CORE] Brightness level:", value.level);
                 set({ state: value.level });
@@ -103,26 +105,26 @@ export const LedView = ({ id }: { id: string }) => {
 };
 
 
-const RegisteredLedView = ({ moduleId }: { moduleId: string }) => {
-    const led = getModule(moduleId, "Led") as StoreApi<LedModule>;
+export const RegisteredLedView = ({ moduleId }: { moduleId: string }) => {
+    const store = useModuleFront(state => state.ModuleRegistry[moduleId]);
+    if (!store || store.getState().kind !== "Led") return null;
+    return <LedControls led={store as StoreApi<LedModule>} />;
+};
 
+function LedControls({ led }: { led: StoreApi<LedModule> }) {
     const ledId = useStore(led, state => state.id);
     const value = useStore(led, state => state.state);
     const toggle = useStore(led, state => state.toggle);
-
-    return (
-        <Card className="w-40 h-fit">
-            <CardHeader>
-                LED ID: {ledId}
-            </CardHeader>
-            <CardContent className="w-32 h-fit">
-                State: {value}
-                <div>
-                    <Button onClick={toggle}>
-                        Toggle
-                    </Button>
-                </div>
-            </CardContent>
-        </Card>
-    );
-};
+    const setBrightness = useStore(led, state => state.setBrightness);
+    const connected = useModuleFront(state => state.PortStat === "Connected");
+    const [draft, setDraft] = useState(value);
+    useEffect(() => setDraft(value), [value]);
+    return <ModuleCard type="LED" id={ledId}>
+        <div className="space-y-5">
+            <div className="flex items-center justify-between"><div><p className="text-xs text-muted-foreground">Reported brightness</p><p className="mt-1 text-2xl font-semibold tabular-nums">{value}<span className="ml-1 text-sm text-muted-foreground">%</span></p></div><Badge variant={value > 0 ? "secondary" : "outline"}>{value > 0 ? "On" : "Off"}</Badge></div>
+            {/* Commit once per gesture; device events remain the source of reported state. */}
+            <div className="space-y-3"><div className="flex justify-between text-xs text-muted-foreground"><span>Set brightness</span><span>{draft}%</span></div><Slider aria-label={`Brightness for LED ${ledId}`} min={0} max={100} step={1} value={[draft]} disabled={!connected} onValueChange={v => setDraft(Array.isArray(v) ? v[0] : v)} onValueCommitted={v => setBrightness(Array.isArray(v) ? v[0] : v)} /></div>
+            <Button variant="outline" disabled={!connected} onClick={toggle}>Toggle LED</Button>
+        </div>
+    </ModuleCard>;
+}

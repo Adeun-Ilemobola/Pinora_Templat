@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{module::{ledmodule::LedCommandPayload, rfid::RfidCommand, stepper::{StepperMotorCommandPayload}}};
+use crate::{LidarCommandPayload, RangefinderCommandPayload, ServoCommandPayload, module::{ledmodule::LedCommandPayload, rfid::RfidCommand, stepper::StepperMotorCommandPayload}};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 pub struct IncomingCommand {
@@ -11,9 +11,9 @@ pub struct IncomingCommand {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 pub enum ModuleCommand {
     Led(LedCommandPayload),
-    //Servo(ServoCommandPayload),
-    //Lidar(LidarCommandPayload),
-    // Rangefinder(RangefinderCommandPayload),
+    Servo(ServoCommandPayload),
+    Lidar(LidarCommandPayload),
+    Rangefinder(RangefinderCommandPayload),
     StepperMotor(StepperMotorCommandPayload),
     Rfid(RfidCommand)
 }

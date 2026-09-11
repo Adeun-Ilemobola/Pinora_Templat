@@ -11,7 +11,7 @@ use pinora_protocol::{
 };
 use pwm_pca9685::Channel;
 
-pub use pinora_protocol::modules::servomodule::{
+pub use pinora_protocol::module::servomodule::{
     ServoCapability, ServoCommandPayload, ServoEvent,
 };
 
@@ -170,9 +170,10 @@ impl<'d> ServoModule<'d> {
 }
 
 impl<'d> Module for ServoModule<'d> {
-    fn tick(&mut self) -> Result<(), ModuleError> {
+   fn tick(&mut self) -> Result<(), ModuleError> {
         Ok(())
     }
+
 
     fn core(&self) -> &ModuleCore {
         &self.core

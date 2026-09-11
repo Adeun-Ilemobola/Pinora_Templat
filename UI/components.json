@@ -6,7 +6,7 @@
   "tailwind": {
     "config": "",
     "css": "src/index.css",
-    "baseColor": "olive",
+    "baseColor": "stone",
     "cssVariables": true,
     "prefix": ""
   },
@@ -19,7 +19,7 @@
     "lib": "@/lib",
     "hooks": "@/hooks"
   },
-  "menuColor": "inverted-translucent",
+  "menuColor": "default-translucent",
   "menuAccent": "subtle",
   "registries": {}
 }

@@ -1,6 +1,8 @@
-use std::sync::mpsc::SyncSender;
 
+use crate::core::emitter::Emitter;
 use crate::core::hardware::{I2cDriver, TimerState};
+use pinora_protocol::module::lidar::{LidarEvent, RangPoint, ScanState};
+use pinora_protocol::module::servomodule::ServoCapability;
 
 use crate::core::{
     emitter::EmitterError,
@@ -11,6 +13,7 @@ use crate::module::range_finder::Rangefinder;
 use crate::module::servomodule::ServoModule;
 use embedded_hal_bus::i2c::RcDevice;
 use embedded_hal_compat::ReverseCompat;
+use pinora_protocol::{LidarCommandPayload, Point};
 use pinora_protocol::{
     command::ModuleCommand,
     global_definitions::ModuleType,
@@ -20,10 +23,6 @@ use pinora_protocol::{
 use pwm_pca9685::Channel;
 const POINTS_PER_CHUNK: usize = 100;
 
-pub use pinora_protocol::modules::lidar::{
-    LidarCommandPayload, LidarEvent, Point, RangPoint, ScanState,
-};
-pub use pinora_protocol::modules::servomodule::ServoCapability;
 
 pub struct Lidar<'d> {
     core: ModuleCore,
@@ -56,7 +55,7 @@ impl<'d> Lidar<'d> {
         pwm: SharedPwm<'d>,
         manuel_id: String,
         rangefinder_i2c: RcDevice<I2cDriver<'d>>,
-        sender: SyncSender<ProtocolMessage>,
+         sender: Emitter,
     ) -> anyhow::Result<Lidar<'d>> {
         let mc = ModuleCore::new(ModuleType::Lidar, &manuel_id, None, sender.clone());
         let config = ServoCapability {
@@ -136,7 +135,7 @@ impl<'d> Lidar<'d> {
             min: new_lidar.min_point.clone(),
             max: new_lidar.max_point.clone(),
         }));
-        SysLog::info("-----Lidar start----".to_string(), None);
+        
 
         Ok(new_lidar)
     }
@@ -278,13 +277,7 @@ impl<'d> Module for Lidar<'d> {
         match command {
             ModuleCommand::Lidar(lidar_command) => match lidar_command {
                 LidarCommandPayload::ChangeMotorAngle { id, step } => {
-                    SysLog::info(
-                        format!(
-                            "LiDAR received ChangeMotorAngle: servo_id={}, step={}",
-                            id, step
-                        ),
-                        None,
-                    );
+                   
 
                     if self.servo_x.id() == id {
                         let _ = self.servo_x.set_angle(*step);
@@ -295,10 +288,7 @@ impl<'d> Module for Lidar<'d> {
                     }
                 }
                 LidarCommandPayload::Roi { min, max } => {
-                    SysLog::info(
-                        format!("LiDAR received ROI: min={:?}, max={:?}", min, max),
-                        None,
-                    );
+                    
                     self.min_point = min.clone();
                     self.max_point = max.clone();
                     let total_points = (max.x.abs() as u32 * 2) * (min.y.abs() as u32 * 2);
@@ -311,12 +301,10 @@ impl<'d> Module for Lidar<'d> {
                     }));
                 }
                 LidarCommandPayload::SetStep { step } => {
-                    SysLog::info(format!("LiDAR received SetStep: step={}", step), None);
                     self.step = *step;
                 }
-                LidarCommandPayload::StartScan => {
+                LidarCommandPayload::StartScan {} => {
                     self.scan_time = std::time::Instant::now();
-                    SysLog::info("LiDAR received StartScan".to_string(), None);
                     self.point_map.clear();
                     self.current_chunk = 1;
 
@@ -332,31 +320,22 @@ impl<'d> Module for Lidar<'d> {
                     }));
                 }
 
-                LidarCommandPayload::StopScan => {
-                    SysLog::info("LiDAR received StopScan".to_string(), None);
+                LidarCommandPayload::StopScan {} => {
                     self.curr_scan_mode = ScanState::StopScan;
                     self.emit(ModuleEvent::Lidar(LidarEvent::ScanState {
                         state: self.curr_scan_mode.clone(),
                         scan_time: self.scan_time.elapsed().as_secs_f32(),
                     }));
                 }
-                LidarCommandPayload::Test => {
-                    SysLog::info("LiDAR received Test".to_string(), None);
+                LidarCommandPayload::Test {} => {
                 }
                 LidarCommandPayload::MovePos { p } => {
-                    SysLog::info(format!("LiDAR received MovePos: point={:?}", p), None);
                     self.curr_point_bottom = p.clone();
                     self.move_to_point();
                 }
             },
             _ => {
-                SysLog::error(
-                    format!(
-                        "LiDAR module {} received an incompatible command",
-                        self.id()
-                    ),
-                    Some(format!("Received command: {:?}", command)),
-                );
+                
             }
         }
         Ok(())

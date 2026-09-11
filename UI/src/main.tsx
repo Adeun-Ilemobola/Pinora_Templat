@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import { ThemeProvider } from "@/components/theme-provider"
 
-import { warn, debug, trace, info, error } from '@tauri-apps/plugin-log';
+import { warn, debug, info, error } from '@tauri-apps/plugin-log';
 
 function forwardConsole(
   fnName: 'log' | 'debug' | 'info' | 'warn' | 'error',

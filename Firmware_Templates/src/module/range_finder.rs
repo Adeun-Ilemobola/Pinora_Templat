@@ -8,7 +8,7 @@ use pinora_protocol::{
 };
 use vl53l1x_uld::{DistanceMode, IOVoltage, RangeStatus, DEFAULT_ADDRESS, VL53L1X};
 
-pub use pinora_protocol::modules::range_finder::{
+pub use pinora_protocol::module::range_finder::{
     RangefinderCommandPayload, RangefinderDistanceMode, RangefinderEvent,
 };
 pub struct Rangefinder<'d> {

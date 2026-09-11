@@ -6,11 +6,11 @@ default:
 
 # Run the Slint desktop application
 ui:
-    cd UI && cargo run
+    cd UI && bun tauri dev
 
 # Run an optimized Slint build
 ui-release:
-    cd UI && cargo run --release
+    cd UI && bun tauri dev --release
 
 # Build everything
 build-all: build-protocol build-ui build-firmware
