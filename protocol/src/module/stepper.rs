@@ -18,10 +18,10 @@ pub enum StepperStateType {
 pub enum StepperMotorCommandPayload {
     SetPivotMin { pivot_min: f32 },
     SetPivotMax { pivot_max: f32 },
-    MoveToOrigin,
+    MoveToOrigin {},
     MoveToAngle { angle: f32 },
-    MoveToPivotMin,
-    MoveToPivotMax,
+    MoveToPivotMin {},
+    MoveToPivotMax {},
     SetMode { mode: StepperStateType },
 }
 

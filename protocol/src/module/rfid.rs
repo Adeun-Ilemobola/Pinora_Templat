@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum RfidCommand {
-    WriteMode,
-    ReadMode,
+    WriteMode {},
+    ReadMode {},
     WritePayload { data: Vec<u8> },
 }
 

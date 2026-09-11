@@ -1,28 +1,7 @@
-# Pinora Desktop UI
+# Tauri + React + Typescript
 
-The Pinora desktop application is a native Rust application built with
-[Slint](https://slint.dev/). It connects to Pinora hardware over serial,
-decodes newline-delimited protocol messages, maintains module state, and
-publishes supported updates to the UI event loop.
+This template should help get you started developing with Tauri, React and Typescript in Vite.
 
-## Run
+## Recommended IDE Setup
 
-Install Rust, then run from this directory:
-
-```bash
-cargo run --locked
-```
-
-The connection form enumerates serial ports at startup. Select a port and baud
-rate, then connect. Wi-Fi and Bluetooth forms are present but their transports
-are currently placeholders.
-
-## Validate
-
-```bash
-cargo check --locked
-cargo clippy --locked
-```
-
-Slint sources live under `ui/`; Rust transport, controller, and UI publication
-code lives under `src/`.
+- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)

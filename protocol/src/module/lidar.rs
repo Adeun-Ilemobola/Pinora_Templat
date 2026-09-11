@@ -43,9 +43,9 @@ pub enum LidarEvent {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum LidarCommandPayload {
     Roi { min: Point, max: Point },
-    StartScan,
-    StopScan,
-    Test,
+    StartScan {},
+    StopScan {},
+    Test {},
     SetStep { step: u32 },
     ChangeMotorAngle { id: String, step: i32 },
     MovePos { p: Point },

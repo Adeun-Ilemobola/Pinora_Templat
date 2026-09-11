@@ -9,5 +9,5 @@ pub enum LedEvent {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum LedCommandPayload {
     SetState { state: u32 },
-    Toggle,
+    Toggle {},
 }

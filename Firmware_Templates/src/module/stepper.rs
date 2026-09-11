@@ -321,15 +321,15 @@ impl<'d> Module for StepperMotor<'d> {
                         pivot_min: *pivot_min,
                     }));
                 }
-                StepperMotorCommandPayload::MoveToOrigin => {
+                StepperMotorCommandPayload::MoveToOrigin {} => {
                     self.set_angle(0.0);
                     self.move_to();
                 }
-                StepperMotorCommandPayload::MoveToPivotMax => {
+                StepperMotorCommandPayload::MoveToPivotMax {} => {
                     self.pivot_point = PivotPoint::Max;
                     self.move_pivot(self.pivot_point)?;
                 }
-                StepperMotorCommandPayload::MoveToPivotMin => {
+                StepperMotorCommandPayload::MoveToPivotMin {} => {
                     self.pivot_point = PivotPoint::Min;
                     self.move_pivot(self.pivot_point)?;
                 }

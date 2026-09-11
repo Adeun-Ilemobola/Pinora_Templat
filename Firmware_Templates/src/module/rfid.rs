@@ -370,10 +370,10 @@ impl<'d> Module for Rfid<'d> {
     fn handle_command(&mut self, command: &ModuleCommand) -> anyhow::Result<()> {
         match command {
             ModuleCommand::Rfid(command) => match command {
-                RfidCommand::ReadMode => {
+                RfidCommand::ReadMode  {} => {
                     self.mode = MddeRfid::Read;
                 }
-                RfidCommand::WriteMode => {
+                RfidCommand::WriteMode {} => {
                     self.mode = MddeRfid::Write;
                 }
                 RfidCommand::WritePayload { data } => {
