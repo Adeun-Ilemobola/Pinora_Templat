@@ -72,19 +72,17 @@ impl ImuState {
         Self::default()
     }
 
-    pub fn update(&mut self, event: ImuEvent) {
+    pub fn update(&mut self, id: &str, event: ImuEvent) {
+        self.id = id.into();
+        self.has_id = true;
         match event {
-            ImuEvent::Gyro { id, raw_axes, axes } => {
-                self.has_id = true;
-                self.id = id.into();
+            ImuEvent::Gyro { raw_axes, axes } => {
                 self.has_gyro_raw_axes = true;
                 self.gyro_raw_axes = raw_axes.into();
                 self.has_gyro_axes = true;
                 self.gyro_axes = axes.into();
             }
-            ImuEvent::Accel { id, raw_axes, axes } => {
-                self.has_id = true;
-                self.id = id.into();
+            ImuEvent::Accel { raw_axes, axes } => {
                 self.has_accel_raw_axes = true;
                 self.accel_raw_axes = raw_axes.into();
                 self.has_accel_axes = true;

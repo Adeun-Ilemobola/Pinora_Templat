@@ -57,7 +57,7 @@ impl<'d> Buttonmodule<'d> {
         if self.state != self.prev_state {
             let pressed = self.state == Level::Low;
             self.prev_state = self.state;
-            self.emit(ModuleEvent::Button(ButtonEvent::Ckick{ id:self.id().to_string()}));
+            self.emit(ModuleEvent::Button(ButtonEvent::Ckick {}));
             return Ok(pressed);
         }
         Ok(false)

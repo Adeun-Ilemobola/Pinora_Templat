@@ -6,6 +6,8 @@ import { PlaygroundPage } from "pages/playground.slint";
 import { ConnectionTypeS, TransportTypeS , ModuleView } from "shared/types.slint";
 import { Theme } from "shared/theme.slint";
 import { LedUpdates } from "./module_definitions/led.slint";
+import { Lidar } from "./pages/Lidar.slint";
+
 
 
 // Re-exported types are intentionally part of the generated Rust interface.
@@ -120,5 +122,6 @@ export component AppWindow inherits Window {
               module-list: root.module-list;
         }
         if root.current-tab == 2: PlaygroundPage {}
+        if root.current-tab == 3: Lidar {}
     }
 }

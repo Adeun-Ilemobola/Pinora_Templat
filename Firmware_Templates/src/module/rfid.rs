@@ -173,7 +173,6 @@ impl<'d> Rfid<'d> {
                             self.mode = MddeRfid::Read;
                             self.emit(ModuleEvent::Rfid(RfidEvent::GetMode {
                                 mode: self.mode.clone(),
-                                id: self.id().to_string(),
                             }));
                             return Ok(());
                         }
@@ -183,7 +182,6 @@ impl<'d> Rfid<'d> {
                         self.send_card_data(&uid)?;
 
                         self.emit(ModuleEvent::Rfid(RfidEvent::GetWriteState {
-                            id: self.id().to_string(),
                             state: self.write_state.clone(),
                             info: self.write_state_msg.to_string(),
                         }));
@@ -205,7 +203,6 @@ impl<'d> Rfid<'d> {
                         }
                         self.emit(ModuleEvent::Rfid(RfidEvent::GetMode {
                             mode: self.mode.clone(),
-                            id: self.id().to_string(),
                         }));
 
                         // Authenticate and read here when needed.
@@ -273,7 +270,6 @@ impl<'d> Rfid<'d> {
         let uuid = Uuid::from_bytes(bytes);
 
         self.emit(ModuleEvent::Rfid(RfidEvent::GetCard {
-            id: self.id().to_string(),
             card_uid: format!("{:02X?}", uid.as_bytes()),
             card_data: uuid.to_string(),
         }));
@@ -385,7 +381,6 @@ impl<'d> Module for Rfid<'d> {
                     self.mode = MddeRfid::Write;
                     self.emit(ModuleEvent::Rfid(RfidEvent::GetMode {
                         mode: self.mode.clone(),
-                        id: self.id().to_string(),
                     }));
                 }
             },

@@ -53,12 +53,10 @@ pub enum MpuDeviceMode {
 #[serde(tag = "event_type")]
 pub enum ImuEvent {
     Gyro {
-        id: String,
         raw_axes: RawAxes,
         axes: Axes,
     },
     Accel {
-        id: String,
         raw_axes: RawAxes,
         axes: Axes,
     },

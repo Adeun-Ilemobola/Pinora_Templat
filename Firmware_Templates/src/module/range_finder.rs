@@ -70,7 +70,6 @@ impl<'d> Rangefinder<'d> {
         self.is_ranging = true;
 
         self.emit(ModuleEvent::Rangefinder(RangefinderEvent::RangingState {
-            id: self.id().to_string(),
             is_ranging: true,
         }));
 
@@ -89,7 +88,6 @@ impl<'d> Rangefinder<'d> {
         self.is_ranging = false;
 
         self.emit(ModuleEvent::Rangefinder(RangefinderEvent::RangingState {
-            id: self.id().to_string(),
             is_ranging: false,
         }));
 
@@ -171,7 +169,6 @@ impl<'d> Module for Rangefinder<'d> {
         match self.get_range() {
             Ok(Some(rang)) => {
                 self.emit(ModuleEvent::Rangefinder(RangefinderEvent::Range {
-                    id: self.id().to_string(),
                     millimeters: rang,
                 }));
                 
@@ -213,7 +210,6 @@ impl<'d> Module for Rangefinder<'d> {
                 self.timing_budget_ms = *milliseconds;
 
                 self.emit(ModuleEvent::Rangefinder(RangefinderEvent::TimingBudget {
-                    id: self.id().to_string(),
                     milliseconds: *milliseconds,
                 }));
             }
@@ -231,7 +227,6 @@ impl<'d> Module for Rangefinder<'d> {
                 self.distance_mode = sensor_mode;
 
                 self.emit(ModuleEvent::Rangefinder(RangefinderEvent::DistanceMode {
-                    id: self.id().to_string(),
                     mode: mode.to_owned(),
                 }));
             }

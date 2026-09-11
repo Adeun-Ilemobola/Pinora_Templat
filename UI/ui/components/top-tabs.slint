@@ -70,6 +70,12 @@ export component TopTabs inherits Rectangle {
             active: root.current-tab == 2;
             activated => { root.current-tab = 2; }
         }
+
+         TabButton {
+            label: "Lidar";
+            active: root.current-tab == 3;
+            activated => { root.current-tab = 3; }
+        }
     }
 
     Rectangle {

@@ -4,8 +4,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use pinora_protocol::{
-    ButtonEvent, ImuEvent, LedEvent, LogPriority, ModuleEvent, ModuleType, ProtocolMessage,
-    RemoteButtonEvent, RfidEvent, StepperMotorEvent,
+    EventPackage, LogPriority, ModuleEvent, ModuleType, ProtocolMessage,
 };
 use slint::ComponentHandle;
 
@@ -85,70 +84,43 @@ impl ModuleController {
             ProtocolMessage::System(system_info) => {
                 publish_system_info(&self.ui, system_info);
             }
-            ProtocolMessage::ModuleEvent(event) => {
-                if matches!(
-                    &event,
-                    ModuleEvent::SysLog(log)
-                        if matches!(&log.priority, LogPriority::High | LogPriority::Critical)
-                ) {
-                    self.total_errors = self.total_errors.saturating_add(1);
-                    self.publish_dashboard_counts();
+            ProtocolMessage::ModuleEvent(package) => {
+                let EventPackage { id, event } = package;
+                if let ModuleEvent::SysLog(log) = event {
+                    // Diagnostic identity is the source UUID, even before registration.
+                    eprintln!("[module {id}] {:?}: {} {:?}", log.priority, log.text, log.raw_err);
+                    if matches!(log.priority, LogPriority::High | LogPriority::Critical) {
+                        self.total_errors = self.total_errors.saturating_add(1);
+                        self.publish_dashboard_counts();
+                    }
+                } else {
+                    self.apply_module_event(&id, event);
                 }
-                let module_id = Self::module_event_id(&event).map(str::to_owned);
-                self.apply_module_event(module_id.as_deref(), event);
             }
         }
     }
 
-    fn apply_module_event(&mut self, module_id: Option<&str>, event: ModuleEvent) {
-        let Some(module_id) = module_id else {
-            return;
-        };
+    fn apply_module_event(&mut self, module_id: &str, event: ModuleEvent) {
         let Some(state) = self.collections.get_mut(module_id) else {
             return;
         };
 
         match (state, event) {
             (ModuleState::Led(state), ModuleEvent::Led(event)) => {
-                state.update(event);
+                state.update(module_id, event);
                 state.publish(&self.ui);
             }
-            (ModuleState::Button(state), ModuleEvent::Button(event)) => state.update(event),
-            (ModuleState::SysLog(state), ModuleEvent::SysLog(event)) => state.update(event),
+            (ModuleState::Button(state), ModuleEvent::Button(event)) => state.update(module_id, event),
             (ModuleState::RemoteReceiver(state), ModuleEvent::RemoteReceiver(event)) => {
-                state.update(event);
+                state.update(module_id, event);
                 state.publish(&self.ui);
             }
             (ModuleState::StepperMotor(state), ModuleEvent::StepperMotor(event)) => {
-                state.update(event);
+                state.update(module_id, event);
             }
-            (ModuleState::Imu(state), ModuleEvent::Imu(event)) => state.update(event),
-            (ModuleState::Rfid(state), ModuleEvent::Rfid(event)) => state.update(event),
+            (ModuleState::Imu(state), ModuleEvent::Imu(event)) => state.update(module_id, event),
+            (ModuleState::Rfid(state), ModuleEvent::Rfid(event)) => state.update(module_id, event),
             _ => {}
-        }
-    }
-
-    fn module_event_id(event: &ModuleEvent) -> Option<&str> {
-        match event {
-            ModuleEvent::Led(LedEvent::Brightness { id, .. }) => Some(id),
-            ModuleEvent::Button(ButtonEvent::Ckick { id }) => Some(id),
-            ModuleEvent::SysLog(_) => None,
-            ModuleEvent::RemoteReceiver(RemoteButtonEvent::Click { id, .. }) => Some(id),
-            ModuleEvent::StepperMotor(
-                StepperMotorEvent::GetAngle { id, .. }
-                | StepperMotorEvent::GetPivotMin { id, .. }
-                | StepperMotorEvent::GetPivotMax { id, .. }
-                | StepperMotorEvent::GetMode { id, .. }
-                | StepperMotorEvent::GetOrigin { id, .. }
-                | StepperMotorEvent::GetPivotPoint { id, .. },
-            ) => Some(id),
-            ModuleEvent::Imu(ImuEvent::Gyro { id, .. } | ImuEvent::Accel { id, .. }) => Some(id),
-            ModuleEvent::Imu(ImuEvent::Mode { .. }) => None,
-            ModuleEvent::Rfid(
-                RfidEvent::GetCard { id, .. }
-                | RfidEvent::GetMode { id, .. }
-                | RfidEvent::GetWriteState { id, .. },
-            ) => Some(id),
         }
     }
 
@@ -192,3 +164,6 @@ impl ModuleController {
         ui_list
     }
 }
+
+#[cfg(test)]
+mod tests;

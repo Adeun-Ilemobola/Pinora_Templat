@@ -110,7 +110,6 @@ impl<'d> RemoteReceiverButton<'d> {
 
         self.remote_button = RemoteButton::from_command(data[2]);
         self.emit(RemoteReceiver(RemoteButtonEvent::Click {
-            id: self.id().to_string(),
             key: self.remote_button.clone(),
         }));
         self.remote_button = RemoteButton::None;

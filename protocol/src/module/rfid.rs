@@ -10,16 +10,13 @@ pub enum RfidCommand {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum RfidEvent {
     GetCard {
-        id: String,
         card_uid: String,
         card_data: String,
     },
     GetMode {
-        id: String,
         mode: MddeRfid,
     },
     GetWriteState {
-        id: String,
         state: WriteState,
         info: String,
     },

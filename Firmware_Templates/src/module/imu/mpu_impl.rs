@@ -1,7 +1,7 @@
 
 use crate::{
     core::{
-        emitter::Emitter, hardware::SharedI2cDevice, modulecore::{Module, ModuleCore, ModuleError}
+        emitter::{Emitter, EmitterError}, hardware::SharedI2cDevice, modulecore::{Module, ModuleCore, ModuleError}
     },
     module::imu::imu_type::{
         ACCEL_SENSITIVITY, ACCEL_XOUT_H, Axes, GYRO_SENSITIVITY, GYRO_XOUT_H, ImuError, ImuEvent, ImuModel, Mpu, MpuDevice, MpuDeviceErr, MpuDeviceMode, RawAxes
@@ -12,7 +12,7 @@ use esp_idf_svc::hal::i2c::I2cError;
 use pinora_protocol::{
     command::ModuleCommand,
     global_definitions::ModuleType,
-    module_event::{LogPriority, ModuleEvent, SysLogEvent},
+    module_event::{EventPackage, LogPriority, ModuleEvent, SysLogEvent},
     registration::ProtocolMessage,
 };
 
@@ -55,6 +55,8 @@ impl<'d> MpuDevice<'d> {
         core_id: &str,
         parent_id: Option<String>,
     ) -> Result<MpuDevice<'d>, MpuDeviceErr> {
+        // Allocate the runtime UUID first so identification failures have a source.
+        let core = ModuleCore::new(ModuleType::Imu, core_id, parent_id, sender.clone());
         let new_mpi = Mpu::identify(i2c, device_address).map_err(|err| {
             let err_data = MpuDeviceErr::InitI2c {
                 info: Some(String::from("Failed during MPU identification")),
@@ -62,18 +64,21 @@ impl<'d> MpuDevice<'d> {
             };
            
             
-            sender.any(ProtocolMessage::ModuleEvent(ModuleEvent::SysLog(SysLogEvent{
-                priority:LogPriority::Critical,
-                text:"Accel error".to_string(),
-                raw_err:Some(format!("{:?}" ,err_data))
-            })));
+            sender.any(ProtocolMessage::ModuleEvent(EventPackage {
+                id: core.id.clone(),
+                event: ModuleEvent::SysLog(SysLogEvent {
+                    priority: LogPriority::Critical,
+                    text: "Accel error".to_string(),
+                    raw_err: Some(format!("{:?}", err_data)),
+                }),
+            }));
 
             err_data
         })?;
         
         let  imu = MpuDevice {
             mpu: new_mpi,
-            core: ModuleCore::new(ModuleType::Imu, core_id, parent_id, sender.clone()),
+            core,
             mode: MpuDeviceMode::Collecting,
             point_count: 1,
             point_count_max: 200,
@@ -104,7 +109,6 @@ impl<'d> MpuDevice<'d> {
             },
             bias_collection_gyro: vec![],
         };
-        imu.emit(ModuleEvent::Imu(ImuEvent::Mode { mode: imu.mode.clone() }));
 
         Ok(imu)
     }
@@ -198,7 +202,7 @@ impl<'d> MpuDevice<'d> {
             self.gyro.x = cover.x - self.bias_gyro.x;
             self.gyro.z = cover.z - self.bias_gyro.z;
             self.gyro.y = cover.y - self.bias_gyro.y;
-             self.emit(ModuleEvent::Imu(ImuEvent::Gyro { id: self.id().to_string(), raw_axes: self.gyro_raw, axes: self.gyro }));
+             self.emit(ModuleEvent::Imu(ImuEvent::Gyro { raw_axes: self.gyro_raw, axes: self.gyro }));
             
         }
     }
@@ -210,12 +214,19 @@ impl<'d> MpuDevice<'d> {
             self.accel.x = cover.x - self.bias_accel.x;
             self.accel.z = cover.z - self.bias_accel.z;
             self.accel.y = cover.y - self.bias_accel.y;
-             self.emit(ModuleEvent::Imu(ImuEvent::Accel { id: self.id().to_string(), raw_axes: self.accel_raw, axes: self.accel }));
+             self.emit(ModuleEvent::Imu(ImuEvent::Accel { raw_axes: self.accel_raw, axes: self.accel }));
           
         }
     }
 }
 impl<'d> Module for MpuDevice<'d> {
+    fn register(&self) -> Result<(), EmitterError> {
+        // Registration precedes the initial runtime event in the shared FIFO.
+        self.emit_registration()?;
+        self.emit(ModuleEvent::Imu(ImuEvent::Mode { mode: self.mode.clone() }));
+        Ok(())
+    }
+
     fn tick(&mut self) -> Result<(), ModuleError> {
         self.tick_inner().map_err(ModuleError::from)
     }

@@ -43,26 +43,23 @@ impl RfidState {
         Self::default()
     }
 
-    pub fn update(&mut self, event: RfidEvent) {
+    pub fn update(&mut self, id: &str, event: RfidEvent) {
+        self.id = id.into();
         match event {
             RfidEvent::GetCard {
-                id,
                 card_uid,
                 card_data,
             } => {
-                self.id = id.into();
                 self.has_card_uid = true;
                 self.card_uid = card_uid.into();
                 self.has_card_data = true;
                 self.card_data = card_data.into();
             }
-            RfidEvent::GetMode { id, mode } => {
-                self.id = id.into();
+            RfidEvent::GetMode { mode } => {
                 self.has_mode = true;
                 self.mode = mode.into();
             }
-            RfidEvent::GetWriteState { id, state, info } => {
-                self.id = id.into();
+            RfidEvent::GetWriteState { state, info } => {
                 self.has_write_state = true;
                 self.write_state = state.into();
                 self.has_info = true;

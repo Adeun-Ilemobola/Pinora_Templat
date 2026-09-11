@@ -133,7 +133,6 @@ impl<'d> Lidar<'d> {
         new_lidar.curr_point_bottom = Point { x: 0, y: 0 };
         new_lidar.move_to_point();
         new_lidar.emit(ModuleEvent::Lidar(LidarEvent::Roi {
-            id: new_lidar.id().to_string(),
             min: new_lidar.min_point.clone(),
             max: new_lidar.max_point.clone(),
         }));
@@ -150,7 +149,6 @@ impl<'d> Lidar<'d> {
         let map = std::mem::take(&mut self.point_map);
 
         self.emit(ModuleEvent::Lidar(LidarEvent::PointMap {
-            id: self.id().to_string(),
             curr_chunk: self.current_chunk as i32,
             max_chunk: self.total_chunks as i32,
             map,
@@ -244,7 +242,6 @@ impl<'d> Module for Lidar<'d> {
             self.curr_scan_mode = ScanState::Idol;
 
             self.emit(ModuleEvent::Lidar(LidarEvent::ScanState {
-                id: self.id().to_string(),
                 state: self.curr_scan_mode.clone(),
                 scan_time: self.scan_time.elapsed().as_secs_f32(),
             }));
@@ -309,7 +306,6 @@ impl<'d> Module for Lidar<'d> {
                     self.total_chunks = total_points.div_ceil(POINTS_PER_CHUNK as u32);
 
                     self.emit(ModuleEvent::Lidar(LidarEvent::Roi {
-                        id: self.id().to_string(),
                         min: self.min_point.clone(),
                         max: self.max_point.clone(),
                     }));
@@ -331,7 +327,6 @@ impl<'d> Module for Lidar<'d> {
                     self.move_to_point();
                     self.curr_scan_mode = ScanState::Scanning;
                     self.emit(ModuleEvent::Lidar(LidarEvent::ScanState {
-                        id: self.id().to_string(),
                         state: self.curr_scan_mode.clone(),
                         scan_time: 0.0,
                     }));
@@ -341,7 +336,6 @@ impl<'d> Module for Lidar<'d> {
                     SysLog::info("LiDAR received StopScan".to_string(), None);
                     self.curr_scan_mode = ScanState::StopScan;
                     self.emit(ModuleEvent::Lidar(LidarEvent::ScanState {
-                        id: self.id().to_string(),
                         state: self.curr_scan_mode.clone(),
                         scan_time: self.scan_time.elapsed().as_secs_f32(),
                     }));

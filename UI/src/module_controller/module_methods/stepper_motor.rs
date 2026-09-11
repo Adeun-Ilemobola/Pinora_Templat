@@ -50,32 +50,28 @@ impl StepperMotorState {
         Self::default()
     }
 
-    pub fn update(&mut self, event: StepperMotorEvent) {
+    pub fn update(&mut self, id: &str, event: StepperMotorEvent) {
+        self.id = id.into();
         match event {
-            StepperMotorEvent::GetAngle { id, angle, step } => {
-                self.id = id.into();
+            StepperMotorEvent::GetAngle { angle, step } => {
                 self.has_angle = true;
                 self.angle = angle;
                 self.has_step = true;
                 self.step = step;
             }
-            StepperMotorEvent::GetPivotMin { id, pivot_min } => {
-                self.id = id.into();
+            StepperMotorEvent::GetPivotMin { pivot_min } => {
                 self.has_pivot_min = true;
                 self.pivot_min = pivot_min;
             }
-            StepperMotorEvent::GetPivotMax { id, pivot_max } => {
-                self.id = id.into();
+            StepperMotorEvent::GetPivotMax { pivot_max } => {
                 self.has_pivot_max = true;
                 self.pivot_max = pivot_max;
             }
-            StepperMotorEvent::GetMode { id, mode } => {
-                self.id = id.into();
+            StepperMotorEvent::GetMode { mode } => {
                 self.has_mode = true;
                 self.mode = mode.into();
             }
-            StepperMotorEvent::GetOrigin { id, origin } => {
-                self.id = id.into();
+            StepperMotorEvent::GetOrigin { origin } => {
                 match origin {
                     Some(origin) => {
                         self.has_origin = true;
@@ -87,8 +83,7 @@ impl StepperMotorState {
                     }
                 }
             }
-            StepperMotorEvent::GetPivotPoint { id, pivot_point } => {
-                self.id = id.into();
+            StepperMotorEvent::GetPivotPoint { pivot_point } => {
                 self.has_pivot_point = true;
                 self.pivot_point = pivot_point.into();
             }

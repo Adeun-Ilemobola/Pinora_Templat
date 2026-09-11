@@ -16,6 +16,13 @@ pub enum ModuleEvent {
     RemoteReceiver(RemoteButtonEvent)
 }
 
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq )]
+pub struct EventPackage {
+    pub event: ModuleEvent,
+    pub id: String
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub enum LogPriority {
     Low,

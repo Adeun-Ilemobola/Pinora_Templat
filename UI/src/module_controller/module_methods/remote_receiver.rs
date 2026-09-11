@@ -80,10 +80,10 @@ impl RemoteReceiverState {
         Self::default()
     }
 
-    pub fn update(&mut self, event: RemoteButtonEvent) {
+    pub fn update(&mut self, id: &str, event: RemoteButtonEvent) {
+        self.id = id.into();
         match event {
-            RemoteButtonEvent::Click { id, key } => {
-                self.id = id.into();
+            RemoteButtonEvent::Click { key } => {
                 self.key = key.into();
             }
         }

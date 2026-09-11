@@ -73,5 +73,5 @@ impl RemoteButton {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 
 pub enum RemoteButtonEvent {
-    Click{id:String , key:RemoteButton}
+    Click { key: RemoteButton }
 }

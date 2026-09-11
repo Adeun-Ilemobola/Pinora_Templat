@@ -13,10 +13,10 @@ pub struct ServoCapability {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ServoEvent {
-    GetAngle { id: String, angle: i32 },
-    GetMinPivot { id: String, min_pivot: i32 },
-    GetMaxPivot { id: String, max_pivot: i32 },
-    GetOffset { id: String, angle: i32 },
+    GetAngle { angle: i32 },
+    GetMinPivot { min_pivot: i32 },
+    GetMaxPivot { max_pivot: i32 },
+    GetOffset { angle: i32 },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

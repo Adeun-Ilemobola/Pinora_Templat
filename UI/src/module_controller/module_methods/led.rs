@@ -21,10 +21,10 @@ impl LedState {
         Self::default()
     }
 
-    pub fn update(&mut self, event: LedEvent ) {
+    pub fn update(&mut self, id: &str, event: LedEvent) {
+        self.id = id.into();
         match event {
-            LedEvent::Brightness { id, level } => {
-                self.id = id.into();
+            LedEvent::Brightness { level } => {
                 self.brightness = level as f32;
             }
         }

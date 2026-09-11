@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
 use crate::core::emitter::{Emitter, EmitterError};
-use pinora_protocol::{command::ModuleCommand, global_definitions::ModuleType, module_event::{ModuleEvent, SysLogEvent}, registration::{ProtocolMessage, Registration}};
+use pinora_protocol::{command::ModuleCommand, global_definitions::ModuleType, module_event::{EventPackage, ModuleEvent, SysLogEvent}, registration::{ProtocolMessage, Registration}};
 #[derive(Debug, Clone)]
 pub struct ModuleCore {
     pub id: String,
@@ -74,13 +74,14 @@ pub trait Module {
     fn emit(&self, event: ModuleEvent) {
         self.core()
             .emitter
-            .try_emit(ProtocolMessage::ModuleEvent(event));
+            .try_emit(ProtocolMessage::ModuleEvent(EventPackage {
+                id: self.id().to_owned(),
+                event,
+            }));
     }
 
     fn log(&self, data: SysLogEvent) {
-        self.core()
-            .emitter
-            .try_emit(ProtocolMessage::ModuleEvent(ModuleEvent::SysLog(data)));
+        self.emit(ModuleEvent::SysLog(data));
     }
     fn handle_command(&mut self, command: &ModuleCommand) -> anyhow::Result<()>;
 }

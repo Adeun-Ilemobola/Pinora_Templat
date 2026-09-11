@@ -9,9 +9,10 @@ impl ButtonState {
         }
     }
 
-    pub fn update(&mut self, event: ButtonEvent) {
+    pub fn update(&mut self, id: &str, event: ButtonEvent) {
+        self.id = id.into();
         match event {
-            ButtonEvent::Ckick { id } => self.id = id.into(),
+            ButtonEvent::Ckick {} => {},
         }
     }
 }

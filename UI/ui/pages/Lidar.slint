@@ -1,0 +1,332 @@
+import { VerticalBox, HorizontalBox, ScrollView  , Button, Switch } from "std-widgets.slint";
+import { Card } from "../components/card.slint";
+import { InputCore } from "../components/form-controls.slint";
+
+struct Point {
+    x: float,
+    y: float,
+}
+
+enum RoiState {
+    Off,
+    Selecting,
+    Selected,
+}
+enum CellState {
+    Empty,
+    Occupied,
+    Selected
+}
+
+
+export struct PointWithRange  {
+    point: Point,
+    range: float,
+    cellState: CellState,
+
+}
+
+export global LidarGlobalState {
+    in-out property <string> id;
+    in-out property <int> hasUpdated;
+    in-out property <[PointWithRange]> mapRange;
+
+    callback UpdatePointMap([PointWithRange]);
+    callback ClearPointMap();
+    callback MoveToPoint(point: Point);
+
+
+    callback SetNewRoi(pointMin: Point, pointMax: Point);
+  
+
+
+    UpdatePointMap(newMapRange) => {
+        mapRange = newMapRange;
+        hasUpdated += 1;
+    }
+
+    ClearPointMap() => {
+        mapRange = [];
+        hasUpdated += 1;
+    }
+}
+
+export component Lidar {
+    in property <string> id;
+
+    private property <int> hasUpdated: LidarGlobalState.hasUpdated;
+
+    property <[PointWithRange]> mapRange;
+
+    changed hasUpdated => {
+        if (root.id != LidarGlobalState.id) {
+            return;
+        }
+
+        root.mapRange = LidarGlobalState.mapRange;
+    }
+
+    private property <Point> roi-point-min: { x: 90, y: -90 };
+    private property <Point> roi-point-max: { x: -90, y: 90 };
+    private property <RoiState> roi-state: RoiState.Off;
+
+        
+    // Canvas coordinates use pixels; angular coordinates use degrees.
+    property <float> angular-span: 180.0;
+    property <float> pivot-offset: angular-span / 2;
+    property <Point> canvas-point;
+    property <Point> pivot-angle: {
+        x: angle-to-pivot(pixel-to-angle(canvas-point.x, canvas.width)),
+        // Canvas Y grows downwards; pivot Y grows upwards.
+        y: -angle-to-pivot(pixel-to-angle(canvas-point.y, canvas.height)),
+    };
+
+
+    // Mapped canvas coordinates for the points with range.
+    property <Point> mapped-canvas-point: {
+        x: angle-to-pixel(pivot-to-angle(pivot-angle.x), canvas.width),
+        y: angle-to-pixel(pivot-to-angle(-pivot-angle.y), canvas.height),
+    };
+
+    function pixel-to-angle(pixel: float, extent: length) -> float {
+        return extent > 0px ? pixel * root.angular-span / (extent / 1px) : 0;
+    }
+
+    function angle-to-pixel(angle: float, extent: length) -> float {
+        return angle * (extent / 1px) / root.angular-span;
+    }
+
+    function angle-to-pivot(angle: float) -> float {
+        return angle - root.pivot-offset;
+    }
+
+    function pivot-to-angle(pivot: float) -> float {
+        return pivot + root.pivot-offset;
+    }
+
+    function update-canvas-point() {
+        root.canvas-point = {
+            x: max(0, min(touch.mouse-x / 1px, canvas.width / 1px)),
+            y: max(0, min(touch.mouse-y / 1px, canvas.height / 1px)),
+        };
+    }
+
+    function SetRoiPoints() {
+        root.roi-point-min = { x: min(root.roi-point-min.x, root.roi-point-max.x), y: min(root.roi-point-min.y, root.roi-point-max.y) };
+        root.roi-point-max = { x: max(root.roi-point-min.x, root.roi-point-max.x), y: max(root.roi-point-min.y, root.roi-point-max.y) };
+
+        if (root.roi-point-min.x == root.roi-point-max.x || root.roi-point-min.y == root.roi-point-max.y) {
+            return;
+        }
+        if (root.roi-point-min.x == 0 && root.roi-point-min.y == 0 && root.roi-point-max.x == 0 && root.roi-point-max.y == 0) {
+            return;
+        }
+        LidarGlobalState.SetNewRoi(root.roi-point-min, root.roi-point-max);
+
+    }
+
+    ScrollView {
+        VerticalBox {
+            width: parent.width;
+            height: parent.height;
+
+            HorizontalBox {
+                VerticalBox {
+                    height: 255px;
+                    width: 250px;
+                    Card {
+                        height: 125px;
+                        VerticalBox {
+                            spacing: 1px;
+                            Text {
+                                text: "Max points";
+                                font-size: 20px;
+                                width: self.preferred-width;
+                                height: self.preferred-height;
+                            }
+                            HorizontalBox {
+                                spacing: 5px;
+                                InputCore {
+                                    label: "X";
+                                    value: root.roi-point-max.x;
+                                    width: 80px;
+                                    input-type: number;
+                                    text-changed (new_text) => {
+                                        
+                                        if (!new_text.is-empty && new_text.is-float()) {
+                                            root.roi-point-max.x = new_text.to-float();
+                                            
+                                        }
+                                    }
+                                }
+                                InputCore {
+                                    label: "Y";
+                                    value: root.roi-point-max.y;
+                                    width: 80px;
+                                    input-type: number;
+                                    text-changed (new_text) => {
+                                        if (!new_text.is-empty && new_text.is-float()) {
+                                            root.roi-point-max.y = new_text.to-float();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Card {
+                        height: 125px;
+                        VerticalBox {
+                            spacing: 1px;
+                            Text {
+                                text: "Min points";
+                                font-size: 20px;
+                                width: self.preferred-width;
+                                height: self.preferred-height;
+                            }
+                            HorizontalBox {
+                                spacing: 5px;
+                                InputCore {
+                                    label: "X";
+                                    value: root.roi-point-min.x;
+                                    width: 80px;
+                                    input-type: number;
+                                    text-changed (new_text) => {
+                                        if (!new_text.is-empty && new_text.is-float()) {
+                                            root.roi-point-min.x = new_text.to-float();
+                                        }
+                                    }
+                                }
+                                InputCore {
+                                    label: "Y";
+                                    value: root.roi-point-min.y;
+                                    width: 80px;
+                                    input-type: number;
+                                    text-changed (new_text) => {
+                                        if (!new_text.is-empty && new_text.is-float()) {
+                                            root.roi-point-min.y = new_text.to-float();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Rectangle {
+                    width: 3px;
+                    border-radius: 1.5px;
+                    height: 100%;
+                    background: #0dd34b6e;
+                }
+
+                Card {
+                    height: 255px;
+
+                    VerticalBox {
+                        spacing: 1px;
+                        VerticalBox {
+                            spacing: 4px;
+                            Text {
+                                text: "Range finder:";
+                                font-size: 28px;
+
+                            }
+                            Text {
+                                text: "3444 mm";
+                                font-size: 38px;
+                                x:35px;
+                            }
+                        }
+
+                        HorizontalBox {
+                           
+                            Button {
+                                text: "Send new Roi";
+                                width: 100px;
+                            }
+                            Button {
+                                text: "Reset Roi";
+                                width: 100px;
+                            }
+                            Switch {
+                                text: "Enable Roi";
+                            }
+                        }
+                    }
+                }
+            }
+
+            Text {
+                text: "Canvas Point: (" + canvas-point.x.to-fixed(2) + ", " + canvas-point.y.to-fixed(2) + ")";
+                font-size: 16px;
+                width: self.preferred-width;
+                height: self.preferred-height;
+            }
+            Text {
+                text: "Mapped Angle: (" + pivot-angle.x.to-fixed(2) + ", " + pivot-angle.y.to-fixed(2) + ")";
+                font-size: 16px;
+                width: self.preferred-width;
+                height: self.preferred-height;
+            }
+            Text {
+                text: "Mapped Point: (" + round(mapped-canvas-point.x) + ", " + round(mapped-canvas-point.y) + ")";
+                font-size: 16px;
+                width: self.preferred-width;
+                height: self.preferred-height;
+            }
+            Card {
+                height: 500px;
+                width: 100%;
+                background: #f0f0f0;
+                canvas := Image {
+                    width: 100%;
+                    height: 100%;
+
+                    // Stress-test layout. Override columns here for a fixed logical width later.
+                    property <int> cell-count: 32000;
+                    property <length> cell-size: 6px;
+                    property <int> columns: max(1, floor(self.width / self.cell-size));
+                    property <length> hover-size: 60px;
+
+                    // Row-major cells with fake RGB test data.
+                   for cell[index] in canvas.cell-count: Rectangle {
+                        property <int> cell-column: mod(index, canvas.columns);
+                        property <int> cell-row: floor(index / canvas.columns);
+
+                        property <PointWithRange> point: root.mapRange[index];
+
+                        width: canvas.cell-size;
+                        height: canvas.cell-size;
+
+                        x: self.cell-column * canvas.cell-size;
+                        y: self.cell-row * canvas.cell-size;
+
+                        background: self.point.range > 0
+                            ? green
+                            : transparent;
+                    }
+
+                    // Temporary hover marker, anchored at the current canvas point.
+                    if touch.has-hover: Rectangle {
+                        width: canvas.hover-size;
+                        height: canvas.hover-size;
+                        x: root.canvas-point.x * 1px;
+                        y: root.canvas-point.y * 1px;
+                        background: #00000033;
+                    }
+
+                    // One update path; angular/debug coordinates derive from canvas-point.
+                    touch := TouchArea {
+                        width: parent.width;
+                        height: parent.height;
+
+                        pointer-event(event) => {
+                            if (event.kind == PointerEventKind.move) {
+                                root.update-canvas-point();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

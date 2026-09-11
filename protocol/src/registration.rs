@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     global_definitions::ModuleType,
-    module_event::ModuleEvent,
+    module_event::EventPackage,
 };
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Registration {
@@ -15,7 +15,7 @@ pub struct Registration {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 pub enum ProtocolMessage {
     Registration(Registration),
-    ModuleEvent(ModuleEvent),
+    ModuleEvent(EventPackage),
     System(SystemInfo),
 }
 

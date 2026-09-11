@@ -7,25 +7,22 @@ impl ServoState {
         Self::default()
     }
 
-    pub fn update(&mut self, event: ServoEvent) {
+    pub fn update(&mut self, id: &str, event: ServoEvent) {
+        self.id = id.into();
         match event {
-            ServoEvent::GetAngle { id, angle } => {
-                self.id = id.into();
+            ServoEvent::GetAngle { angle } => {
                 self.has_angle = true;
                 self.angle = angle;
             }
-            ServoEvent::GetMinPivot { id, min_pivot } => {
-                self.id = id.into();
+            ServoEvent::GetMinPivot { min_pivot } => {
                 self.has_min_pivot = true;
                 self.min_pivot = min_pivot;
             }
-            ServoEvent::GetMaxPivot { id, max_pivot } => {
-                self.id = id.into();
+            ServoEvent::GetMaxPivot { max_pivot } => {
                 self.has_max_pivot = true;
                 self.max_pivot = max_pivot;
             }
-            ServoEvent::GetOffset { id, angle } => {
-                self.id = id.into();
+            ServoEvent::GetOffset { angle } => {
                 self.has_offset = true;
                 self.offset = angle;
             }

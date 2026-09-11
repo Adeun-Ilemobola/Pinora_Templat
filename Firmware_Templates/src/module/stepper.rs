@@ -152,7 +152,6 @@ impl<'d> StepperMotor<'d> {
                 if cycle > 3 {
                     self.mode = StepperState::Idle;
                     self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetMode {
-                        id: self.id().to_string(),
                         mode: StepperStateType::from(&self.mode),
                     }));
                     return Ok(());
@@ -178,17 +177,14 @@ impl<'d> StepperMotor<'d> {
 
                     self.emit(ModuleEvent::StepperMotor(
                         StepperMotorEvent::GetPivotPoint {
-                            id: self.id().to_string(),
                             pivot_point: self.pivot_point.clone(),
                         },
                     ));
                     self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetAngle {
-                        id: self.id().to_string(),
                         angle: Self::step_to_angle(self.step),
                         step: self.step,
                     }));
                     self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetMode {
-                        id: self.id().to_string(),
                         mode: StepperStateType::from(&self.mode),
                     }));
 
@@ -202,7 +198,6 @@ impl<'d> StepperMotor<'d> {
                     self.mode = StepperState::Idle;
                     self.target_step = 0.0;
                     self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetMode {
-                        id: self.id().to_string(),
                         mode: StepperStateType::from(&self.mode),
                     }));
                 }
@@ -290,7 +285,6 @@ impl<'d> Module for StepperMotor<'d> {
     fn register(&self) -> Result<(), EmitterError> {
         self.emit_registration()?;
         self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetAngle {
-            id: self.id().to_string(),
             angle: Self::step_to_angle(self.step),
             step: self.step,
         }));
@@ -312,21 +306,18 @@ impl<'d> Module for StepperMotor<'d> {
                     self.set_angle(*angle);
                     self.mode = StepperState::Moving;
                     self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetMode {
-                        id: self.id().to_string(),
                         mode: StepperStateType::from(&self.mode),
                     }));
                 }
                 StepperMotorCommandPayload::SetPivotMax { pivot_max } => {
                     self.pivot_limits.update_max(*pivot_max);
                     self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetPivotMax {
-                        id: self.id().to_string(),
                         pivot_max: *pivot_max,
                     }));
                 }
                 StepperMotorCommandPayload::SetPivotMin { pivot_min } => {
                     self.pivot_limits.update_min(*pivot_min);
                     self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetPivotMin {
-                        id: self.id().to_string(),
                         pivot_min: *pivot_min,
                     }));
                 }

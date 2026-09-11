@@ -43,7 +43,7 @@ impl<'d> Ledmodule<'d> {
         let p = range_u32(state, 0, 100, 0, self.pwm.get_max_duty());
         self.pwm.set_duty(p)?;
         self.state = state;
-        self.emit(ModuleEvent::Led(LedEvent::Brightness { id:self.id().to_string(), level: state }));
+        self.emit(ModuleEvent::Led(LedEvent::Brightness { level: state }));
     
 
         Ok(())

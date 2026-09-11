@@ -27,30 +27,26 @@ impl RangefinderState {
         Self::default()
     }
 
-    pub fn update(&mut self, event: RangefinderEvent) {
+    pub fn update(&mut self, id: &str, event: RangefinderEvent) {
+        self.id = id.into();
         match event {
-            RangefinderEvent::Range { id, millimeters } => {
-                self.id = id.into();
+            RangefinderEvent::Range { millimeters } => {
                 self.has_millimeters = true;
                 self.millimeters = i32::from(millimeters);
             }
-            RangefinderEvent::RangingState { id, is_ranging } => {
-                self.id = id.into();
+            RangefinderEvent::RangingState { is_ranging } => {
                 self.has_is_ranging = true;
                 self.is_ranging = is_ranging;
             }
-            RangefinderEvent::TimingBudget { id, milliseconds } => {
-                self.id = id.into();
+            RangefinderEvent::TimingBudget { milliseconds } => {
                 self.has_timing_budget_milliseconds = true;
                 self.timing_budget_milliseconds = i32::from(milliseconds);
             }
-            RangefinderEvent::DistanceMode { id, mode } => {
-                self.id = id.into();
+            RangefinderEvent::DistanceMode { mode } => {
                 self.has_distance_mode = true;
                 self.distance_mode = mode.into();
             }
-            RangefinderEvent::InvalidMeasurement { id, status } => {
-                self.id = id.into();
+            RangefinderEvent::InvalidMeasurement { status } => {
                 self.has_invalid_measurement_status = true;
                 self.invalid_measurement_status = status.into();
             }

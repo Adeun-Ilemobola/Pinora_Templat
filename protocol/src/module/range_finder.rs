@@ -7,7 +7,6 @@ pub enum RangefinderDistanceMode {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(tag = "command")]
 pub enum RangefinderCommandPayload {
     StartRanging,
     StopRanging,
@@ -16,26 +15,20 @@ pub enum RangefinderCommandPayload {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(tag = "event_type")]
 pub enum RangefinderEvent {
     Range {
-        id: String,
         millimeters: u16,
     },
     RangingState {
-        id: String,
         is_ranging: bool,
     },
     TimingBudget {
-        id: String,
         milliseconds: u16,
     },
     DistanceMode {
-        id: String,
         mode: RangefinderDistanceMode,
     },
     InvalidMeasurement {
-        id: String,
         status: String,
     },
 }
