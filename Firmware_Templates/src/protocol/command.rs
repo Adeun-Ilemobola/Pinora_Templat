@@ -5,7 +5,7 @@ use crate::{module::{ledmodule::LedCommandPayload, rfid::RfidCommand, stepper::{
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
 pub struct IncomingCommand {
     pub id: String,
-    #[serde(flatten)]
+    
     pub command: ModuleCommand,
 }
 

@@ -96,7 +96,7 @@ impl<'d> Module for Ledmodule<'d> {
         match command {
             ModuleCommand::Led(led_command) => match led_command {
                 LedCommandPayload::SetState { state } => self.set_state(*state)?,
-                LedCommandPayload::Toggle => self.toggle()?,
+                LedCommandPayload::Toggle {} => self.toggle()?,
             },
             _ => {
                 // handle anything else

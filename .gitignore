@@ -30,6 +30,7 @@ target/
 # /UI_Templates/.vscode/*
 # !/UI_Templates/.vscode/extensions.json
 
+<<<<<<< Updated upstream
 
 /UI_Templates/node_modules/
 /UI_Templates/build/
@@ -45,3 +46,26 @@ target/
 /Firmware_Templates/Cargo.lock
 /Firmware_Templates/.vscode/
 /Firmware_Templates/.github/**
+=======
+# VS Code local settings
+.vscode/
+!**/.vscode/extensions.json
+
+# Rust build output
+**/target/
+**/.embuild/
+
+# Frontend / Tauri UI
+/UI/node_modules/
+/UI/dist/
+/UI/dist-ssr/
+/UI/*.local
+/UI/npm-debug.log*
+/UI/yarn-debug.log*
+/UI/yarn-error.log*
+/UI/pnpm-debug.log*
+
+# Firmware-generated configuration
+/Firmware_Templates/sdkconfig
+/Firmware_Templates/sdkconfig.old
+>>>>>>> Stashed changes
