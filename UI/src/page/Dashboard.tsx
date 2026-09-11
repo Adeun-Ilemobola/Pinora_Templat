@@ -5,6 +5,7 @@ import { LogViewer } from "@/components/LogViewer";
 import { Card, CardContent } from "@/components/ui/card";
 import { useModuleFront } from "@/lib/Modulefront";
 import { RegisteredLedView } from "@/lib/Modules/Led";
+import { RegisteredServoView } from "@/lib/Modules/servo";
 
 export default function Dashboard() {
   const registry = useModuleFront((state) => state.ModuleRegistry);
@@ -17,6 +18,16 @@ export default function Dashboard() {
       ),
     [registry],
   );
+
+   const servos = useMemo(
+     () =>
+       Object.entries(registry).filter(
+         ([, store]) => store.getState().kind === "Servo",
+       ),
+     [registry],
+   );
+
+
   return (
     <>
       <div>
@@ -40,17 +51,26 @@ export default function Dashboard() {
           </span>
         </div>
         {connected && leds.length ? (
-          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
-            {leds.map(([id]) => (
-              <RegisteredLedView key={id} moduleId={id} />
-            ))}
-          </div>
+          <>
+            <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+              {leds.map(([id]) => (
+                <RegisteredLedView key={id} moduleId={id} />
+              ))}
+
+
+              {servos.map(([id]) => (
+                <RegisteredServoView key={id} moduleId={id} />
+              ))} 
+            </div>
+
+            
+          </>
         ) : (
           <Card>
             <CardContent className="py-5 text-sm text-muted-foreground">
               {connected
-                ? "Waiting for LED module registration."
-                : "Connect a device to access its LED modules."}
+                ? "Waiting for  module registration."
+                : "Connect a device to access  modules."}
             </CardContent>
           </Card>
         )}

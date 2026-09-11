@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { createLed, LedEvent, type LedModule } from './Modules/Led';
 import { createLidar, LidarEvent, type LidarModule } from './Modules/lidar';
+import { createServo, ServoEvent, type ServoModule } from './Modules/servo';
 import { StoreApi } from 'zustand/vanilla'
 import { create } from 'zustand'
 import { ModuleType } from "./protocol/module-type";
@@ -11,7 +12,7 @@ import { SystemInfo } from "./protocol/system";
 import { EventPackage } from "./protocol/event";
 
 
-export type AnyModule = LedModule | LidarModule;
+export type AnyModule = LedModule | LidarModule | ServoModule;
 
 type PortConnectionType = "Connected" | "Disconnected" | "Error";
 
@@ -37,7 +38,7 @@ interface ModuleCoreArchive {
     RegistrationEvent: (event: Registration) => void;
     ModuleEvent: (event: EventPackage) => void;
     SystemEvent: (event: SystemInfo) => void;
-    BuildViewCache: () => {id: string, look_up_id: string , kind: string }[];
+    BuildViewCache: () => { id: string, look_up_id: string, kind: string }[];
 
 
 
@@ -201,6 +202,21 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
 
                     break;
 
+                case "Servo":
+                    set({
+                        ModuleRegistry: {
+                            ...get().ModuleRegistry,
+                            [value.id]: createServo(
+                                { id: value.id as string, kind: "Servo", look_up_id: value.lool_up_id as string , state: { MinPivot: 0, MaxPivot: 0, Offset: 0, Angle: 0 } }
+                            ) as StoreApi<AnyModule>
+                        },
+                        LookUpId: {
+                            ...get().LookUpId,
+                            [value.lool_up_id]: value.id as string
+                        }
+                    });
+
+                    break;
                 default:
                     break;
             }
@@ -237,7 +253,15 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
                     // Handle Lidar-specific event here
                 }
             }
-           
+            if (eventKindType === "Servo") {
+                const servoStore = moduleStore as StoreApi<ServoModule>;
+                if (servoStore) {
+                    const servoState = servoStore.getState();
+                    servoState.handleEvent(eventData as ServoEvent);
+                    // Handle Servo-specific event here
+                }
+            }
+
 
             //    console.log("Handling ModuleEvent:", id, eventKindType, eventData);
         } catch (error) {
@@ -249,10 +273,10 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
     },
     ModuleRegistry: {},
     LookUpId: {},
-    logs: [] ,
+    logs: [],
     systemInfo: null,
     clearLogs: () => set({ logs: [] }),
-    BuildViewCache: (): {id: string, look_up_id: string , kind: string }[] => {
+    BuildViewCache: (): { id: string, look_up_id: string, kind: string }[] => {
         // Implement the logic to build the view cache here
         return Object.entries(get().LookUpId).map(([look_up_id, id]) => ({
             id,

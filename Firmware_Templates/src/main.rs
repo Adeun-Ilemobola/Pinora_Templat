@@ -1,12 +1,15 @@
 pub mod core;
 pub mod module;
 pub mod utilities;
+use pinora_protocol::ServoCapability;
+use pwm_pca9685::Channel;
 
 use crate::core::emitter::Emitter;
 use crate::core::hardware::*;
 use crate::core::modulecore::Module;
 use crate::module::ledmodule::Ledmodule;
 use crate::module::remote_receiver::RemoteReceiverButton;
+use crate::module::servomodule::ServoModule;
 use pinora_protocol::command::IncomingCommand;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -115,6 +118,31 @@ fn main() -> anyhow::Result<()> {
     // ));
 
     // modules.insert(rfid.borrow().id().to_owned(), rfid.clone());
+
+
+    let servo = {
+        let hardware = shared.borrow();
+
+
+        ServoModule::new(
+            hardware.servo_pwm.clone(),
+            "servo".to_string(),
+            Channel::C0,
+            ServoCapability{
+                min_angle: 0,
+                max_angle: 180,
+                pulse_min: 500,
+                pulse_max: 2500,
+                max_pivot: 90,
+                min_pivot: -90,
+                offset: 90,
+            },
+            None,
+            sync_sender.clone(),
+        )?
+    };
+    let servo_id = servo.id().to_owned();
+    modules.insert(servo_id, Box::new(servo));
 
     let led1 = {
         let hardware = shared.borrow();

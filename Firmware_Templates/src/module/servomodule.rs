@@ -3,7 +3,7 @@ use crate::core::hardware::SharedPwm;
 use crate::core::modulecore::{ Module, ModuleCore, ModuleError};
 use crate::utilities::math::{pulse_us_to_tick, range_i32};
 
-use anyhow::Ok;
+
 use pinora_protocol::{
     command::ModuleCommand,
     global_definitions::ModuleType,
@@ -171,7 +171,7 @@ impl<'d> ServoModule<'d> {
 
 impl<'d> Module for ServoModule<'d> {
    fn tick(&mut self) -> Result<(), ModuleError> {
-        Ok(())
+       Ok(())
     }
 
 
