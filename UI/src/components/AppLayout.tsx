@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useMatch } from "react-router";
-import { CircuitBoard, LayoutDashboard, Moon, Sun } from "lucide-react";
+import { CircuitBoard, LayoutDashboard, Moon, ScanEye, Sun } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -16,6 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useModuleFront } from "@/lib/Modulefront";
 
 /** Persistent desktop shell; route content owns its own hardware subscriptions. */
 export function AppLayout() {
@@ -40,7 +41,18 @@ export function AppLayout() {
           <SidebarContent>
             <SidebarGroup>
               <SidebarMenu>
-                <SidebarMenuItem>
+                <SidebarMenuItem className=" gap-2">
+
+                  <SidebarMenuButton
+                    isActive={active}
+                    tooltip="Lidar"
+                    render={<NavLink to="/lidar" end />}
+                  >
+                    <ScanEye />
+                    <span>Lidar</span>
+                  </SidebarMenuButton>
+
+
                   <SidebarMenuButton
                     isActive={active}
                     tooltip="Dashboard"
@@ -49,6 +61,8 @@ export function AppLayout() {
                     <LayoutDashboard />
                     <span>Dashboard</span>
                   </SidebarMenuButton>
+
+
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>

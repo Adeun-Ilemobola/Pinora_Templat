@@ -50,6 +50,9 @@ interface ModuleCoreArchive {
     systemInfo: SystemInfo | null;
     clearLogs: () => void;
 
+
+    MakeFakeLidar: () => void;
+
 }
 
 
@@ -191,7 +194,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
                         ModuleRegistry: {
                             ...get().ModuleRegistry,
                             [value.id]: createLidar(
-                                { id: value.id as string, kind: "Lidar", look_up_id: value.lool_up_id as string }
+                                { id: value.id as string, kind: "Lidar", look_up_id: value.lool_up_id as string, state: { Roi: { min: { x: 0, y: 0 }, max: { x: 0, y: 0 } }, PointMap: { max_chunk: 0, curr_chunk: 0, map: [] }, Target: { point: { x: 0, y: 0 } }, ScanState: { state: "StopScan", scan_time: 0 } } }
                             ) as StoreApi<AnyModule>
                         },
                         LookUpId: {
@@ -207,7 +210,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
                         ModuleRegistry: {
                             ...get().ModuleRegistry,
                             [value.id]: createServo(
-                                { id: value.id as string, kind: "Servo", look_up_id: value.lool_up_id as string , state: { MinPivot: 0, MaxPivot: 0, Offset: 0, Angle: 0 } }
+                                { id: value.id as string, kind: "Servo", look_up_id: value.lool_up_id as string, state: { MinPivot: 0, MaxPivot: 0, Offset: 0, Angle: 0 } }
                             ) as StoreApi<AnyModule>
                         },
                         LookUpId: {
@@ -284,9 +287,18 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
             kind: get().ModuleRegistry[id]?.getState().kind ?? "",
         }));
     },
-
+    MakeFakeLidar: () => {
+        set({
+            ModuleRegistry: {
+                ...get().ModuleRegistry,
+                "fake-lidar": createLidar({ id: "fake-lidar", kind: "Lidar", look_up_id: "fake-lidar", state: { Roi: { min: { x: 0, y: 0 }, max: { x: 0, y: 0 } }, PointMap: { max_chunk: 0, curr_chunk: 0, map: [] }, Target: { point: { x: 0, y: 0 } }, ScanState: { state: "StopScan", scan_time: 0 } } }
+                ) as StoreApi<AnyModule>
+            },
+            LookUpId: {
+                ...get().LookUpId,
+                "fake-lidar": "fake-lidar"
+            }
+        })
+        console.log("Fake Lidar created", get().ModuleRegistry["fake-lidar"]);
+    },
 }));
-
-
-
-

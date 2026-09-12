@@ -1,6 +1,6 @@
 [package]
 name = "Firmware_Templates"
-version = "0.5.0"
+version = "0.5.0-alpha"
 authors = [""]
 edition = "2021"
 resolver = "2"
