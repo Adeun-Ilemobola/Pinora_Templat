@@ -1,6 +1,6 @@
 
 use crate::core::emitter::Emitter;
-use crate::core::hardware::{I2cDriver, TimerState};
+use crate::core::hardware::{I2cDriver, RangefinderI2c, TimerState};
 use pinora_protocol::module::lidar::{LidarEvent, RangPoint, ScanState};
 use pinora_protocol::module::servomodule::ServoCapability;
 
@@ -11,7 +11,6 @@ use crate::core::{
 };
 use crate::module::range_finder::Rangefinder;
 use crate::module::servomodule::ServoModule;
-use embedded_hal_bus::i2c::RcDevice;
 use embedded_hal_compat::ReverseCompat;
 use pinora_protocol::{LidarCommandPayload, Point};
 use pinora_protocol::{
@@ -54,7 +53,7 @@ impl<'d> Lidar<'d> {
     pub fn new(
         pwm: SharedPwm<'d>,
         manuel_id: String,
-        rangefinder_i2c: RcDevice<I2cDriver<'d>>,
+        rangefinder_i2c: RangefinderI2c<'d>,
          sender: Emitter,
     ) -> anyhow::Result<Lidar<'d>> {
         let mc = ModuleCore::new(ModuleType::Lidar, &manuel_id, None, sender.clone());
@@ -71,7 +70,7 @@ impl<'d> Lidar<'d> {
         let servo_x = ServoModule::new(
             pwm.clone(),
             "servo_x".to_string(),
-            Channel::C0,
+            Channel::C1,
             config.clone(),
             Some(mc.id.clone()),
             sender.clone(),
@@ -80,14 +79,14 @@ impl<'d> Lidar<'d> {
         let servo_y = ServoModule::new(
             pwm.clone(),
             "servo_y".to_string(),
-            Channel::C1,
+            Channel::C0,
             config.clone(),
             Some(mc.id.clone()),
             sender.clone(),
         )?;
 
         let rangefinder = Rangefinder::new(
-            rangefinder_i2c.reverse(),
+            rangefinder_i2c,
             "rangefinder".to_string(),
             Some(mc.id.clone()),
             sender.clone(),
@@ -194,16 +193,21 @@ impl<'d> Module for Lidar<'d> {
         &self.core
     }
     fn tick(&mut self) -> Result<(), ModuleError> {
+        //self.rangefinder.tick()?;
         if self.curr_scan_mode != ScanState::Scanning {
             return Ok(());
         }
 
-        let range_botton = match self.rangefinder.get_range() {
-            Ok(Some(r)) => r,
-            Ok(None) => {
-                return Ok(());
-            }
-            Err(error) => return Err(error),
+        let range_botton = match self.rangefinder.update_range() {
+            Ok(()) => self.rangefinder.range(),
+            Err(error) => {
+                self.emit(ModuleEvent::SysLog(SysLogEvent{
+                    text: format!("Rangefinder error: {:?}", error),
+                    priority: LogPriority::High,
+                    raw_err: Some(format!("{:?}", error)),
+                }));
+               return Err(error);
+            },
         };
 
         //  let range_top = match self.rangefinder_top.get_range() {

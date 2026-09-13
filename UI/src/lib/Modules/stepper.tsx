@@ -1,3 +1,4 @@
+import { ParentControlledState } from "@/components/ParentControlledState";
 import { Badge } from "@/components/ui/badge";
 import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
@@ -125,6 +126,7 @@ export const StepperMotorEventSchema = z.union([
 export type StepperMotorEvent = z.infer<typeof StepperMotorEventSchema>;
 
 type StepperInstance = {
+  hasParent: boolean;
   id: string;
   kind: "StepperMotor";
   look_up_id: string;
@@ -237,6 +239,7 @@ function StepperControls({
 }: {
   moduleStore: StoreApi<StepperModule>;
 }) {
+  const hasParent = useStore(moduleStore, (s) => s.hasParent);
   const id = useStore(moduleStore, (s) => s.id);
   const state = useStore(moduleStore, (s) => s.state);
   const connected = useModuleFront((s) => s.PortStat === "Connected");
@@ -244,6 +247,7 @@ function StepperControls({
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const send = async (action: () => Promise<unknown>) => {
+    if (moduleStore.getState().hasParent || !connected || sending) return;
     try {
       setError(null);
       setSending(true);
@@ -256,7 +260,7 @@ function StepperControls({
       setSending(false);
     }
   };
-  const disabled = !connected || sending;
+  const disabled = hasParent || !connected || sending;
 
   const moveToAngle = useStore(moduleStore, (s) => s.moveToAngle);
   const moveToPivotMin = useStore(moduleStore, (s) => s.moveToPivotMin);
@@ -284,6 +288,7 @@ function StepperControls({
   return (
     <ModuleCard type="Stepper" id={id}>
       <div className="space-y-5">
+        {hasParent && <ParentControlledState />}
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs uppercase tracking-widest text-muted-foreground">
             Rotary position

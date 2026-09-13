@@ -1,3 +1,4 @@
+import { ParentControlledState } from "@/components/ParentControlledState";
 import { Badge } from "@/components/ui/badge";
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { useStore } from "zustand";
@@ -47,6 +48,7 @@ export const ImuEventSchema = z.discriminatedUnion("event_type", [
 export type ImuEvent = z.infer<typeof ImuEventSchema>;
 
 type ImuInstance = {
+  hasParent: boolean;
   id: string;
   kind: "Imu";
   look_up_id: string;
@@ -89,11 +91,13 @@ export const RegisteredImuView = ({ moduleId }: { moduleId: string }) => {
   return <ImuControls moduleStore={store as StoreApi<ImuModule>} />;
 };
 function ImuControls({ moduleStore }: { moduleStore: StoreApi<ImuModule> }) {
+  const hasParent = useStore(moduleStore, (s) => s.hasParent);
   const id = useStore(moduleStore, (s) => s.id);
   const state = useStore(moduleStore, (s) => s.state);
   return (
     <ModuleCard type="IMU" id={id}>
       <div className="space-y-5">
+        {hasParent && <ParentControlledState />}
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs uppercase tracking-widest text-muted-foreground">
             Motion vectors

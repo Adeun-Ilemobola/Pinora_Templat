@@ -1,3 +1,4 @@
+import { ParentControlledState } from "@/components/ParentControlledState";
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useState } from "react";
 import { Radio } from "lucide-react";
@@ -45,6 +46,7 @@ export const RemoteButtonEventSchema = z.union([
 export type RemoteButtonEvent = z.infer<typeof RemoteButtonEventSchema>;
 
 type RemoteReceiverInstance = {
+  hasParent: boolean;
   id: string;
   kind: "RemoteReceiver";
   look_up_id: string;
@@ -93,6 +95,7 @@ function RemoteReceiverControls({
 }: {
   moduleStore: StoreApi<RemoteReceiverModule>;
 }) {
+  const hasParent = useStore(moduleStore, (s) => s.hasParent);
   const id = useStore(moduleStore, (s) => s.id);
   const state = useStore(moduleStore, (s) => s.state);
   const [active, setActive] = useState(false);
@@ -111,6 +114,7 @@ function RemoteReceiverControls({
   return (
     <ModuleCard type="Remote receiver" id={id}>
       <div className="space-y-5">
+        {hasParent && <ParentControlledState />}
         <div className="flex items-center justify-between gap-3">
           <p className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
             <Radio className="size-3.5" />

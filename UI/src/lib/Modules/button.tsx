@@ -1,3 +1,4 @@
+import { ParentControlledState } from "@/components/ParentControlledState";
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useState } from "react";
 import { CircleDot } from "lucide-react";
@@ -16,6 +17,7 @@ export const ButtonEventSchema = z.union([
 export type ButtonEvent = z.infer<typeof ButtonEventSchema>;
 
 type ButtonInstance = {
+  hasParent: boolean;
   id: string;
   kind: "Button";
   look_up_id: string;
@@ -51,6 +53,7 @@ function ButtonControls({
 }: {
   moduleStore: StoreApi<ButtonModule>;
 }) {
+  const hasParent = useStore(moduleStore, (s) => s.hasParent);
   const id = useStore(moduleStore, (s) => s.id);
   const state = useStore(moduleStore, (s) => s.state);
   const [active, setActive] = useState(false);
@@ -69,6 +72,7 @@ function ButtonControls({
   return (
     <ModuleCard type="Button" id={id}>
       <div className="space-y-5">
+        {hasParent && <ParentControlledState />}
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs uppercase tracking-widest text-muted-foreground">
             Physical input

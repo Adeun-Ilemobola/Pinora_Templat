@@ -16,7 +16,6 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useModuleFront } from "@/lib/Modulefront";
 
 /** Persistent desktop shell; route content owns its own hardware subscriptions. */
 export function AppLayout() {

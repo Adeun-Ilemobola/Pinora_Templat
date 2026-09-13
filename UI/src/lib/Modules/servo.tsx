@@ -1,3 +1,4 @@
+import { ParentControlledState } from "@/components/ParentControlledState";
 import { z } from "zod";
 import { StoreApi, createStore } from "zustand/vanilla";
 import { IncomingCommand } from "../IncomingCommand";
@@ -69,6 +70,7 @@ export const ServoCommandSchema = z.union([
 export type ServoCommand = z.infer<typeof ServoCommandSchema>;
 
 type ServoInstance = {
+  hasParent: boolean;
   id: string;
   kind: string;
   look_up_id: string;
@@ -89,6 +91,7 @@ export interface ServoModule extends ServoInstance {
 
 export function createServo(data: ServoInstance): StoreApi<ServoModule> {
   return createStore<ServoModule>((set, get) => ({
+    hasParent: data.hasParent,
     kind: "Servo",
     state: {
       MinPivot: data.state.MinPivot,
@@ -180,6 +183,7 @@ export const RegisteredServoView = ({ moduleId }: { moduleId: string }) => {
 };
 
 function ServoControls({ servo }: { servo: StoreApi<ServoModule> }) {
+  const hasParent = useStore(servo, (s) => s.hasParent);
   const servoId = useStore(servo, (state) => state.id);
   const state = useStore(servo, (state) => state.state);
   const setAngle = useStore(servo, (state) => state.setAngle);
@@ -187,6 +191,7 @@ function ServoControls({ servo }: { servo: StoreApi<ServoModule> }) {
   return (
     <ModuleCard type="Servo" id={servoId}>
       <div className="space-y-5">
+        {hasParent && <ParentControlledState />}
         <div>
           <p className="text-xs uppercase tracking-widest text-muted-foreground">
             Reported angle
@@ -203,8 +208,10 @@ function ServoControls({ servo }: { servo: StoreApi<ServoModule> }) {
           max={90}
           pivot={0}
           step={1}
-          onValueChange={setAngle}
-          disabled={!connected}
+          onValueChange={(angle) => {
+            if (!servo.getState().hasParent) setAngle(angle);
+          }}
+          disabled={hasParent || !connected}
           formatValue={(value) => `${value}°`}
           showValue
         />

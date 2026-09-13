@@ -37,6 +37,24 @@ import { Registration } from "./protocol/registration";
 import { SystemInfo } from "./protocol/system";
 import { EventPackage } from "./protocol/event";
 
+/** Ownership follows firmware modules, not dashboard nesting. */
+export function registrationHasParent(registration: Registration): boolean {
+  // lidar.rs creates two servos and a rangefinder; joystick.rs owns a button
+  // (the joystick implementation is currently excluded from the firmware build).
+  if (
+    registration.module_type === "Lidar" ||
+    registration.module_type === "JoyStick"
+  ) {
+    return false;
+  }
+  // ModuleCore::new serializes None as an empty string. Also tolerate older
+  // registrations with missing/null parent_id without changing the wire schema.
+  return (
+    typeof registration.parent_id === "string" &&
+    registration.parent_id.length > 0
+  );
+}
+
 export type AnyModule =
   | LedModule
   | LidarModule
@@ -106,7 +124,6 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
           logs: [],
           ModuleRegistry: {},
           LookUpId: {},
-          
         });
       })
       .catch((error) => {
@@ -202,12 +219,14 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
   RegistrationEvent: (event: Registration) => {
     try {
       const value = event;
+      const hasParent = registrationHasParent(event);
       switch (value.module_type) {
         case "Led":
           set({
             ModuleRegistry: {
               ...get().ModuleRegistry,
               [value.id]: createLed({
+                hasParent,
                 id: value.id as string,
                 kind: "Led",
                 state: 0,
@@ -227,6 +246,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
             ModuleRegistry: {
               ...get().ModuleRegistry,
               [value.id]: createLidar({
+                hasParent,
                 id: value.id as string,
                 kind: "Lidar",
                 look_up_id: value.lool_up_id as string,
@@ -251,6 +271,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
             ModuleRegistry: {
               ...get().ModuleRegistry,
               [value.id]: createServo({
+                hasParent,
                 id: value.id as string,
                 kind: "Servo",
                 look_up_id: value.lool_up_id as string,
@@ -269,6 +290,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
             ModuleRegistry: {
               ...get().ModuleRegistry,
               [value.id]: createButton({
+                hasParent,
                 id: value.id,
                 kind: "Button",
                 look_up_id: value.lool_up_id,
@@ -283,6 +305,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
             ModuleRegistry: {
               ...get().ModuleRegistry,
               [value.id]: createImu({
+                hasParent,
                 id: value.id,
                 kind: "Imu",
                 look_up_id: value.lool_up_id,
@@ -297,6 +320,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
             ModuleRegistry: {
               ...get().ModuleRegistry,
               [value.id]: createRemoteReceiver({
+                hasParent,
                 id: value.id,
                 kind: "RemoteReceiver",
                 look_up_id: value.lool_up_id,
@@ -311,6 +335,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
             ModuleRegistry: {
               ...get().ModuleRegistry,
               [value.id]: createRangefinder({
+                hasParent,
                 id: value.id,
                 kind: "Rangefinder",
                 look_up_id: value.lool_up_id,
@@ -331,6 +356,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
             ModuleRegistry: {
               ...get().ModuleRegistry,
               [value.id]: createRfid({
+                hasParent,
                 id: value.id,
                 kind: "Rfid",
                 look_up_id: value.lool_up_id,
@@ -345,6 +371,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
             ModuleRegistry: {
               ...get().ModuleRegistry,
               [value.id]: createStepper({
+                hasParent,
                 id: value.id,
                 kind: "StepperMotor",
                 look_up_id: value.lool_up_id,
@@ -462,6 +489,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
       ModuleRegistry: {
         ...get().ModuleRegistry,
         "fake-lidar": createLidar({
+          hasParent: false,
           id: "fake-lidar",
           kind: "Lidar",
           look_up_id: "fake-lidar",

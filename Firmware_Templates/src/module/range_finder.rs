@@ -70,7 +70,7 @@ impl<'d> Rangefinder<'d> {
         self.is_ranging = true;
 
         self.emit(ModuleEvent::Rangefinder(RangefinderEvent::RangingState {
-            is_ranging: true,
+            is_ranging: self.is_ranging,
         }));
 
         Ok(())
@@ -88,13 +88,13 @@ impl<'d> Rangefinder<'d> {
         self.is_ranging = false;
 
         self.emit(ModuleEvent::Rangefinder(RangefinderEvent::RangingState {
-            is_ranging: false,
+            is_ranging: self.is_ranging,
         }));
 
         Ok(())
     }
 
-    pub fn get_range(&mut self) -> Result<Option<u16>, ModuleError> {
+    pub fn update_range(&mut self) -> Result<(), ModuleError> {
         let ready = match self.sensor.is_data_ready() {
             Ok(ready) => ready,
             Err(error) => {
@@ -109,7 +109,7 @@ impl<'d> Rangefinder<'d> {
         };
 
         if !ready {
-            return Ok(None);
+            return Err(ModuleError::SensorNotReady);
         }
 
         let status = match self.sensor.get_range_status() {
@@ -157,8 +157,19 @@ impl<'d> Rangefinder<'d> {
         }
         self.range_mm = distance;
 
-        Ok(Some(self.range_mm))
+        Ok(())
     }
+
+    pub fn range(&self) -> u16 {
+        self.range_mm
+    }
+
+
+
+    
+
+
+
 }
 
 impl<'d> Module for Rangefinder<'d> {
@@ -166,21 +177,7 @@ impl<'d> Module for Rangefinder<'d> {
         if !self.is_ranging {
             return Ok(());
         }
-        match self.get_range() {
-            Ok(Some(rang)) => {
-                self.emit(ModuleEvent::Rangefinder(RangefinderEvent::Range {
-                    millimeters: rang,
-                }));
-                
-            }
-            Ok(None) => {
-                return Ok(());
-            }
-            Err(error) => {
-                return Err(error);
-            }
-        }
-
+            let _ = self.update_range();
         Ok(())
 
     }

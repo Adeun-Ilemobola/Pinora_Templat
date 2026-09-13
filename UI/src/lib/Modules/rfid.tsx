@@ -1,3 +1,4 @@
+import { ParentControlledState } from "@/components/ParentControlledState";
 import { Badge } from "@/components/ui/badge";
 import { useEffect } from "react";
 import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
@@ -60,6 +61,7 @@ export const RfidEventSchema = z.union([
 export type RfidEvent = z.infer<typeof RfidEventSchema>;
 
 type RfidInstance = {
+  hasParent: boolean;
   id: string;
   kind: "Rfid";
   look_up_id: string;
@@ -117,6 +119,7 @@ export const RegisteredRfidView = ({ moduleId }: { moduleId: string }) => {
   return <RfidControls moduleStore={store as StoreApi<RfidModule>} />;
 };
 function RfidControls({ moduleStore }: { moduleStore: StoreApi<RfidModule> }) {
+  const hasParent = useStore(moduleStore, (s) => s.hasParent);
   const id = useStore(moduleStore, (s) => s.id);
   const state = useStore(moduleStore, (s) => s.state);
   const connected = useModuleFront((s) => s.PortStat === "Connected");
@@ -124,6 +127,7 @@ function RfidControls({ moduleStore }: { moduleStore: StoreApi<RfidModule> }) {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const send = async (action: () => Promise<unknown>) => {
+    if (moduleStore.getState().hasParent || !connected || sending) return;
     try {
       setError(null);
       setSending(true);
@@ -136,7 +140,7 @@ function RfidControls({ moduleStore }: { moduleStore: StoreApi<RfidModule> }) {
       setSending(false);
     }
   };
-  const disabled = !connected || sending;
+  const disabled = hasParent || !connected || sending;
 
   const readMode = useStore(moduleStore, (s) => s.readMode);
   const writeMode = useStore(moduleStore, (s) => s.writeMode);
@@ -165,6 +169,7 @@ function RfidControls({ moduleStore }: { moduleStore: StoreApi<RfidModule> }) {
   return (
     <ModuleCard type="RFID" id={id}>
       <div className="space-y-5">
+        {hasParent && <ParentControlledState />}
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs uppercase tracking-widest text-muted-foreground">
             Last scanned tag

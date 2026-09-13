@@ -33,6 +33,7 @@ impl ModuleCore {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ModuleError {
     OperationFailed,
+    SensorNotReady,
 }
 
 impl From<()> for ModuleError {

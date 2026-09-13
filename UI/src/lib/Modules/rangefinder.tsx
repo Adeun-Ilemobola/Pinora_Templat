@@ -1,3 +1,4 @@
+import { ParentControlledState } from "@/components/ParentControlledState";
 import { Badge } from "@/components/ui/badge";
 import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
@@ -80,6 +81,7 @@ export const RangefinderEventSchema = z.union([
 export type RangefinderEvent = z.infer<typeof RangefinderEventSchema>;
 
 type RangefinderInstance = {
+  hasParent: boolean;
   id: string;
   kind: "Rangefinder";
   look_up_id: string;
@@ -174,6 +176,7 @@ function RangefinderControls({
 }: {
   moduleStore: StoreApi<RangefinderModule>;
 }) {
+  const hasParent = useStore(moduleStore, (s) => s.hasParent);
   const id = useStore(moduleStore, (s) => s.id);
   const state = useStore(moduleStore, (s) => s.state);
   const connected = useModuleFront((s) => s.PortStat === "Connected");
@@ -181,6 +184,7 @@ function RangefinderControls({
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const send = async (action: () => Promise<unknown>) => {
+    if (moduleStore.getState().hasParent || !connected || sending) return;
     try {
       setError(null);
       setSending(true);
@@ -193,7 +197,7 @@ function RangefinderControls({
       setSending(false);
     }
   };
-  const disabled = !connected || sending;
+  const disabled = hasParent || !connected || sending;
 
   const start = useStore(moduleStore, (s) => s.startRanging);
   const stop = useStore(moduleStore, (s) => s.stopRanging);
@@ -209,6 +213,7 @@ function RangefinderControls({
   return (
     <ModuleCard type="Rangefinder" id={id}>
       <div className="space-y-5">
+        {hasParent && <ParentControlledState />}
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs uppercase tracking-widest text-muted-foreground">
             Last valid distance
