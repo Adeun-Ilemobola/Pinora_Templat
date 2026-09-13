@@ -1,9 +1,7 @@
 import { z } from "zod";
-import { LedEvent, RegisteredLedView } from "./Led";
 import { StoreApi, createStore } from "zustand/vanilla";
 import { IncomingCommand } from "../IncomingCommand";
 import { ModuleCard } from "@/components/ModuleCard";
-import { useEffect, useState } from "react";
 import { useStore } from "zustand";
 import { useModuleFront } from "../Modulefront";
 import { PivotSlider } from "@/components/PivotSlider";
@@ -185,25 +183,42 @@ function ServoControls({ servo }: { servo: StoreApi<ServoModule> }) {
   const servoId = useStore(servo, (state) => state.id);
   const state = useStore(servo, (state) => state.state);
   const setAngle = useStore(servo, (state) => state.setAngle);
-  const setMinPivot = useStore(servo, (state) => state.setMinPivot);
-  const setMaxPivot = useStore(servo, (state) => state.setMaxPivot);
-  const [draft, setDraft] = useState(state);
-  useEffect(() => setDraft(state), [state]);
+  const connected = useModuleFront((state) => state.PortStat === "Connected");
   return (
     <ModuleCard type="Servo" id={servoId}>
-      <h1>Servo {state.Angle}</h1>
-
-      <PivotSlider
-        value={state.Angle}
-        label="Angle"
-        max={90}
-        min={-90}
-        onValueChange={(v) => {
-          setAngle(v);
-        }}
-        showValue
-        step={1}
-      />
+      <div className="space-y-5">
+        <div>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">
+            Reported angle
+          </p>
+          <p className="mt-2 font-heading text-4xl font-semibold tabular-nums">
+            {state.Angle.toFixed(1)}
+            <span className="ml-1 text-xl text-muted-foreground">°</span>
+          </p>
+        </div>
+        <PivotSlider
+          value={state.Angle}
+          label="Set angle"
+          min={-90}
+          max={90}
+          pivot={0}
+          step={1}
+          onValueChange={setAngle}
+          disabled={!connected}
+          formatValue={(value) => `${value}°`}
+          showValue
+        />
+        <div className="flex justify-between text-xs tabular-nums text-muted-foreground">
+          <span>-90°</span>
+          <span>0° · Center</span>
+          <span>+90°</span>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {connected
+            ? "Angle updates when the device reports."
+            : "Disconnected · Showing last reported angle"}
+        </p>
+      </div>
     </ModuleCard>
   );
 }
