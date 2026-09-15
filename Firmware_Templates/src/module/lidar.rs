@@ -1,27 +1,24 @@
-
-use crate::core::emitter::Emitter;
 use crate::core::hardware::{I2cDriver, RangefinderI2c, TimerState};
+use crate::core::transport::transport_core::{EmitterError, TransportCore};
 use pinora_protocol::module::lidar::{LidarEvent, RangPoint, ScanState};
 use pinora_protocol::module::servomodule::ServoCapability;
 
 use crate::core::{
-    emitter::EmitterError,
     hardware::SharedPwm,
     modulecore::{Module, ModuleCore, ModuleError},
 };
 use crate::module::range_finder::Rangefinder;
 use crate::module::servomodule::ServoModule;
 use embedded_hal_compat::ReverseCompat;
-use pinora_protocol::{LidarCommandPayload, Point};
 use pinora_protocol::{
     command::ModuleCommand,
     global_definitions::ModuleType,
     module_event::{LogPriority, ModuleEvent, SysLogEvent},
     registration::ProtocolMessage,
 };
+use pinora_protocol::{LidarCommandPayload, Point};
 use pwm_pca9685::Channel;
 const POINTS_PER_CHUNK: usize = 100;
-
 
 pub struct Lidar<'d> {
     core: ModuleCore,
@@ -54,7 +51,7 @@ impl<'d> Lidar<'d> {
         pwm: SharedPwm<'d>,
         manuel_id: String,
         rangefinder_i2c: RangefinderI2c<'d>,
-         sender: Emitter,
+        sender: TransportCore,
     ) -> anyhow::Result<Lidar<'d>> {
         let mc = ModuleCore::new(ModuleType::Lidar, &manuel_id, None, sender.clone());
         let config = ServoCapability {
@@ -122,19 +119,6 @@ impl<'d> Lidar<'d> {
                 }));
             }
         }
-        new_lidar.curr_point_bottom = new_lidar.max_point.clone();
-        new_lidar.move_to_point();
-        new_lidar.curr_point_bottom = new_lidar.min_point.clone();
-        new_lidar.move_to_point();
-        new_lidar.curr_point_bottom = Point { x: 0, y: 0 };
-        new_lidar.move_to_point();
-        new_lidar.curr_point_bottom = Point { x: 0, y: 0 };
-        new_lidar.move_to_point();
-        new_lidar.emit(ModuleEvent::Lidar(LidarEvent::Roi {
-            min: new_lidar.min_point.clone(),
-            max: new_lidar.max_point.clone(),
-        }));
-        
 
         Ok(new_lidar)
     }
@@ -178,6 +162,21 @@ impl<'d> Lidar<'d> {
     pub fn get_id(&self) -> String {
         self.id().to_string()
     }
+
+    pub fn initialize(&mut self) {
+        self.curr_point_bottom = self.max_point.clone();
+        self.move_to_point();
+        self.curr_point_bottom = self.min_point.clone();
+        self.move_to_point();
+        self.curr_point_bottom = Point { x: 0, y: 0 };
+        self.move_to_point();
+        self.curr_point_bottom = Point { x: 0, y: 0 };
+        self.move_to_point();
+        self.emit(ModuleEvent::Lidar(LidarEvent::Roi {
+            min: self.min_point.clone(),
+            max: self.max_point.clone(),
+        }));
+    }
 }
 
 impl<'d> Module for Lidar<'d> {
@@ -192,22 +191,33 @@ impl<'d> Module for Lidar<'d> {
     fn core(&self) -> &ModuleCore {
         &self.core
     }
+    fn first_emit(&mut self) -> Result<(), EmitterError> {
+        self.initialize();
+
+        Ok(())
+    }
     fn tick(&mut self) -> Result<(), ModuleError> {
         //self.rangefinder.tick()?;
         if self.curr_scan_mode != ScanState::Scanning {
             return Ok(());
         }
 
-        let range_botton = match self.rangefinder.update_range() {
+        let range_bottom = match self.rangefinder.update_range() {
             Ok(()) => self.rangefinder.range(),
+
+            Err(ModuleError::SensorNotReady) => {
+                return Ok(());
+            }
+
             Err(error) => {
-                self.emit(ModuleEvent::SysLog(SysLogEvent{
+                self.emit(ModuleEvent::SysLog(SysLogEvent {
                     text: format!("Rangefinder error: {:?}", error),
                     priority: LogPriority::High,
                     raw_err: Some(format!("{:?}", error)),
                 }));
-               return Err(error);
-            },
+
+                return Err(error);
+            }
         };
 
         //  let range_top = match self.rangefinder_top.get_range() {
@@ -234,7 +244,7 @@ impl<'d> Module for Lidar<'d> {
         self.point_map.push(RangPoint {
             x: self.curr_point_bottom.x,
             y: self.curr_point_bottom.y,
-            distant: range_botton,
+            distant: range_bottom,
         });
 
         let row_finished = self.curr_point_bottom.x == self.limit_point.x;
@@ -254,6 +264,18 @@ impl<'d> Module for Lidar<'d> {
         }
 
         if row_finished {
+            self.emit(ModuleEvent::SysLog(SysLogEvent {
+                text: format!(
+                    "ROW FINISHED: pos=({}, {}), limit=({}, {}), direction={}",
+                    self.curr_point_bottom.x,
+                    self.curr_point_bottom.y,
+                    self.limit_point.x,
+                    self.limit_point.y,
+                    self.x_d
+                ),
+                raw_err: None,
+                priority: LogPriority::Low,
+            }));
             if self.point_map.len() >= POINTS_PER_CHUNK {
                 self.flush_point_map();
             }
@@ -268,8 +290,30 @@ impl<'d> Module for Lidar<'d> {
 
             self.curr_point_bottom.y -= self.step as i32;
             // self.curr_point_bottom.y -= self.step_y as i32;
+            self.emit(ModuleEvent::SysLog(SysLogEvent {
+                text: format!(
+                    "NEXT ROW: pos=({}, {}), limit_x={}, direction={}",
+                    self.curr_point_bottom.x,
+                    self.curr_point_bottom.y,
+                    self.limit_point.x,
+                    self.x_d
+                ),
+                raw_err: None,
+                priority: LogPriority::Low,
+            }));
         } else {
             self.curr_point_bottom.x += self.step as i32 * self.x_d;
+            self.emit(ModuleEvent::SysLog(SysLogEvent {
+                text: format!(
+                    "NEXT COLUMN: pos=({}, {}), limit_x={}, direction={}",
+                    self.curr_point_bottom.x,
+                    self.curr_point_bottom.y,
+                    self.limit_point.x,
+                    self.x_d
+                ),
+                raw_err: None,
+                priority: LogPriority::Low,
+            }));
         }
 
         self.move_to_point();
@@ -281,8 +325,6 @@ impl<'d> Module for Lidar<'d> {
         match command {
             ModuleCommand::Lidar(lidar_command) => match lidar_command {
                 LidarCommandPayload::ChangeMotorAngle { id, step } => {
-                   
-
                     if self.servo_x.id() == id {
                         let _ = self.servo_x.set_angle(*step);
                         self.curr_point_bottom.x = self.servo_x.pivot_angle();
@@ -292,7 +334,6 @@ impl<'d> Module for Lidar<'d> {
                     }
                 }
                 LidarCommandPayload::Roi { min, max } => {
-                    
                     self.min_point = min.clone();
                     self.max_point = max.clone();
                     let total_points = (max.x.abs() as u32 * 2) * (min.y.abs() as u32 * 2);
@@ -314,8 +355,12 @@ impl<'d> Module for Lidar<'d> {
 
                     self.curr_point_bottom = self.max_point.clone();
                     self.limit_point = self.min_point.clone();
-                    self.x_d = -1;
                     self.step_timer.reset();
+                    self.x_d = if self.limit_point.x > self.curr_point_bottom.x {
+                        1
+                    } else {
+                        -1
+                    };
                     self.move_to_point();
                     self.curr_scan_mode = ScanState::Scanning;
                     self.emit(ModuleEvent::Lidar(LidarEvent::ScanState {
@@ -331,16 +376,13 @@ impl<'d> Module for Lidar<'d> {
                         scan_time: self.scan_time.elapsed().as_secs_f32(),
                     }));
                 }
-                LidarCommandPayload::Test {} => {
-                }
+                LidarCommandPayload::Test {} => {}
                 LidarCommandPayload::MovePos { p } => {
                     self.curr_point_bottom = p.clone();
                     self.move_to_point();
                 }
             },
-            _ => {
-                
-            }
+            _ => {}
         }
         Ok(())
     }

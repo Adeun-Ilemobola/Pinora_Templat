@@ -5,7 +5,7 @@ use embedded_hal_bus::i2c::RcDevice;
 use pinora_protocol::ServoCapability;
 use pwm_pca9685::Channel;
 
-use crate::core::emitter::Emitter;
+use crate::core::transport::transport_core::{TransportCore , EmitterError, TransportType};
 use crate::core::hardware::*;
 use crate::core::modulecore::Module;
 use crate::module::imu::imu_type::MpuDevice;
@@ -56,7 +56,10 @@ fn configure_console_uart() -> anyhow::Result<()> {
 fn main() -> anyhow::Result<()> {
     esp_idf_svc::sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
-    let sync_sender = Emitter::new(None);
+    let transport_core = TransportType::Serial;
+    let sync_sender = TransportCore::new(transport_core);
+
+    
 
     configure_console_uart()?;
     print_esp_system_info(sync_sender.clone())?;
@@ -127,7 +130,6 @@ fn main() -> anyhow::Result<()> {
 
 
     // let ranger ={
-    //     let hardware = shared.borrow();
     //     Rangefinder::new(
     //         rangefinder_i2c,
     //         "ranger".to_string(),
@@ -187,64 +189,73 @@ fn main() -> anyhow::Result<()> {
     // let servo_id = servo.id().to_owned();
     // modules.insert(servo_id, Box::new(servo));
 
-    let led1 = {
-        let hardware = shared.borrow();
+    // let led1 = {
+    //     let hardware = shared.borrow();
 
-        Ledmodule::new(
-            p.pins.gpio12,
-            p.ledc.channel0,
-            "led1".to_string(),
-            &hardware.led_timer,
-            None,
-            sync_sender.clone(),
-        )?
-    };
-    let led1_id = led1.id().to_owned();
-    modules.insert(led1_id, Box::new(led1));
-
-
-    let led2 = {
-        let hardware = shared.borrow();
-
-        Ledmodule::new(
-            p.pins.gpio14,
-            p.ledc.channel1,
-            "led2".to_string(),
-            &hardware.led_timer,
-            None,
-            sync_sender.clone(),
-        )?
-    };
-
-    let led2_id = led2.id().to_owned();
-    modules.insert(led2_id, Box::new(led2));
+    //     Ledmodule::new(
+    //         p.pins.gpio12,
+    //         p.ledc.channel0,
+    //         "led1".to_string(),
+    //         &hardware.led_timer,
+    //         None,
+    //         sync_sender.clone(),
+    //     )?
+    // };
+    // let led1_id = led1.id().to_owned();
+    // modules.insert(led1_id, Box::new(led1));
 
 
-    let led3 = {
-        let hardware = shared.borrow();
+    // let led2 = {
+    //     let hardware = shared.borrow();
 
-        Ledmodule::new(
-            p.pins.gpio27,
-            p.ledc.channel2,
-            "led3".to_string(),
-            &hardware.led_timer,
-            None,
-            sync_sender.clone(),
-        )?
-    };
+    //     Ledmodule::new(
+    //         p.pins.gpio14,
+    //         p.ledc.channel1,
+    //         "led2".to_string(),
+    //         &hardware.led_timer,
+    //         None,
+    //         sync_sender.clone(),
+    //     )?
+    // };
 
-    let led3_id = led3.id().to_owned();
-    modules.insert(led3_id, Box::new(led3));
+    // let led2_id = led2.id().to_owned();
+    // modules.insert(led2_id, Box::new(led2));
 
 
-    for module in modules.values() {
+    // let led3 = {
+    //     let hardware = shared.borrow();
+
+    //     Ledmodule::new(
+    //         p.pins.gpio27,
+    //         p.ledc.channel2,
+    //         "led3".to_string(),
+    //         &hardware.led_timer,
+    //         None,
+    //         sync_sender.clone(),
+    //     )?
+    // };
+
+    // let led3_id = led3.id().to_owned();
+    // modules.insert(led3_id, Box::new(led3));
+
+    for (_id, module) in modules.iter_mut() {
         module.register()?;
+        module.first_emit()?;
     }
 
-    let (command_sender, command_receiver) = mpsc::channel::<IncomingCommand>();
-    std::thread::spawn(move || {
-        serial_command_reader(command_sender);
-    });
+
+    // for module in modules.values() {
+    //     module.register()?;
+    //     module.first_emit()?;
+    // }
+
+    // let (command_sender, command_receiver) = mpsc::channel::<IncomingCommand>();
+    // std::thread::spawn(move || {
+    //     serial_command_reader(command_sender);
+    // });
+    let command_receiver = {
+        sync_sender.handle_incoming()
+    };
 
     loop {
         for module in modules.values_mut() {
@@ -272,40 +283,40 @@ fn main() -> anyhow::Result<()> {
     }
 }
 
-fn serial_command_reader(command_sender: mpsc::Sender<IncomingCommand>) {
-    let stdin = io::stdin();
+// fn serial_command_reader(command_sender: mpsc::Sender<IncomingCommand>) {
+//     let stdin = io::stdin();
 
-    for line_result in stdin.lock().lines() {
-        let line = match line_result {
-            Ok(line) => line,
-            Err(err) if err.kind() == ErrorKind::WouldBlock => {
-                // Not an error — just no data yet. Back off and retry.
-                std::thread::sleep(std::time::Duration::from_millis(10));
-                continue;
-            }
-            Err(err) => {
-                log::error!("Real serial read error: {:?}", err);
-                continue;
-            }
-        };
+//     for line_result in stdin.lock().lines() {
+//         let line = match line_result {
+//             Ok(line) => line,
+//             Err(err) if err.kind() == ErrorKind::WouldBlock => {
+//                 // Not an error — just no data yet. Back off and retry.
+//                 std::thread::sleep(std::time::Duration::from_millis(10));
+//                 continue;
+//             }
+//             Err(err) => {
+//                 log::error!("Real serial read error: {:?}", err);
+//                 continue;
+//             }
+//         };
 
-        let line = line.trim();
+//         let line = line.trim();
 
-        if line.is_empty() {
-            continue;
-        }
+//         if line.is_empty() {
+//             continue;
+//         }
 
-        match serde_json::from_str::<IncomingCommand>(line) {
-            Ok(command) => {
-                log::info!("Parsed command: {:?}", command);
+//         match serde_json::from_str::<IncomingCommand>(line) {
+//             Ok(command) => {
+//                 log::info!("Parsed command: {:?}", command);
 
-                let _ = command_sender.send(command);
-            }
+//                 let _ = command_sender.send(command);
+//             }
 
-            Err(err) => {
-                log::error!("Failed to parse command: {:?}", err);
-                log::error!("Raw line was: {}", line);
-            }
-        }
-    }
-}
+//             Err(err) => {
+//                 log::error!("Failed to parse command: {:?}", err);
+//                 log::error!("Raw line was: {}", line);
+//             }
+//         }
+//     }
+// }

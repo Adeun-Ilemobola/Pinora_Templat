@@ -2,13 +2,9 @@ use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    core::{
-        emitter::{Emitter, EmitterError},
-        hardware::{OutputPinCore, TimerState},
-        modulecore::{Module, ModuleCore, ModuleError},
-    },
-};
+use crate::core::{
+        hardware::{OutputPinCore, TimerState}, modulecore::{Module, ModuleCore, ModuleError}, transport::transport_core::{EmitterError, TransportCore},
+    };
 use pinora_protocol::{
     command::ModuleCommand,
     global_definitions::ModuleType,
@@ -101,7 +97,7 @@ impl<'d> StepperMotor<'d> {
         motion_mode: StepperPinMode<'d>,
         manuel_id: String,
         cluster_id: Option<String>,
-        sender: Emitter,
+        sender: TransportCore,
     ) -> anyhow::Result<StepperMotor<'d>> {
         let motor = StepperMotor {
             core: ModuleCore::new(ModuleType::StepperMotor, &manuel_id, cluster_id, sender),

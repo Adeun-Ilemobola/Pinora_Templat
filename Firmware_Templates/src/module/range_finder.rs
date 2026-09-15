@@ -1,4 +1,4 @@
-use crate::core::emitter::Emitter;
+use crate::core::transport::transport_core::{TransportCore , EmitterError};
 use crate::core::hardware::RangefinderI2c;
 use crate::core::modulecore::{Module, ModuleCore, ModuleError};
 use pinora_protocol::{
@@ -27,7 +27,7 @@ impl<'d> Rangefinder<'d> {
         rangefinder_i2c: RangefinderI2c<'d>,
         manual_id: String,
         cluster_id: Option<String>,
-        sender: Emitter,
+        sender: TransportCore,
     ) -> anyhow::Result<Rangefinder<'d>> {
         let mut sensor = VL53L1X::new(rangefinder_i2c, DEFAULT_ADDRESS);
 
@@ -43,6 +43,14 @@ impl<'d> Rangefinder<'d> {
             .init(IOVoltage::Volt2_8)
             .map_err(|error| anyhow::anyhow!("VL53L1X initialization failed: {error:?}"))?;
 
+        sensor
+            .set_distance_mode(DistanceMode::Long)
+            .map_err(|error| anyhow::anyhow!("Failed to set VL53L1X distance mode: {error:?}"))?;
+
+        sensor
+            .set_timing_budget_ms(50)
+            .map_err(|error| anyhow::anyhow!("Failed to set VL53L1X timing budget: {error:?}"))?;
+        
         let rangefinder = Self {
             core: ModuleCore::new(ModuleType::Rangefinder, &manual_id, cluster_id, sender),
             sensor,
@@ -53,10 +61,10 @@ impl<'d> Rangefinder<'d> {
             distance_mode: DistanceMode::Long,
         };
 
+
+
         Ok(rangefinder)
     }
-
-    
 
     pub fn start_ranging(&mut self) -> anyhow::Result<()> {
         if self.is_ranging {
@@ -163,13 +171,6 @@ impl<'d> Rangefinder<'d> {
     pub fn range(&self) -> u16 {
         self.range_mm
     }
-
-
-
-    
-
-
-
 }
 
 impl<'d> Module for Rangefinder<'d> {
@@ -177,12 +178,29 @@ impl<'d> Module for Rangefinder<'d> {
         if !self.is_ranging {
             return Ok(());
         }
-            let _ = self.update_range();
+        let data = self.update_range();
+        match data {
+            Ok(_) => {
+                self.emit(ModuleEvent::Rangefinder(RangefinderEvent::Range { millimeters: self.range() }));
+            },
+            Err(_) => {
+                self.emit(ModuleEvent::SysLog(SysLogEvent {
+                    text: "Failed to update range".to_string(),
+                    raw_err: None,
+                    priority: LogPriority::Critical,
+                }));
+                return Err(ModuleError::OperationFailed);
+            }
+        }
         Ok(())
-
     }
     fn core(&self) -> &ModuleCore {
         &self.core
+    }
+    fn first_emit(&mut self) -> Result<(), EmitterError> {
+
+        self.emit(ModuleEvent::Rangefinder(RangefinderEvent::TimingBudget { milliseconds: self.timing_budget_ms.clone() }));
+        Ok(())
     }
 
     fn handle_command(&mut self, command: &ModuleCommand) -> anyhow::Result<()> {

@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use esp_idf_svc::hal::gpio::Level;
 
 use crate::core::{
-    emitter::Emitter,
+    transport::transport_core::TransportCore,
     hardware::InputPinCore,
     modulecore::{Module, ModuleCore, ModuleError},
 };
@@ -27,7 +27,7 @@ impl<'d> RemoteReceiverButton<'d> {
     pub fn new(
         pin: InputPinCore<'d>,
         core_id: String,
-        sender: Emitter,
+        sender: TransportCore,
     ) -> Result<RemoteReceiverButton<'d>, ()> {
         let r = RemoteReceiverButton {
             core: ModuleCore::new(ModuleType::RemoteReceiver, &core_id, None, sender),

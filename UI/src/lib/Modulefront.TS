@@ -36,6 +36,7 @@ import {
 import { Registration } from "./protocol/registration";
 import { SystemInfo } from "./protocol/system";
 import { EventPackage } from "./protocol/event";
+import { recordLogReceipt } from "./logs";
 
 /** Ownership follows firmware modules, not dashboard nesting. */
 export function registrationHasParent(registration: Registration): boolean {
@@ -186,7 +187,9 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
       }
 
       try {
+        console.info("Raw message received:", message);
         get().HandleEvent(message);
+        
       } catch (error) {
         console.error("Failed to handle Pinora message:", message, error);
       }
@@ -194,6 +197,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
     set({ UnlistenFnArr: [...get().UnlistenFnArr, unlisten] });
   },
   HandleEvent: (event: ProtocolMessage) => {
+    recordLogReceipt(event);
     set((state) => ({ logs: [...state.logs, event] }));
     // Implementation for handling events
     try {

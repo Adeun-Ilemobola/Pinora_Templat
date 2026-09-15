@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        emitter::Emitter, hardware::{OutputPinCore, TimerState}, modulecore::{ Module, ModuleCore, ModuleError}
+        transport::transport_core::TransportCore, hardware::{OutputPinCore, TimerState}, modulecore::{ Module, ModuleCore, ModuleError}
     },
 };
 use pinora_protocol::{
@@ -67,7 +67,7 @@ impl<'d> Rfid<'d> {
         buzer_pin: OutputPinCore<'d>,
         core_id: &str,
         parent_id: Option<String>,
-        sender:Emitter,
+        sender:TransportCore,
     ) -> anyhow::Result<Self> {
         let interface = SpiInterface::new(spi).with_delay(rfid_spi_delay as RfidDelay);
 

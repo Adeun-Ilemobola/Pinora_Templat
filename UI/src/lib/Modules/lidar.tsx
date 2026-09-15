@@ -134,7 +134,6 @@ export interface LidarModule extends LidarInstance {
   startScan: () => Promise<unknown>;
   stopScan: () => Promise<unknown>;
   test: () => Promise<unknown>;
-  clear: () => Promise<unknown>;
 }
 
 export function createLidar(data: LidarInstance): StoreApi<LidarModule> {
@@ -190,18 +189,7 @@ export function createLidar(data: LidarInstance): StoreApi<LidarModule> {
         });
       }
     },
-    clear: () => {
-      return new Promise((resolve) => {
-        chunks.clear();
-        set({
-          state: {
-            ...get().state,
-            PointMap: { max_chunk: 0, curr_chunk: 0, map: [] },
-          },
-        });
-        resolve(undefined);
-      });
-    },
+
     setRoi: (min, max) => send({ Roi: normalizeRoi(min, max) }),
     setStep: (step) => send({ SetStep: { step } }),
     setChangeMotorAngle: (id, step) => send({ ChangeMotorAngle: { id, step } }),
@@ -260,6 +248,7 @@ export function GenerateGridCells(): GridCell[] {
   });
 }
 const GridCells = GenerateGridCells();
+// Undo CSS scaling before selecting a cell; clamp edges to the inclusive angular grid.
 export function pointerToGrid(
   clientX: number,
   clientY: number,
@@ -314,17 +303,24 @@ export function resolveCellColor(
   hovered: number | null,
   colors: { normal: string; roi: string; hover: string },
 ): string {
-  if (cell.index === hovered) return colors.hover;
-  const p = cell.pivotPoint;
-  if (
-    roi &&
-    p.x >= roi.min.x &&
-    p.x <= roi.max.x &&
-    p.y >= roi.min.y &&
-    p.y <= roi.max.y
-  )
-    return colors.roi;
-  return GetRangeColor(distance, colors.normal);
+  if (distance){
+     return GetRangeColor(distance, colors.normal);
+  }
+
+  
+  if (roi) {
+    if (cell.index === hovered) return colors.hover;
+    const p = cell.pivotPoint;
+    if (
+      p.x >= roi.min.x &&
+      p.x <= roi.max.x &&
+      p.y >= roi.min.y &&
+      p.y <= roi.max.y
+    )
+      return colors.roi;
+  }
+
+  return colors.normal;
 }
 
 export function LidarView({
@@ -413,6 +409,7 @@ function LidarControls({
   const inFlight = useRef(false);
   const disabled = !connected || busy;
   const scanning = module.state.ScanState.state === "Scanning";
+  // Reports refresh the draft until a local edit; an explicit reset resumes synchronization.
   useEffect(() => {
     if (!dirty.current)
       setLocalRoi(normalizeRoi(module.state.Roi.min, module.state.Roi.max));
@@ -437,114 +434,139 @@ function LidarControls({
   };
 
   return (
-    <main className="space-y-4">
-      <div className="grid gap-4 lg:grid-cols-2">
-        <RoiConfig id={module.id} roi={localRoi} onChange={updateRoi} />
-        <Card>
-          <CardHeader>
-            <CardTitle>Dashboard</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between gap-3">
-              <Badge variant="secondary">{module.state.ScanState.state}</Badge>
-              <span className="text-xs text-muted-foreground">
-                {module.state.ScanState.scan_time.toFixed(1)} s ·{" "}
-                {module.state.PointMap.map.length.toLocaleString()} samples
-              </span>
-            </div>
-            <Field>
+    <main className="space-y-6">
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">LiDAR</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Scan coverage, inspect range samples, and configure the region of
+            interest.
+          </p>
+        </div>
+        <Badge variant="outline">
+          {connected ? "Connected" : "Disconnected"} · {module.id}
+        </Badge>
+      </header>
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(20rem,1fr)]">
+        <PlayGround
+          points={module.state.PointMap.map}
+          roi={validRoi(localRoi) ? localRoi : null}
+          roiMode={roiMode}
+          onRoiChange={updateRoi}
+          target={module.targetReported ? module.state.Target.point : null}
+          disabled={disabled || scanning}
+          onMove={(p) => void send(() => module.setMovePos(p))}
+        />
+        <div className="grid gap-4">
+          <RoiConfig id={module.id} roi={localRoi} onChange={updateRoi} />
+          <Card>
+            <CardHeader>
+              <CardTitle>Scan controls</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="flex items-center justify-between gap-3">
-                <FieldLabel htmlFor={`${module.id}-roi-mode`}>
-                  ROI selection
-                </FieldLabel>
-                <Switch
-                  id={`${module.id}-roi-mode`}
-                  checked={roiMode}
-                  onCheckedChange={setRoiMode}
-                />
+                <Badge variant="secondary">
+                  {module.state.ScanState.state}
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  {module.state.ScanState.scan_time.toFixed(1)} s ·{" "}
+                  {module.state.PointMap.map.length.toLocaleString()} samples
+                </span>
               </div>
-              <FieldDescription>
-                {roiMode
-                  ? "Select two corners, then send the ROI."
-                  : "Click the canvas to move to that pivot position."}
-              </FieldDescription>
-            </Field>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                disabled={disabled || scanning || !validRoi(localRoi)}
-                onClick={() =>
-                  void send(() => module.setRoi(localRoi.min, localRoi.max))
-                }
-              >
-                Send ROI
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  dirty.current = false;
-                  setLocalRoi(
-                    normalizeRoi(module.state.Roi.min, module.state.Roi.max),
-                  );
-                }}
-              >
-                Use reported ROI
-              </Button>
-            </div>
-            <Field>
-              <FieldLabel htmlFor={`${module.id}-step`}>
-                Scan step · degrees
-              </FieldLabel>
-              <Input
-                id={`${module.id}-step`}
-                type="number"
-                min={1}
-                max={MaxAngle}
-                step={1}
-                value={Number.isFinite(step) ? step : ""}
-                onChange={(e) => setStep(e.target.valueAsNumber)}
-              />
-              <FieldDescription>
-                Use a whole step that divides both ROI spans. Start sends this
-                ROI and step before scanning.
-              </FieldDescription>
-            </Field>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                disabled={
-                  disabled || scanning || !validScanStep(step, localRoi)
-                }
-                onClick={() =>
-                  void send(async () => {
-                    await module.clear();
-                    await module.setRoi(localRoi.min, localRoi.max);
-                    await module.setStep(step);
-                    await module.startScan();
-                  })
-                }
-              >
-                Start scan
-              </Button>
-              <Button
-                variant="outline"
-                disabled={disabled}
-                onClick={() => void send(module.stopScan)}
-              >
-                Stop scan
-              </Button>
-            </div>
-            <RangeTelemetry store={range} />
-            {error && (
-              <p role="alert" className="text-sm text-destructive">
-                {error}
-              </p>
-            )}
-            {!connected && (
-              <p className="text-xs text-muted-foreground">
-                Disconnected · Last reported readings
-              </p>
-            )}
-          </CardContent>
-        </Card>
+              <Field>
+                <div className="flex items-center justify-between gap-3">
+                  <FieldLabel htmlFor={`${module.id}-roi-mode`}>
+                    ROI selection
+                  </FieldLabel>
+                  <Switch
+                    id={`${module.id}-roi-mode`}
+                    checked={roiMode}
+                    onCheckedChange={setRoiMode}
+                  />
+                </div>
+                <FieldDescription>
+                  {roiMode
+                    ? "Select two corners, then send the ROI."
+                    : "Click the canvas to move to that pivot position."}
+                </FieldDescription>
+              </Field>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  disabled={disabled || scanning || !validRoi(localRoi)}
+                  onClick={() =>
+                    void send(() => module.setRoi(localRoi.min, localRoi.max))
+                  }
+                >
+                  Send ROI
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    dirty.current = false;
+                    setLocalRoi(
+                      normalizeRoi(module.state.Roi.min, module.state.Roi.max),
+                    );
+                  }}
+                >
+                  Use reported ROI
+                </Button>
+              </div>
+              <Field>
+                <FieldLabel htmlFor={`${module.id}-step`}>
+                  Scan step · degrees
+                </FieldLabel>
+                <Input
+                  id={`${module.id}-step`}
+                  type="number"
+                  min={1}
+                  max={MaxAngle}
+                  step={1}
+                  value={Number.isFinite(step) ? step : ""}
+                  onChange={(e) => setStep(e.target.valueAsNumber)}
+                />
+                <FieldDescription>
+                  Use a whole step that divides both ROI spans. Start sends this
+                  ROI and step before scanning.
+                </FieldDescription>
+              </Field>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  disabled={
+                    disabled || scanning || !validScanStep(step, localRoi)
+                  }
+                  onClick={() =>
+                    void send(async () => {
+                      // Send draft bounds and a compatible step before starting the firmware scan.
+                      await module.setRoi(localRoi.min, localRoi.max);
+                      await module.setStep(step);
+                      await module.startScan();
+                    })
+                  }
+                >
+                  Start scan
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={disabled}
+                  onClick={() => void send(module.stopScan)}
+                >
+                  Stop scan
+                </Button>
+              </div>
+              <RangeTelemetry store={range} />
+              {error && (
+                <p role="alert" className="text-sm text-destructive">
+                  {error}
+                </p>
+              )}
+              {!connected && (
+                <p className="text-xs text-muted-foreground">
+                  Disconnected · Last reported readings
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
       <Card>
         <CardHeader>
@@ -574,15 +596,6 @@ function LidarControls({
           />
         </CardContent>
       </Card>
-      <PlayGround
-        points={module.state.PointMap.map}
-        roi={validRoi(localRoi) ? localRoi : null}
-        roiMode={roiMode}
-        onRoiChange={updateRoi}
-        target={module.targetReported ? module.state.Target.point : null}
-        disabled={disabled || scanning}
-        onMove={(p) => void send(() => module.setMovePos(p))}
-      />
     </main>
   );
 }
@@ -710,7 +723,10 @@ export function PlayGround({
   const [keyboardPoint, setKeyboardPoint] = useState<Point>({ x: 90, y: 90 });
   const ranges = useMemo(() => buildRangeLookup(points), [points]);
   const hoveredCell = hovered === null ? null : GridCells[hovered];
+  // A mode switch or replacement draft invalidates an unfinished two-corner selection.
   useEffect(() => setAnchor(null), [roiMode, roi]);
+  // Paint scan data, hover, ROI preview, and the reported target using one
+  // coordinate system and theme snapshot.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -726,17 +742,19 @@ export function PlayGround({
         roi: token("primary"),
         hover: token("foreground"),
       };
-      const selected =
+      // Keep the first corner fixed; hover previews the second without committing the draft.
+      const previewRoi =
         roiMode && anchor
           ? normalizeRoi(anchor, hoveredCell?.pivotPoint ?? anchor)
           : roi;
       ctx.fillStyle = token("border");
       ctx.fillRect(0, 0, CanvasSize, CanvasSize);
+      // Color precedence remains hover, ROI, measured range, then empty cell.
       for (const cell of GridCells) {
         ctx.fillStyle = resolveCellColor(
           cell,
           ranges[cell.index],
-          selected,
+          previewRoi,
           hovered,
           colors,
         );
@@ -753,17 +771,18 @@ export function PlayGround({
           (v) => Number.isInteger(v) && v >= -90 && v <= 90,
         )
       ) {
-        const p = PivotToGrid(target);
+        const targetGrid = PivotToGrid(target);
         ctx.strokeStyle = token("foreground");
         ctx.lineWidth = 1.5;
         ctx.strokeRect(
-          p.x * CellSize - 2,
-          p.y * CellSize - 2,
+          targetGrid.x * CellSize - 2,
+          targetGrid.y * CellSize - 2,
           CellSize + 4,
           CellSize + 4,
         );
       }
     };
+    // Coalesce redraws and repaint on theme changes; clean up both on rerender.
     const schedule = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(draw);
@@ -779,6 +798,7 @@ export function PlayGround({
       observer.disconnect();
     };
   }, [ranges, roi, hovered, hoveredCell, anchor, roiMode, target]);
+  // Pointer and keyboard selection share grid-to-pivot conversion and ROI commit logic.
   const select = (grid: Point) => {
     const pivot = AngleToPivot(grid);
     setKeyboardPoint(grid);
@@ -792,7 +812,7 @@ export function PlayGround({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>LiDAR Playground</CardTitle>
+        <CardTitle>Scan map</CardTitle>
         <p className="text-xs text-muted-foreground">
           {roiMode
             ? anchor
@@ -814,12 +834,12 @@ export function PlayGround({
             aria-label="LiDAR angular grid. Arrow keys navigate cells; Enter selects a corner in ROI mode or moves the LiDAR. Escape cancels selection."
             className="block aspect-square h-auto w-full rounded-sm bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onPointerMove={(event) => {
-              const p = pointerToGrid(
+              const pointerGrid = pointerToGrid(
                 event.clientX,
                 event.clientY,
                 event.currentTarget.getBoundingClientRect(),
               );
-              setHovered(pointToIndex(p));
+              setHovered(pointToIndex(pointerGrid));
             }}
             onPointerLeave={() => setHovered(null)}
             onBlur={() => setHovered(null)}

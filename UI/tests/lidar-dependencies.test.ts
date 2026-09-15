@@ -54,7 +54,7 @@ test("LiDAR renders only with all four explicit lookups and correctly typed stor
         });
     }
     const complete = useModuleFront.getState();
-    expect(render()).toContain("LiDAR Playground");
+    expect(render()).toContain("Scan map");
     expect(render()).toContain("X pivot");
     expect(render()).toContain("Y pivot");
     expect(render()).toContain("Not reported");
@@ -78,7 +78,7 @@ test("LiDAR renders only with all four explicit lookups and correctly typed stor
       expect(render(true)).toBe("");
       useModuleFront.setState({ ModuleRegistry: complete.ModuleRegistry });
     }
-    expect(render(true)).toContain("LiDAR Playground");
+    expect(render(true)).toContain("Scan map");
   } finally {
     useModuleFront.setState(saved, true);
     Object.assign(snapshot, savedSnapshot);

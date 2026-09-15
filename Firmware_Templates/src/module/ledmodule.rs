@@ -1,7 +1,7 @@
 
-use crate::core::emitter::Emitter;
 use crate::core::hardware::{ledc, LedTimer, OutputPin};
 use crate::core::modulecore::{Module, ModuleCore, ModuleError};
+use crate::core::transport::transport_core::TransportCore;
 use crate::utilities::math::range_u32;
 use pinora_protocol::{
     command::ModuleCommand,
@@ -22,7 +22,7 @@ impl<'d> Ledmodule<'d> {
         manuel_id: String,
         timer: &LedTimer<'d>,
         cluster_id: Option<String>,
-        sender:Emitter
+        sender:TransportCore
     ) -> anyhow::Result<Ledmodule<'d>>
     where
         T: OutputPin + 'd,

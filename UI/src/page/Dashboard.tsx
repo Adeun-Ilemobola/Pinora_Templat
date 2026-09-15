@@ -7,7 +7,6 @@ import { RegisteredStepperView } from "@/lib/Modules/stepper";
 import { useMemo } from "react";
 import { TransportForm } from "@/components/TransportForm";
 import { Esp32StatsCard } from "@/components/Esp32StatsCard";
-import { LogViewer } from "@/components/LogViewer";
 import { Card, CardContent } from "@/components/ui/card";
 import { useModuleFront } from "@/lib/Modulefront";
 import { RegisteredLedView } from "@/lib/Modules/Led";
@@ -50,14 +49,13 @@ export default function Dashboard() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Device connection, protocol traffic, and module controls.
+          Device connection, system health, and module controls.
         </p>
       </div>
       <div className="grid items-stretch gap-6 lg:grid-cols-2">
         <TransportForm />
         <Esp32StatsCard />
       </div>
-      <LogViewer />
       <section className="space-y-4" aria-labelledby="modules-heading">
         <div className="flex items-center justify-between">
           <h2 id="modules-heading" className="text-lg font-semibold">

@@ -1,7 +1,7 @@
 
 use crate::{
     core::{
-        emitter::{Emitter, EmitterError}, hardware::SharedI2cDevice, modulecore::{Module, ModuleCore, ModuleError}
+        transport::transport_core::{TransportCore , EmitterError}, hardware::SharedI2cDevice, modulecore::{Module, ModuleCore, ModuleError}
     },
     module::imu::imu_type::{
         ACCEL_SENSITIVITY, ACCEL_XOUT_H, Axes, GYRO_SENSITIVITY, GYRO_XOUT_H, ImuError, ImuEvent, ImuModel, Mpu, MpuDevice, MpuDeviceErr, MpuDeviceMode, RawAxes
@@ -51,7 +51,7 @@ impl<'d> MpuDevice<'d> {
     pub fn new(
         i2c: SharedI2cDevice<'d>,
         device_address: u8,
-        sender: Emitter,
+        sender: TransportCore,
         core_id: &str,
         parent_id: Option<String>,
     ) -> Result<MpuDevice<'d>, MpuDeviceErr> {

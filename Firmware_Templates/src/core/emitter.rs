@@ -7,9 +7,10 @@ use std::{
 
 #[derive(Debug, Clone, Copy)]
 pub enum TransportType {
+    None,
     Wifi,
     Bluetooth,
-    Serialized,
+    Serial,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -27,16 +28,28 @@ impl std::error::Error for EmitterError {}
 
 #[derive(Debug, Clone)]
 pub struct Emitter {
-    pub  sender: SyncSender<ProtocolMessage>,
+    pub sender: SyncSender<ProtocolMessage>,
+    transport: TransportType,
 }
 
 impl Emitter {
-    pub fn new(transport_type: Option<TransportType>) -> Emitter{
-        let transport = transport_type.unwrap_or(TransportType::Serialized);
+    pub fn new(transport_type: TransportType) -> Emitter {
+        let transport = transport_type;
 
         Emitter {
             sender: Self::build_sender(transport),
+            transport,
         }
+    }
+    pub fn init_wifi(&self) {
+        // Initialize WiFi transport here
+    }
+    pub fn init_bluetooth(&self) {
+        // Initialize Bluetooth transport here
+    }
+
+    pub fn transport(&self) -> TransportType {
+        self.transport
     }
 
     pub fn emit_reliable(&self, message: ProtocolMessage) -> Result<(), EmitterError> {
@@ -73,17 +86,15 @@ impl Emitter {
         sender
     }
 
-     fn send(data: ProtocolMessage, mode: TransportType) -> Result<(), String> {
+    fn send(data: ProtocolMessage, mode: TransportType) -> Result<(), String> {
         match mode {
             TransportType::Bluetooth => {}
-            TransportType::Serialized => {
-                let serialized =
-                serde_json::to_string(&data).map_err(|error| error.to_string())?;
-                println!("{serialized}");
-                
-            }
             TransportType::Wifi => {}
+            TransportType::Serial => {}
+            TransportType::None => {}
         }
+        let serialized = serde_json::to_string(&data).map_err(|error| error.to_string())?;
+        println!("{serialized}");
 
         Ok(())
     }
