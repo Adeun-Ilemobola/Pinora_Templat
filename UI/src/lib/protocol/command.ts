@@ -1,10 +1,6 @@
-//import { ServoCommandSchema } from "../Modules/servo";
-//import { RangefinderCommandSchema } from "../Modules/rangefinder";
-//import { RfidCommandSchema } from "../Modules/rfid";
-//import { StepperMotorCommandSchema } from "../Modules/stepper";
+
 import { z } from "zod";
-import { LedCommandSchema } from "../Modules/Led";
-//import { LidarCommandSchema } from "../Modules/lidar";
+//import { LedCommandSchema } from "../Modules/Led";
 
 export const ModuleCommandSchema = z.union([
   // z.object({ Servo: ServoCommandSchema }),
@@ -12,9 +8,9 @@ export const ModuleCommandSchema = z.union([
   // z.object({ Rfid: RfidCommandSchema }),
   // z.object({ StepperMotor: StepperMotorCommandSchema }),
 
-  z.object({
-    Led: LedCommandSchema,
-  }),
+    // z.object({
+    //   Led: LedCommandSchema,
+    // }),
 
   // z.object({
   //   Lidar: LidarCommandSchema,

@@ -3,7 +3,7 @@ import { RouterProvider } from "react-router/dom";
 import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "@/page/Dashboard";
 import "./index.css";
-import LidarPage from "@/page/LidarPage";
+//import LidarPage from "@/page/LidarPage";
 import LogsPage from "@/page/LogsPage";
 
 // Hash routing works with Tauri's asset URLs without a server fallback.
@@ -14,10 +14,12 @@ const router = createHashRouter([{
   children: [{
     index: true,
     Component: Dashboard
-  }, {
-    path: "lidar",
-    Component: LidarPage
-  }, {
+  }, 
+  // {
+  //   path: "lidar",
+  //   Component: LidarPage
+  // }, 
+  {
     path: "logs",
     Component: LogsPage
   }]
