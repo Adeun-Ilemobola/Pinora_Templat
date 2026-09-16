@@ -3,15 +3,18 @@ pub mod module;
 pub mod utilities;
 use embedded_hal_bus::i2c::RcDevice;
 use esp_idf_svc::eventloop::EspSystemEventLoop;
+use esp_idf_svc::hal::adc::oneshot::config::AdcChannelConfig;
+use esp_idf_svc::hal::adc::oneshot::{AdcChannelDriver, AdcDriver};
 use esp_idf_svc::nvs::EspDefaultNvsPartition;
 use pinora_protocol::ServoCapability;
 use pwm_pca9685::Channel;
 
-use crate::core::transport::transport_core::{TransportCore , TransportType};
 use crate::core::hardware::*;
 use crate::core::modulecore::Module;
+use crate::core::transport::transport_core::{TransportCore, TransportType};
+//use crate::module::joystick::JoyStick;
 // use crate::module::imu::imu_type::MpuDevice;
-// use crate::module::ledmodule::Ledmodule;
+use crate::module::ledmodule::Ledmodule;
 // use crate::module::lidar::Lidar;
 // use crate::module::range_finder::Rangefinder;
 // use crate::module::remote_receiver::RemoteReceiverButton;
@@ -21,7 +24,6 @@ use crate::module::stepper::{StepperMotor, StepperPinMode, StepperPins};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-
 
 type ModuleHandle<'a> = Box<dyn Module + 'a>;
 
@@ -56,25 +58,27 @@ fn configure_console_uart() -> anyhow::Result<()> {
 fn main() -> anyhow::Result<()> {
     esp_idf_svc::sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
-        let p = Peripherals::take()?;
+    let p = Peripherals::take()?;
 
-     let sys_loop = EspSystemEventLoop::take()?;
+    let sys_loop = EspSystemEventLoop::take()?;
     let nvs = EspDefaultNvsPartition::take()?;
     let transport_core = TransportType::Serial;
-    let tansport = TransportCore::new(transport_core, sys_loop.clone(), nvs.clone() , p.modem)?;
+    let tansport = TransportCore::new(transport_core, sys_loop.clone(), nvs.clone(), p.modem)?;
     let sync_sender = tansport.emitter.clone();
-    
 
     configure_console_uart()?;
     print_esp_system_info(sync_sender.clone())?;
     let mut modules: HashMap<String, ModuleHandle<'_>> = HashMap::new();
     let mut last_yield_us = now_us();
-    // let i2c = I2cDriver::new(
-    //     p.i2c0,
-    //     p.pins.gpio21,
-    //     p.pins.gpio22,
-    //     &I2cConfig::new().baudrate(100.kHz().into()),
-    // )?;
+
+  
+
+    let i2c = I2cDriver::new(
+        p.i2c0,
+        p.pins.gpio21,
+        p.pins.gpio22,
+        &I2cConfig::new().baudrate(100.kHz().into()),
+    )?;
     // MRC522 RST      -> GPIO 16
 
     //    LEFT                                      RIGHT
@@ -82,12 +86,12 @@ fn main() -> anyhow::Result<()> {
     //│ SDA │ SCK │ MOSI │ MISO │ IRQ │ GND │ RST │ 3.3V │
     //└──────────────────────────────────────────────┘
 
-    //let shared_i2c = Rc::new(RefCell::new(i2c));
+    let shared_i2c = Rc::new(RefCell::new(i2c));
     // let shared_spi = Rc::new(RefCell::new(spi));
 
-    //let hardware = HardwareContext::new(p.ledc.timer0, shared_i2c.clone())?;
-    //let shared = Rc::new(RefCell::new(hardware));
-     //let rangefinder_i2c = RangefinderI2c::new(RcDevice::new(shared.borrow().i2c_bus.clone()));
+    let hardware = HardwareContext::new(p.ledc.timer0, shared_i2c.clone())?;
+    let shared = Rc::new(RefCell::new(hardware));
+    //let rangefinder_i2c = RangefinderI2c::new(RcDevice::new(shared.borrow().i2c_bus.clone()));
 
     // let lidar ={
     //     let hardware = shared.borrow();
@@ -99,27 +103,38 @@ fn main() -> anyhow::Result<()> {
     // )?
     // };
     // let lidar_id = lidar.get_id().to_owned();
-    // modules.insert(lidar_id, Box::new(lidar)); 
+    // modules.insert(lidar_id, Box::new(lidar));
 
-    let stepperx = {
-        StepperMotor::new(
-         StepperPinMode::Manuel(
-            StepperPins{
-                in1: OutputPinCore::new(p.pins.gpio19)?,
-                in2: OutputPinCore::new(p.pins.gpio18)?,
-                in3: OutputPinCore::new(p.pins.gpio5)?,
-                in4: OutputPinCore::new(p.pins.gpio17)?,
-            }, 
-            
-         ),
-         "stepperx".to_string(),
-         None,
-         sync_sender.clone(),
-            
-        ).map_err(|err| anyhow::anyhow!("{err:?}"))?
-    };
-    let stepperx_id = stepperx.id().to_owned();
-    modules.insert(stepperx_id, Box::new(stepperx));
+    // let stepperx = {
+    //     StepperMotor::new(
+    //         StepperPinMode::Manuel(StepperPins {
+    //             in1: OutputPinCore::new(p.pins.gpio19)?,
+    //             in2: OutputPinCore::new(p.pins.gpio18)?,
+    //             in3: OutputPinCore::new(p.pins.gpio5)?,
+    //             in4: OutputPinCore::new(p.pins.gpio17)?,
+    //         }),
+    //         "stepperx".to_string(),
+    //         None,
+    //         sync_sender.clone(),
+    //     )
+    //     .map_err(|err| anyhow::anyhow!("{err:?}"))?
+    // };
+    // let stepperx_id = stepperx.id().to_owned();
+    // modules.insert(stepperx_id, Box::new(stepperx));
+
+    // let joystick = {
+        
+    //     JoyStick::new(
+    //         p.pins.gpio12,
+    //         p.adc1,
+    //         p.pins.gpio35,
+    //         p.pins.gpio34,
+    //         sync_sender.clone(),
+    //     )
+    //     .map_err(|err| anyhow::anyhow!("{err:?}"))?
+    // };
+    // let joystick_id = joystick.id().to_owned();
+    // modules.insert(joystick_id, Box::new(joystick));
 
     // let remote_receiver = RemoteReceiverButton::new(
     //     InputPinCore::new(p.pins.gpio16, Pull::UpDown)
@@ -130,7 +145,6 @@ fn main() -> anyhow::Result<()> {
     // .map_err(|err| anyhow::anyhow!("{err:?}"))?;
     // let remote_receiver_id = remote_receiver.id().to_owned();
     // modules.insert(remote_receiver_id, Box::new(remote_receiver));
-
 
     // let ranger ={
     //     Rangefinder::new(
@@ -167,85 +181,80 @@ fn main() -> anyhow::Result<()> {
 
     // modules.insert(rfid.borrow().id().to_owned(), rfid.clone());
 
+    // let servo = {
+    //     let hardware = shared.borrow();
 
-        // let servo = {
-        //     let hardware = shared.borrow();
-
-
-        //     ServoModule::new(
-        //         hardware.servo_pwm.clone(),
-        //         "servo".to_string(),
-        //         Channel::C0,
-        //         ServoCapability{
-        //             min_angle: 0,
-        //             max_angle: 180,
-        //             pulse_min: 500,
-        //             pulse_max: 2500,
-        //             max_pivot: 90,
-        //             min_pivot: -90,
-        //             offset: 90,
-        //         },
-        //         None,
-        //         sync_sender.clone(),
-        //     )?
-        // };
+    //     ServoModule::new(
+    //         hardware.servo_pwm.clone(),
+    //         "servo".to_string(),
+    //         Channel::C0,
+    //         ServoCapability{
+    //             min_angle: 0,
+    //             max_angle: 180,
+    //             pulse_min: 500,
+    //             pulse_max: 2500,
+    //             max_pivot: 90,
+    //             min_pivot: -90,
+    //             offset: 90,
+    //         },
+    //         None,
+    //         sync_sender.clone(),
+    //     )?
+    // };
     // let servo_id = servo.id().to_owned();
     // modules.insert(servo_id, Box::new(servo));
 
-    // let led1 = {
-    //     let hardware = shared.borrow();
+    let led1 = {
+        let hardware = shared.borrow();
 
-    //     Ledmodule::new(
-    //         p.pins.gpio12,
-    //         p.ledc.channel0,
-    //         "led1".to_string(),
-    //         &hardware.led_timer,
-    //         None,
-    //         sync_sender.clone(),
-    //     )?
-    // };
-    // let led1_id = led1.id().to_owned();
-    // modules.insert(led1_id, Box::new(led1));
+        Ledmodule::new(
+            p.pins.gpio12,
+            p.ledc.channel0,
+            "led1".to_string(),
+            &hardware.led_timer,
+            None,
+            sync_sender.clone(),
+        )?
+    };
+    let led1_id = led1.id().to_owned();
+    modules.insert(led1_id, Box::new(led1));
 
+    let led2 = {
+        let hardware = shared.borrow();
 
-    // let led2 = {
-    //     let hardware = shared.borrow();
+        Ledmodule::new(
+            p.pins.gpio14,
+            p.ledc.channel1,
+            "led2".to_string(),
+            &hardware.led_timer,
+            None,
+            sync_sender.clone(),
+        )?
+    };
 
-    //     Ledmodule::new(
-    //         p.pins.gpio14,
-    //         p.ledc.channel1,
-    //         "led2".to_string(),
-    //         &hardware.led_timer,
-    //         None,
-    //         sync_sender.clone(),
-    //     )?
-    // };
+    let led2_id = led2.id().to_owned();
+    modules.insert(led2_id, Box::new(led2));
 
-    // let led2_id = led2.id().to_owned();
-    // modules.insert(led2_id, Box::new(led2));
+    let led3 = {
+        let hardware = shared.borrow();
 
+        Ledmodule::new(
+            p.pins.gpio27,
+            p.ledc.channel2,
+            "led3".to_string(),
+            &hardware.led_timer,
+            None,
+            sync_sender.clone(),
+        )?
+    };
 
-    // let led3 = {
-    //     let hardware = shared.borrow();
-
-    //     Ledmodule::new(
-    //         p.pins.gpio27,
-    //         p.ledc.channel2,
-    //         "led3".to_string(),
-    //         &hardware.led_timer,
-    //         None,
-    //         sync_sender.clone(),
-    //     )?
-    // };
-
-    // let led3_id = led3.id().to_owned();
-    // modules.insert(led3_id, Box::new(led3));
+    let led3_id = led3.id().to_owned();
+    modules.insert(led3_id, Box::new(led3));
 
     for (_id, module) in modules.iter_mut() {
         module.register()?;
         module.first_emit()?;
     }
-
 
     // for module in modules.values() {
     //     module.register()?;
@@ -256,9 +265,7 @@ fn main() -> anyhow::Result<()> {
     // std::thread::spawn(move || {
     //     serial_command_reader(command_sender);
     // });
-    let command_receiver = {
-        tansport.handle_incoming()
-    };
+    let command_receiver = { tansport.handle_incoming() };
 
     loop {
         for module in modules.values_mut() {
@@ -286,40 +293,3 @@ fn main() -> anyhow::Result<()> {
     }
 }
 
-// fn serial_command_reader(command_sender: mpsc::Sender<IncomingCommand>) {
-//     let stdin = io::stdin();
-
-//     for line_result in stdin.lock().lines() {
-//         let line = match line_result {
-//             Ok(line) => line,
-//             Err(err) if err.kind() == ErrorKind::WouldBlock => {
-//                 // Not an error — just no data yet. Back off and retry.
-//                 std::thread::sleep(std::time::Duration::from_millis(10));
-//                 continue;
-//             }
-//             Err(err) => {
-//                 log::error!("Real serial read error: {:?}", err);
-//                 continue;
-//             }
-//         };
-
-//         let line = line.trim();
-
-//         if line.is_empty() {
-//             continue;
-//         }
-
-//         match serde_json::from_str::<IncomingCommand>(line) {
-//             Ok(command) => {
-//                 log::info!("Parsed command: {:?}", command);
-
-//                 let _ = command_sender.send(command);
-//             }
-
-//             Err(err) => {
-//                 log::error!("Failed to parse command: {:?}", err);
-//                 log::error!("Raw line was: {}", line);
-//             }
-//         }
-//     }
-// }

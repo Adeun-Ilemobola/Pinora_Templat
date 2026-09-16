@@ -3,28 +3,11 @@ import {
   type ButtonModule,
   type ButtonEvent,
 } from "./Modules/button";
-import { createImu, type ImuModule, type ImuEvent } from "./Modules/imu";
-import {
-  createRemoteReceiver,
-  type RemoteReceiverModule,
-  type RemoteButtonEvent,
-} from "./Modules/remote-receiver";
-import {
-  createRangefinder,
-  type RangefinderModule,
-  type RangefinderEvent,
-} from "./Modules/rangefinder";
-import { createRfid, type RfidModule, type RfidEvent } from "./Modules/rfid";
-import {
-  createStepper,
-  type StepperModule,
-  type StepperMotorEvent,
-} from "./Modules/stepper";
+
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { createLed, LedEvent, type LedModule } from "./Modules/Led";
-import { createLidar, LidarEvent, type LidarModule } from "./Modules/lidar";
-import { createServo, ServoEvent, type ServoModule } from "./Modules/servo";
+
 import { StoreApi } from "zustand/vanilla";
 import { create } from "zustand";
 import { ModuleType } from "./protocol/module-type";
@@ -38,16 +21,15 @@ import { SystemInfo } from "./protocol/system";
 import { EventPackage } from "./protocol/event";
 import { recordLogReceipt } from "./logs";
 
-/** Ownership follows firmware modules, not dashboard nesting. */
 export function registrationHasParent(registration: Registration): boolean {
   // lidar.rs creates two servos and a rangefinder; joystick.rs owns a button
   // (the joystick implementation is currently excluded from the firmware build).
-  if (
-    registration.module_type === "Lidar" ||
-    registration.module_type === "JoyStick"
-  ) {
-    return false;
-  }
+  // if (
+  //   registration.module_type === "Lidar" ||
+  //   registration.module_type === "JoyStick"
+  // ) {
+  //   return false;
+  // }
   // ModuleCore::new serializes None as an empty string. Also tolerate older
   // registrations with missing/null parent_id without changing the wire schema.
   return (
@@ -58,14 +40,8 @@ export function registrationHasParent(registration: Registration): boolean {
 
 export type AnyModule =
   | LedModule
-  | LidarModule
-  | ServoModule
   | ButtonModule
-  | ImuModule
-  | RemoteReceiverModule
-  | RangefinderModule
-  | RfidModule
-  | StepperModule;
+  
 
 type PortConnectionType = "Connected" | "Disconnected" | "Error";
 
@@ -98,7 +74,6 @@ interface ModuleCoreArchive {
   systemInfo: SystemInfo | null;
   clearLogs: () => void;
 
-  MakeFakeLidar: () => void;
 }
 
 export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
@@ -189,7 +164,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
       try {
         console.info("Raw message received:", message);
         get().HandleEvent(message);
-        
+
       } catch (error) {
         console.error("Failed to handle Pinora message:", message, error);
       }
@@ -222,179 +197,22 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
 
   RegistrationEvent: (event: Registration) => {
     try {
-      const value = event;
-      const hasParent = registrationHasParent(event);
-      switch (value.module_type) {
-        case "Led":
-          set({
-            ModuleRegistry: {
-              ...get().ModuleRegistry,
-              [value.id]: createLed({
-                hasParent,
-                id: value.id as string,
-                kind: "Led",
-                state: 0,
-                look_up_id: value.lool_up_id as string,
-              }) as StoreApi<AnyModule>,
-            },
-            LookUpId: {
-              ...get().LookUpId,
-              [value.lool_up_id]: value.id as string,
-            },
-          });
-
-          break;
-
-        case "Lidar":
-          set({
-            ModuleRegistry: {
-              ...get().ModuleRegistry,
-              [value.id]: createLidar({
-                hasParent,
-                id: value.id as string,
-                kind: "Lidar",
-                look_up_id: value.lool_up_id as string,
-                state: {
-                  Roi: { min: { x: 0, y: 0 }, max: { x: 0, y: 0 } },
-                  PointMap: { max_chunk: 0, curr_chunk: 0, map: [] },
-                  Target: { point: { x: 0, y: 0 } },
-                  ScanState: { state: "StopScan", scan_time: 0 },
-                },
-              }) as StoreApi<AnyModule>,
-            },
-            LookUpId: {
-              ...get().LookUpId,
-              [value.lool_up_id]: value.id as string,
-            },
-          });
-
-          break;
-
-        case "Servo":
-          set({
-            ModuleRegistry: {
-              ...get().ModuleRegistry,
-              [value.id]: createServo({
-                hasParent,
-                id: value.id as string,
-                kind: "Servo",
-                look_up_id: value.lool_up_id as string,
-                state: { MinPivot: 0, MaxPivot: 0, Offset: 0, Angle: 0 },
-              }) as StoreApi<AnyModule>,
-            },
-            LookUpId: {
-              ...get().LookUpId,
-              [value.lool_up_id]: value.id as string,
-            },
-          });
-
-          break;
-        case "Button":
-          set({
-            ModuleRegistry: {
-              ...get().ModuleRegistry,
-              [value.id]: createButton({
-                hasParent,
-                id: value.id,
-                kind: "Button",
-                look_up_id: value.lool_up_id,
-                state: { clickCount: 0 },
-              }) as StoreApi<AnyModule>,
-            },
-            LookUpId: { ...get().LookUpId, [value.lool_up_id]: value.id },
-          });
-          break;
-        case "Imu":
-          set({
-            ModuleRegistry: {
-              ...get().ModuleRegistry,
-              [value.id]: createImu({
-                hasParent,
-                id: value.id,
-                kind: "Imu",
-                look_up_id: value.lool_up_id,
-                state: { Gyro: null, Accel: null, Mode: null },
-              }) as StoreApi<AnyModule>,
-            },
-            LookUpId: { ...get().LookUpId, [value.lool_up_id]: value.id },
-          });
-          break;
-        case "RemoteReceiver":
-          set({
-            ModuleRegistry: {
-              ...get().ModuleRegistry,
-              [value.id]: createRemoteReceiver({
-                hasParent,
-                id: value.id,
-                kind: "RemoteReceiver",
-                look_up_id: value.lool_up_id,
-                state: { key: null, clickCount: 0 },
-              }) as StoreApi<AnyModule>,
-            },
-            LookUpId: { ...get().LookUpId, [value.lool_up_id]: value.id },
-          });
-          break;
-        case "Rangefinder":
-          set({
-            ModuleRegistry: {
-              ...get().ModuleRegistry,
-              [value.id]: createRangefinder({
-                hasParent,
-                id: value.id,
-                kind: "Rangefinder",
-                look_up_id: value.lool_up_id,
-                state: {
-                  Range: null,
-                  RangingState: null,
-                  TimingBudget: null,
-                  DistanceMode: null,
-                  InvalidMeasurement: null,
-                },
-              }) as StoreApi<AnyModule>,
-            },
-            LookUpId: { ...get().LookUpId, [value.lool_up_id]: value.id },
-          });
-          break;
-        case "Rfid":
-          set({
-            ModuleRegistry: {
-              ...get().ModuleRegistry,
-              [value.id]: createRfid({
-                hasParent,
-                id: value.id,
-                kind: "Rfid",
-                look_up_id: value.lool_up_id,
-                state: { GetCard: null, GetMode: null, GetWriteState: null },
-              }) as StoreApi<AnyModule>,
-            },
-            LookUpId: { ...get().LookUpId, [value.lool_up_id]: value.id },
-          });
-          break;
-        case "StepperMotor":
-          set({
-            ModuleRegistry: {
-              ...get().ModuleRegistry,
-              [value.id]: createStepper({
-                hasParent,
-                id: value.id,
-                kind: "StepperMotor",
-                look_up_id: value.lool_up_id,
-                state: {
-                  GetAngle: null,
-                  GetPivotMin: null,
-                  GetPivotMax: null,
-                  GetMode: null,
-                  GetOrigin: null,
-                  GetPivotPoint: null,
-                },
-              }) as StoreApi<AnyModule>,
-            },
-            LookUpId: { ...get().LookUpId, [value.lool_up_id]: value.id },
-          });
-          break;
-        default:
-          break;
-      }
+      const factories = {
+        Led: createLed,
+        Button: createButton,
+        
+      };
+      const factory = factories[event.module_type as keyof typeof factories];
+      if (!factory) return;
+      const moduleStore = factory(
+        registrationHasParent(event),
+        event.id,
+        event.lool_up_id,
+      ) as StoreApi<AnyModule>;
+      set((state) => ({
+        ModuleRegistry: { ...state.ModuleRegistry, [event.id]: moduleStore },
+        LookUpId: { ...state.LookUpId, [event.lool_up_id]: event.id },
+      }));
     } catch (error) {
       console.error(
         "{RegistrationEvent} Failed to handle registration event:",
@@ -418,54 +236,11 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
         console.error("Module event kind mismatch:", id, eventKindType);
         return;
       }
+      if (eventKindType === "Led")
+        (moduleStore as StoreApi<LedModule>).getState().handleEvent(eventData as LedEvent);
       if (eventKindType === "Button")
-        (moduleStore as StoreApi<ButtonModule>)
-          .getState()
-          .handleEvent(eventData as ButtonEvent);
-      if (eventKindType === "Imu")
-        (moduleStore as StoreApi<ImuModule>)
-          .getState()
-          .handleEvent(eventData as ImuEvent);
-      if (eventKindType === "RemoteReceiver")
-        (moduleStore as StoreApi<RemoteReceiverModule>)
-          .getState()
-          .handleEvent(eventData as RemoteButtonEvent);
-      if (eventKindType === "Rangefinder")
-        (moduleStore as StoreApi<RangefinderModule>)
-          .getState()
-          .handleEvent(eventData as RangefinderEvent);
-      if (eventKindType === "Rfid")
-        (moduleStore as StoreApi<RfidModule>)
-          .getState()
-          .handleEvent(eventData as RfidEvent);
-      if (eventKindType === "StepperMotor")
-        (moduleStore as StoreApi<StepperModule>)
-          .getState()
-          .handleEvent(eventData as StepperMotorEvent);
-      if (eventKindType === "Led") {
-        const ledStore = moduleStore as StoreApi<LedModule>;
-        if (ledStore) {
-          const ledState = ledStore.getState();
-          ledState.handleEvent(eventData as LedEvent);
-          // Handle LED-specific event here
-        }
-      }
-      if (eventKindType === "Lidar") {
-        const lidarStore = moduleStore as StoreApi<LidarModule>;
-        if (lidarStore) {
-          const lidarState = lidarStore.getState();
-          lidarState.handleEvent(eventData as LidarEvent);
-          // Handle Lidar-specific event here
-        }
-      }
-      if (eventKindType === "Servo") {
-        const servoStore = moduleStore as StoreApi<ServoModule>;
-        if (servoStore) {
-          const servoState = servoStore.getState();
-          servoState.handleEvent(eventData as ServoEvent);
-          // Handle Servo-specific event here
-        }
-      }
+        (moduleStore as StoreApi<ButtonModule>).getState().handleEvent(eventData as ButtonEvent);
+     
 
       //    console.log("Handling ModuleEvent:", id, eventKindType, eventData);
     } catch (error) {
@@ -488,28 +263,5 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
       kind: get().ModuleRegistry[id]?.getState().kind ?? "",
     }));
   },
-  MakeFakeLidar: () => {
-    set({
-      ModuleRegistry: {
-        ...get().ModuleRegistry,
-        "fake-lidar": createLidar({
-          hasParent: false,
-          id: "fake-lidar",
-          kind: "Lidar",
-          look_up_id: "fake-lidar",
-          state: {
-            Roi: { min: { x: 0, y: 0 }, max: { x: 0, y: 0 } },
-            PointMap: { max_chunk: 0, curr_chunk: 0, map: [] },
-            Target: { point: { x: 0, y: 0 } },
-            ScanState: { state: "StopScan", scan_time: 0 },
-          },
-        }) as StoreApi<AnyModule>,
-      },
-      LookUpId: {
-        ...get().LookUpId,
-        "fake-lidar": "fake-lidar",
-      },
-    });
-    console.log("Fake Lidar created", get().ModuleRegistry["fake-lidar"]);
-  },
+
 }));

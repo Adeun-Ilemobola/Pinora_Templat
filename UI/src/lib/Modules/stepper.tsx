@@ -149,13 +149,16 @@ export interface StepperModule extends StepperInstance {
   moveToPivotMax: () => Promise<unknown>;
   setMode: (mode: StepperStateType) => Promise<unknown>;
 }
-export function createStepper(data: StepperInstance): StoreApi<StepperModule> {
+export function createStepper(hasParent: boolean, id: string, look_up_id: string): StoreApi<StepperModule> {
   return createStore<StepperModule>((set, get) => ({
-    ...data,
+    hasParent,
+    id,
+    look_up_id,
+    state: { GetAngle: null, GetPivotMin: null, GetPivotMax: null, GetMode: null, GetOrigin: null, GetPivotPoint: null },
     kind: "StepperMotor",
     setPivotMin: (pivot_min: number) =>
       IncomingCommand({
-        id: data.id,
+        id,
         command: {
           StepperMotor: StepperMotorCommandSchema.parse({
             SetPivotMin: { pivot_min },
@@ -164,7 +167,7 @@ export function createStepper(data: StepperInstance): StoreApi<StepperModule> {
       }),
     setPivotMax: (pivot_max: number) =>
       IncomingCommand({
-        id: data.id,
+        id,
         command: {
           StepperMotor: StepperMotorCommandSchema.parse({
             SetPivotMax: { pivot_max },
@@ -173,14 +176,14 @@ export function createStepper(data: StepperInstance): StoreApi<StepperModule> {
       }),
     moveToOrigin: () =>
       IncomingCommand({
-        id: data.id,
+        id,
         command: {
           StepperMotor: StepperMotorCommandSchema.parse({ MoveToOrigin: {} }),
         },
       }),
     moveToAngle: (angle: number) =>
       IncomingCommand({
-        id: data.id,
+        id,
         command: {
           StepperMotor: StepperMotorCommandSchema.parse({
             MoveToAngle: { angle },
@@ -189,21 +192,21 @@ export function createStepper(data: StepperInstance): StoreApi<StepperModule> {
       }),
     moveToPivotMin: () =>
       IncomingCommand({
-        id: data.id,
+        id,
         command: {
           StepperMotor: StepperMotorCommandSchema.parse({ MoveToPivotMin: {} }),
         },
       }),
     moveToPivotMax: () =>
       IncomingCommand({
-        id: data.id,
+        id,
         command: {
           StepperMotor: StepperMotorCommandSchema.parse({ MoveToPivotMax: {} }),
         },
       }),
     setMode: (mode: StepperStateType) =>
       IncomingCommand({
-        id: data.id,
+        id,
         command: {
           StepperMotor: StepperMotorCommandSchema.parse({ SetMode: { mode } }),
         },
@@ -316,8 +319,8 @@ function StepperControls({
             </dt>
             <dd className="mt-1 break-all font-mono text-sm">
               {reportedAngle === null
-                ? "—"
-                : `${reportedAngle.toLocaleString(undefined, { maximumFractionDigits: 1 })}°`}
+                ? "â€”"
+                : `${reportedAngle.toLocaleString(undefined, { maximumFractionDigits: 1 })}Â°`}
             </dd>
           </div>
           <div className="min-w-0">
@@ -326,7 +329,7 @@ function StepperControls({
             </dt>
             <dd className="mt-1 break-all font-mono text-sm">
               {reportedAngle === null
-                ? "—"
+                ? "â€”"
                 : (reportedAngle / 360).toLocaleString(undefined, {
                     maximumFractionDigits: 3,
                   })}
@@ -336,7 +339,7 @@ function StepperControls({
         <Field>
           <FieldLabel htmlFor={`${id}-target`}>
             Target angle{" "}
-            <span className="text-muted-foreground">· total degrees</span>
+            <span className="text-muted-foreground">Â· total degrees</span>
           </FieldLabel>
           <div className="flex gap-2">
             <Input
@@ -370,7 +373,7 @@ function StepperControls({
             commit(0);
           }}
         >
-          Move to 0°
+          Move to 0Â°
         </Button>
         <details className="rounded-lg border p-3">
           <summary className="cursor-pointer text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -379,12 +382,12 @@ function StepperControls({
           <div className="mt-4 space-y-4">
             <Field>
               <FieldLabel htmlFor={`${id}-pivot-minimum`}>
-                Pivot minimum · °
+                Pivot minimum Â· Â°
               </FieldLabel>
               <p className="text-xs text-muted-foreground">
                 Reported:{" "}
                 {state.GetPivotMin
-                  ? `${state.GetPivotMin.pivot_min}°`
+                  ? `${state.GetPivotMin.pivot_min}Â°`
                   : "Not reported"}
               </p>
               <div className="flex gap-2">
@@ -416,12 +419,12 @@ function StepperControls({
             </Field>
             <Field>
               <FieldLabel htmlFor={`${id}-pivot-maximum`}>
-                Pivot maximum · °
+                Pivot maximum Â· Â°
               </FieldLabel>
               <p className="text-xs text-muted-foreground">
                 Reported:{" "}
                 {state.GetPivotMax
-                  ? `${state.GetPivotMax.pivot_max}°`
+                  ? `${state.GetPivotMax.pivot_max}Â°`
                   : "Not reported"}
               </p>
               <div className="flex gap-2">
@@ -530,7 +533,7 @@ function StepperControls({
         </details>
         {!connected && (
           <p className="text-xs text-muted-foreground">
-            Disconnected · Showing last reported values
+            Disconnected Â· Showing last reported values
           </p>
         )}
         {sent && (

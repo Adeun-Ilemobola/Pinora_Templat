@@ -56,10 +56,15 @@ export interface RemoteReceiverModule extends RemoteReceiverInstance {
   handleEvent: (event: RemoteButtonEvent) => void;
 }
 export function createRemoteReceiver(
-  data: RemoteReceiverInstance,
+  hasParent: boolean,
+  id: string,
+  look_up_id: string,
 ): StoreApi<RemoteReceiverModule> {
   return createStore<RemoteReceiverModule>((set, get) => ({
-    ...data,
+    hasParent,
+    id,
+    look_up_id,
+    state: { key: null, clickCount: 0 },
     kind: "RemoteReceiver",
     handleEvent: (event) => {
       set({
@@ -138,7 +143,7 @@ function RemoteReceiverControls({
           </span>
         </div>
         <p className="text-xs text-muted-foreground">
-          Latest received key · Physical remote input
+          Latest received key Â· Physical remote input
         </p>
       </div>
     </ModuleCard>

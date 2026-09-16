@@ -102,7 +102,7 @@ export type LidarCommand = z.infer<typeof LidarCommandSchema>;
 type LidarInstance = {
   hasParent: boolean;
   id: string;
-  kind: string;
+  kind: "Lidar";
   look_up_id: string;
   state: {
     Roi: {
@@ -136,17 +136,41 @@ export interface LidarModule extends LidarInstance {
   test: () => Promise<unknown>;
 }
 
-export function createLidar(data: LidarInstance): StoreApi<LidarModule> {
+export function createLidar(
+  hasParent: boolean,
+  id: string,
+  look_up_id: string,
+): StoreApi<LidarModule> {
   // Firmware emits ordered, one-based batches, not cumulative maps. A batch
   // number replaces its previous contents; coordinates determine placement.
   const chunks = new Map<number, RangePoint[]>();
   const send = (command: LidarCommand) =>
     IncomingCommand({
-      id: data.id,
+      id,
       command: { Lidar: LidarCommandSchema.parse(command) },
     });
   return createStore<LidarModule>((set, get) => ({
-    ...data,
+    hasParent,
+    id,
+    look_up_id,
+    state: {
+      Roi: {
+        min: { x: 0, y: 0 },
+        max: { x: 0, y: 0 },
+      },
+      PointMap: {
+        max_chunk: 0,
+        curr_chunk: 0,
+        map: [],
+      },
+      Target: {
+        point: { x: 0, y: 0 },
+      },
+      ScanState: {
+        state: "Idol",
+        scan_time: 0,
+      },
+    },
     kind: "Lidar",
     targetReported: false,
     handleEvent: (event) => {
@@ -307,7 +331,7 @@ export function resolveCellColor(
      return GetRangeColor(distance, colors.normal);
   }
 
-  
+
   if (roi) {
     if (cell.index === hovered) return colors.hover;
     const p = cell.pivotPoint;
@@ -444,7 +468,7 @@ function LidarControls({
           </p>
         </div>
         <Badge variant="outline">
-          {connected ? "Connected" : "Disconnected"} · {module.id}
+          {connected ? "Connected" : "Disconnected"} Â· {module.id}
         </Badge>
       </header>
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(20rem,1fr)]">
@@ -469,7 +493,7 @@ function LidarControls({
                   {module.state.ScanState.state}
                 </Badge>
                 <span className="text-xs text-muted-foreground">
-                  {module.state.ScanState.scan_time.toFixed(1)} s ·{" "}
+                  {module.state.ScanState.scan_time.toFixed(1)} s Â·{" "}
                   {module.state.PointMap.map.length.toLocaleString()} samples
                 </span>
               </div>
@@ -513,7 +537,7 @@ function LidarControls({
               </div>
               <Field>
                 <FieldLabel htmlFor={`${module.id}-step`}>
-                  Scan step · degrees
+                  Scan step Â· degrees
                 </FieldLabel>
                 <Input
                   id={`${module.id}-step`}
@@ -561,7 +585,7 @@ function LidarControls({
               )}
               {!connected && (
                 <p className="text-xs text-muted-foreground">
-                  Disconnected · Last reported readings
+                  Disconnected Â· Last reported readings
                 </p>
               )}
             </CardContent>
@@ -622,7 +646,7 @@ function MotorAngleConfig({
       disabled={disabled}
       onValueChange={onChange}
       showValue
-      formatValue={(v) => `${v}°`}
+      formatValue={(v) => `${v}Â°`}
     />
   );
 }
@@ -636,7 +660,7 @@ function RangeTelemetry({ store }: { store: StoreApi<RangefinderModule> }) {
           ? "Ranging"
           : "Stopped"
         : "Not reported"}{" "}
-      · Last separate reading:{" "}
+      Â· Last separate reading:{" "}
       {state.Range ? `${state.Range.millimeters} mm` : "Not reported"}
     </p>
   );
@@ -653,7 +677,7 @@ function RoiConfig({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>ROI · pivot degrees</CardTitle>
+        <CardTitle>ROI Â· pivot degrees</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {(["min", "max"] as const).map((bound) => (
@@ -687,12 +711,12 @@ function RoiConfig({
           </div>
         ))}
         <p className="text-xs text-muted-foreground">
-          −90° to +90° on both axes. Canvas selection and these fields share one
+          âˆ’90Â° to +90Â° on both axes. Canvas selection and these fields share one
           draft.
         </p>
         {!validRoi(roi) && (
           <p role="status" className="text-xs text-muted-foreground">
-            Enter whole pivot angles with minimum ≤ maximum on each axis.
+            Enter whole pivot angles with minimum â‰¤ maximum on each axis.
           </p>
         )}
       </CardContent>
@@ -816,11 +840,11 @@ export function PlayGround({
         <p className="text-xs text-muted-foreground">
           {roiMode
             ? anchor
-              ? "Select the second corner · Escape cancels"
+              ? "Select the second corner Â· Escape cancels"
               : "Select the first ROI corner"
             : disabled
-              ? "Hover to inspect · Movement unavailable"
-              : "Click to move · Arrow keys navigate, Enter selects"}
+              ? "Hover to inspect Â· Movement unavailable"
+              : "Click to move Â· Arrow keys navigate, Enter selects"}
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -888,9 +912,9 @@ export function PlayGround({
         >
           {hoveredCell ? (
             <>
-              Grid / canvas angle ({hoveredCell.gridPoint.x}°,{" "}
-              {hoveredCell.gridPoint.y}°) · Pivot ({hoveredCell.pivotPoint.x}°,{" "}
-              {hoveredCell.pivotPoint.y}°) · Range{" "}
+              Grid / canvas angle ({hoveredCell.gridPoint.x}Â°,{" "}
+              {hoveredCell.gridPoint.y}Â°) Â· Pivot ({hoveredCell.pivotPoint.x}Â°,{" "}
+              {hoveredCell.pivotPoint.y}Â°) Â· Range{" "}
               {ranges[hoveredCell.index] === undefined
                 ? "No data"
                 : `${ranges[hoveredCell.index]} mm`}
@@ -914,9 +938,9 @@ export function PlayGround({
           ))}
         </div>
         <div className="flex justify-between text-xs text-muted-foreground">
-          <span>Near · 0 mm</span>
-          <span>{GapBetweenColors} mm bands · ROI overrides range</span>
-          <span>Far · {MaxRange} mm</span>
+          <span>Near Â· 0 mm</span>
+          <span>{GapBetweenColors} mm bands Â· ROI overrides range</span>
+          <span>Far Â· {MaxRange} mm</span>
         </div>
       </CardContent>
     </Card>

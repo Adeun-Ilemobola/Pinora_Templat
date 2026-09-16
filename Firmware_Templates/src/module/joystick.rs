@@ -1,5 +1,6 @@
 use std::{rc::Rc, sync::mpsc::SyncSender};
 
+use crate::core::transport::transport_emiter::{EmitterError, TransportEmiter};
 use esp_idf_svc::hal::adc::{
     attenuation,
     oneshot::{config::AdcChannelConfig, AdcChannelDriver, AdcDriver},
@@ -8,7 +9,6 @@ use esp_idf_svc::hal::adc::{
 use esp_idf_svc::hal::gpio::ADCPin;
 
 use crate::core::hardware::InputPin;
-use crate::core::emitter::EmitterError;
 use crate::core::modulecore::{Module, ModuleCore, ModuleError};
 use crate::module::buttonmodule::Buttonmodule;
 use crate::utilities::math::range_i16;
@@ -32,8 +32,10 @@ where
     y_value: i16,
 }
 
-const CENTRE: u16 = 2048;
-const DEADZONE: u16 = 100;
+const X_CENTRE: u16 = 2610;
+const Y_CENTRE: u16 = 2750;
+const DEADZONE: u16 = 200;
+const CHANGE_THRESHOLD: i16 = 2;
 
 impl<'d, U, X, Y> JoyStick<'d, U, X, Y>
 where
@@ -41,7 +43,13 @@ where
     X: AdcChannel<AdcUnit = U>,
     Y: AdcChannel<AdcUnit = U>,
 {
-    pub fn new<MB, ADC, AX, AY>(mb: MB, adc: ADC, ax: AX, ay: AY , sender:SyncSender<ProtocolMessage>) -> anyhow::Result<Self>
+    pub fn new<MB, ADC, AX, AY>(
+        mb: MB,
+        adc: ADC,
+        ax: AX,
+        ay: AY,
+        sender: TransportEmiter,
+    ) -> anyhow::Result<Self>
     where
         MB: InputPin + 'd,
         ADC: Adc<AdcUnit = U> + 'd,
@@ -56,7 +64,7 @@ where
 
         Ok(Self {
             core: ModuleCore::new(ModuleType::JoyStick, "JoyStick", None, sender.clone()),
-            button: Buttonmodule::new(mb, "mb".to_string() , sender.clone())?,
+            button: Buttonmodule::new(mb, "mb".to_string(), sender.clone())?,
             x_channel: AdcChannelDriver::new(adc.clone(), ax, &config)?,
             y_channel: AdcChannelDriver::new(adc, ay, &config)?,
             x_value_raw: 0,
@@ -66,24 +74,22 @@ where
         })
     }
 
-    fn axis_value(raw: u16) -> i16 {
-        if raw.abs_diff(CENTRE) <= DEADZONE {
+    fn axis_value(raw: u16 , centre: u16) -> i16 {
+        if raw.abs_diff(centre) <= DEADZONE {
             0
         } else {
             range_i16(raw as i16, 0, 4095, -30, 30)
         }
     }
 
-    fn read_x(&mut self) -> anyhow::Result<()> {
+    fn read_x(&mut self) -> anyhow::Result<i16> {
         self.x_value_raw = self.x_channel.read_raw()?;
-        self.x_value = Self::axis_value(self.x_value_raw);
-        Ok(())
+        Ok(Self::axis_value(self.x_value_raw, X_CENTRE))
     }
 
-    fn read_y(&mut self) -> anyhow::Result<()> {
+    fn read_y(&mut self) -> anyhow::Result<i16> {
         self.y_value_raw = self.y_channel.read_raw()?;
-        self.y_value = Self::axis_value(self.y_value_raw);
-        Ok(())
+        Ok(Self::axis_value(self.y_value_raw, Y_CENTRE))
     }
 
     pub fn values(&self) -> (i16, i16) {
@@ -91,20 +97,26 @@ where
     }
 
     fn tick_inner(&mut self) -> anyhow::Result<()> {
-        self.read_x()?;
-        self.read_y()?;
+        let x = self.read_x()?;
+        let y = self.read_y()?;
+        let x_changed = (x - self.x_value).abs() >= CHANGE_THRESHOLD;
+        let y_changed = (y - self.y_value).abs() >= CHANGE_THRESHOLD;
 
-        
+        if x_changed || y_changed {
+            self.x_value = x;
+            self.y_value = y;
+
+            log::info!(
+                "Joystick: x={} y={} (raw x={} y={})",
+                self.x_value,
+                self.y_value,
+                self.x_value_raw,
+                self.y_value_raw,
+            );
+        }
+
         if self.button.poll()? {
             log::info!("Joystick button clicked");
-            log::info!(
-            "Joystick: x={} y={} (raw x={} y={})",
-            self.x_value,
-            self.y_value,
-            self.x_value_raw,
-            self.y_value_raw,
-        );
-
         }
 
         Ok(())
@@ -124,8 +136,7 @@ where
     }
 
     fn tick(&mut self) -> Result<(), ModuleError> {
-        self.tick_inner()
-            .map_err(|_| ModuleError::OperationFailed)
+        self.tick_inner().map_err(|_| ModuleError::OperationFailed)
     }
 
     fn core(&self) -> &ModuleCore {

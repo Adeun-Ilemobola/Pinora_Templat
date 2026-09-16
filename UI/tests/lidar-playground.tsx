@@ -12,18 +12,7 @@ import {
 import { Button } from "../src/components/ui/button";
 import { Switch } from "../src/components/ui/switch";
 import "../src/index.css";
-const store = createLidar({
-  id: "fixture",
-  kind: "Lidar",
-  look_up_id: "fixture",
-  hasParent: false,
-  state: {
-    Roi: { min: { x: 0, y: 0 }, max: { x: 0, y: 0 } },
-    PointMap: { curr_chunk: 0, max_chunk: 0, map: [] },
-    Target: { point: { x: 0, y: 0 } },
-    ScanState: { state: "Idol", scan_time: 0 },
-  },
-});
+const store = createLidar(false, "fixture", "fixture");
 const samples = GenerateGridCells().map((cell) => ({
   ...cell.pivotPoint,
   distant: Math.round((cell.gridPoint.x / 180) * 4000),

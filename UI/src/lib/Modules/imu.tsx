@@ -61,10 +61,29 @@ type ImuInstance = {
 export interface ImuModule extends ImuInstance {
   handleEvent: (event: ImuEvent) => void;
 }
-export function createImu(data: ImuInstance): StoreApi<ImuModule> {
+export function createImu(
+  hasParent: boolean,
+  id: string,
+  look_up_id: string,
+): StoreApi<ImuModule> {
   return createStore<ImuModule>((set, get) => ({
-    ...data,
+    hasParent,
+    id,
+    look_up_id,
     kind: "Imu",
+    state: {
+      Gyro: {
+        event_type: "Gyro",
+        raw_axes: { x: 0, y: 0, z: 0 },
+        axes: { x: 0, y: 0, z: 0 },
+      },
+      Accel: {
+        event_type: "Accel",
+        raw_axes: { x: 0, y: 0, z: 0 },
+        axes: { x: 0, y: 0, z: 0 },
+      },
+      Mode: "Off",
+    },
     handleEvent: (event) => {
       switch (event.event_type) {
         case "Gyro":

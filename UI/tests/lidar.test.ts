@@ -23,18 +23,7 @@ const {
   resolveCellColor,
 } = await import("../src/lib/Modules/lidar");
 const makeStore = () =>
-  createLidar({
-    id: "lidar",
-    kind: "Lidar",
-    hasParent: false,
-    look_up_id: "lidar",
-    state: {
-      Roi: { min: { x: 0, y: 0 }, max: { x: 0, y: 0 } },
-      PointMap: { curr_chunk: 0, max_chunk: 0, map: [] },
-      Target: { point: { x: 0, y: 0 } },
-      ScanState: { state: "Idol", scan_time: 0 },
-    },
-  });
+  createLidar(false, "lidar", "lidar");
 
 test("inclusive grid, CSS scaled corners and center, and firmware pivot direction", () => {
   const grid = GenerateGridCells();

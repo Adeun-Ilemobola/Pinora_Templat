@@ -101,26 +101,37 @@ export interface RangefinderModule extends RangefinderInstance {
   setDistanceMode: (mode: RangefinderDistanceMode) => Promise<unknown>;
 }
 export function createRangefinder(
-  data: RangefinderInstance,
+  hasParent: boolean,
+  id: string,
+  look_up_id: string,
 ): StoreApi<RangefinderModule> {
   return createStore<RangefinderModule>((set, get) => ({
-    ...data,
+    hasParent,
+    id,
+    look_up_id,
     kind: "Rangefinder",
+    state: {
+      Range: null,
+      RangingState: null,
+      TimingBudget: null,
+      DistanceMode: null,
+      InvalidMeasurement: null,
+    },
     startRanging: () =>
       IncomingCommand({
-        id: data.id,
+        id,
         command: {
           Rangefinder: RangefinderCommandSchema.parse("StartRanging"),
         },
       }),
     stopRanging: () =>
       IncomingCommand({
-        id: data.id,
+        id,
         command: { Rangefinder: RangefinderCommandSchema.parse("StopRanging") },
       }),
     setTimingBudget: (milliseconds: number) =>
       IncomingCommand({
-        id: data.id,
+        id,
         command: {
           Rangefinder: RangefinderCommandSchema.parse({
             SetTimingBudget: { milliseconds },
@@ -129,7 +140,7 @@ export function createRangefinder(
       }),
     setDistanceMode: (mode: RangefinderDistanceMode) =>
       IncomingCommand({
-        id: data.id,
+        id,
         command: {
           Rangefinder: RangefinderCommandSchema.parse({
             SetDistanceMode: { mode },

@@ -26,10 +26,13 @@ type ButtonInstance = {
 export interface ButtonModule extends ButtonInstance {
   handleEvent: (event: ButtonEvent) => void;
 }
-export function createButton(data: ButtonInstance): StoreApi<ButtonModule> {
+export function createButton(hasParent: boolean , id: string, look_up_id: string): StoreApi<ButtonModule> {
   return createStore<ButtonModule>((set, get) => ({
-    ...data,
+    hasParent,
+    id,
     kind: "Button",
+    look_up_id,
+    state: { clickCount: 0 },
     handleEvent: (event) => {
       if ("Ckick" in event)
         set({

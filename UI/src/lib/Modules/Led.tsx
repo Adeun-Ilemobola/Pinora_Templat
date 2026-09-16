@@ -37,7 +37,7 @@ export const LedCommandSchema = z.union([
 export type LedCommand = z.infer<typeof LedCommandSchema>;
 type LedInstance = {
   id: string;
-  kind: string;
+  kind: "Led";
   state: number;
   look_up_id: string;
   hasParent: boolean;
@@ -49,16 +49,20 @@ export interface LedModule extends LedInstance {
   handleEvent: (event: any) => void;
 }
 
-export function createLed(data: LedInstance): StoreApi<LedModule> {
+export function createLed(
+  hasParent: boolean,
+  id: string,
+  look_up_id: string,
+): StoreApi<LedModule> {
   return createStore<LedModule>((set) => ({
-    hasParent: data.hasParent,
-    id: data.id,
+    hasParent,
+    id,
     kind: "Led",
-    state: data.state,
-    look_up_id: data.look_up_id,
+    state: 0,
+    look_up_id,
     toggle: () => {
       const payload = {
-        id: data.id,
+        id,
         command: {
           Led: {
             Toggle: {},
@@ -69,7 +73,7 @@ export function createLed(data: LedInstance): StoreApi<LedModule> {
     },
     setBrightness: (v) => {
       const payload = {
-        id: data.id,
+        id,
         command: {
           Led: {
             SetState: { state: v },

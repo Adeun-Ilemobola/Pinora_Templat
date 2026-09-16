@@ -72,7 +72,7 @@ export type ServoCommand = z.infer<typeof ServoCommandSchema>;
 type ServoInstance = {
   hasParent: boolean;
   id: string;
-  kind: string;
+  kind: "Servo";
   look_up_id: string;
   state: {
     MinPivot: number;
@@ -89,22 +89,22 @@ export interface ServoModule extends ServoInstance {
   handleEvent: (event: any) => void;
 }
 
-export function createServo(data: ServoInstance): StoreApi<ServoModule> {
+export function createServo(hasParent: boolean, id: string, look_up_id: string): StoreApi<ServoModule> {
   return createStore<ServoModule>((set, get) => ({
-    hasParent: data.hasParent,
+    hasParent,
     kind: "Servo",
     state: {
-      MinPivot: data.state.MinPivot,
-      MaxPivot: data.state.MaxPivot,
-      Offset: data.state.Offset,
-      Angle: data.state.Angle,
+      MinPivot: 0,
+      MaxPivot: 0,
+      Offset: 0,
+      Angle: 0,
     },
-    look_up_id: data.look_up_id,
-    id: data.id,
+    look_up_id,
+    id,
 
     setAngle: (v) => {
       const payload = {
-        id: data.id,
+        id,
         command: {
           Servo: {
             SetAngle: { angle: v },
@@ -115,7 +115,7 @@ export function createServo(data: ServoInstance): StoreApi<ServoModule> {
     },
     setMinPivot: (v) => {
       const payload = {
-        id: data.id,
+        id,
         command: {
           Servo: {
             SetMinPivot: { min_pivot: v },
@@ -126,7 +126,7 @@ export function createServo(data: ServoInstance): StoreApi<ServoModule> {
     },
     setMaxPivot: (v) => {
       const payload = {
-        id: data.id,
+        id,
         command: {
           Servo: {
             SetMaxPivot: { max_pivot: v },
@@ -137,7 +137,7 @@ export function createServo(data: ServoInstance): StoreApi<ServoModule> {
     },
     // setOffset: (v) => {
     //   const payload = {
-    //     id: data.id,
+    //     id,
     //     command: {
     //       Servo: {
     //         SetOffset: { offset: v },
@@ -198,7 +198,7 @@ function ServoControls({ servo }: { servo: StoreApi<ServoModule> }) {
           </p>
           <p className="mt-2 font-heading text-4xl font-semibold tabular-nums">
             {state.Angle.toFixed(1)}
-            <span className="ml-1 text-xl text-muted-foreground">°</span>
+            <span className="ml-1 text-xl text-muted-foreground">Â°</span>
           </p>
         </div>
         <PivotSlider
@@ -212,18 +212,18 @@ function ServoControls({ servo }: { servo: StoreApi<ServoModule> }) {
             if (!servo.getState().hasParent) setAngle(angle);
           }}
           disabled={hasParent || !connected}
-          formatValue={(value) => `${value}°`}
+          formatValue={(value) => `${value}Â°`}
           showValue
         />
         <div className="flex justify-between text-xs tabular-nums text-muted-foreground">
-          <span>-90°</span>
-          <span>0° · Center</span>
-          <span>+90°</span>
+          <span>-90Â°</span>
+          <span>0Â° Â· Center</span>
+          <span>+90Â°</span>
         </div>
         <p className="text-xs text-muted-foreground">
           {connected
             ? "Angle updates when the device reports."
-            : "Disconnected · Showing last reported angle"}
+            : "Disconnected Â· Showing last reported angle"}
         </p>
       </div>
     </ModuleCard>

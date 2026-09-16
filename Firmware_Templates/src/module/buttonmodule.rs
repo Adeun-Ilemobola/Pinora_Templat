@@ -39,7 +39,6 @@ impl<'d> Buttonmodule<'d> {
     }
     pub fn update_state(&mut self) -> anyhow::Result<()> {
         let current_state = self.pin_driver.now()?;
-        println!("GPIO32: {:?}", current_state);
         let now = std::time::Instant::now();
 
         if current_state != self.last_state {

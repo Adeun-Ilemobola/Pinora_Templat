@@ -77,23 +77,26 @@ export interface RfidModule extends RfidInstance {
   writeMode: () => Promise<unknown>;
   writePayload: (data: number[]) => Promise<unknown>;
 }
-export function createRfid(data: RfidInstance): StoreApi<RfidModule> {
+export function createRfid(hasParent: boolean, id: string, look_up_id: string): StoreApi<RfidModule> {
   return createStore<RfidModule>((set, get) => ({
-    ...data,
+    hasParent,
+    id,
+    look_up_id,
+    state: { GetCard: null, GetMode: null, GetWriteState: null },
     kind: "Rfid",
     readMode: () =>
       IncomingCommand({
-        id: data.id,
+        id,
         command: { Rfid: RfidCommandSchema.parse({ ReadMode: {} }) },
       }),
     writeMode: () =>
       IncomingCommand({
-        id: data.id,
+        id,
         command: { Rfid: RfidCommandSchema.parse({ WriteMode: {} }) },
       }),
     writePayload: (bytes: number[]) =>
       IncomingCommand({
-        id: data.id,
+        id,
         command: {
           Rfid: RfidCommandSchema.parse({ WritePayload: { data: bytes } }),
         },
@@ -190,7 +193,7 @@ function RfidControls({ moduleStore }: { moduleStore: StoreApi<RfidModule> }) {
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
             {state.GetCard
-              ? "Last received UID · Presence is not reported"
+              ? "Last received UID Â· Presence is not reported"
               : "Present a tag to the reader"}
           </p>
         </div>
@@ -254,7 +257,7 @@ function RfidControls({ moduleStore }: { moduleStore: StoreApi<RfidModule> }) {
             aria-describedby={`${id}-payload-help`}
           />
           <FieldDescription id={`${id}-payload-help`}>
-            Decimal bytes (0–255), separated by spaces or commas. Queued for
+            Decimal bytes (0â€“255), separated by spaces or commas. Queued for
             writing when a tag is presented.
           </FieldDescription>
           <Button
@@ -267,7 +270,7 @@ function RfidControls({ moduleStore }: { moduleStore: StoreApi<RfidModule> }) {
         </Field>
         {!connected && (
           <p className="text-xs text-muted-foreground">
-            Disconnected · Showing last reported values
+            Disconnected Â· Showing last reported values
           </p>
         )}
         {sent && (
