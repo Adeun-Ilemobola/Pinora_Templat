@@ -67,9 +67,9 @@ export function AppLayout() {
                     <Collapsible.Panel>
                       <SidebarMenu className="mt-1 pl-3 group-data-[collapsible=icon]:pl-0">
                         <SidebarMenuItem>
-                          <SidebarMenuButton isActive={lidarActive} tooltip="LiDAR" render={<NavLink to="/lidar" />}>
-                            <ScanEye /><span>LiDAR</span>
-                          </SidebarMenuButton>
+                         {/* 
+                          custom module stays here
+                         */}
                         </SidebarMenuItem>
                       </SidebarMenu>
                     </Collapsible.Panel>

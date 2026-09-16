@@ -39,7 +39,7 @@ export function registrationHasParent(registration: Registration): boolean {
 }
 
 export type AnyModule =
-  | LedModule
+  // | LedModule
   | ButtonModule
   
 
@@ -236,8 +236,8 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
         console.error("Module event kind mismatch:", id, eventKindType);
         return;
       }
-      if (eventKindType === "Led")
-        (moduleStore as StoreApi<LedModule>).getState().handleEvent(eventData as LedEvent);
+      // if (eventKindType === "Led")
+      //   (moduleStore as StoreApi<LedModule>).getState().handleEvent(eventData as LedEvent);
       if (eventKindType === "Button")
         (moduleStore as StoreApi<ButtonModule>).getState().handleEvent(eventData as ButtonEvent);
      

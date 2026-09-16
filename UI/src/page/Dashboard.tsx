@@ -1,37 +1,17 @@
 import { RegisteredButtonView } from "@/lib/Modules/button";
-import { RegisteredImuView } from "@/lib/Modules/imu";
-import { RegisteredRemoteReceiverView } from "@/lib/Modules/remote-receiver";
-import { RegisteredRangefinderView } from "@/lib/Modules/rangefinder";
-import { RegisteredRfidView } from "@/lib/Modules/rfid";
-import { RegisteredStepperView } from "@/lib/Modules/stepper";
-import { useMemo } from "react";
 import { TransportForm } from "@/components/TransportForm";
 import { Esp32StatsCard } from "@/components/Esp32StatsCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { useModuleFront } from "@/lib/Modulefront";
-import { RegisteredLedView } from "@/lib/Modules/Led";
-import { RegisteredServoView } from "@/lib/Modules/servo";
+// import { RegisteredLedView } from "@/lib/Modules/Led";
 
 export default function Dashboard() {
   const registry = useModuleFront((state) => state.ModuleRegistry);
   const connected = useModuleFront((state) => state.PortStat === "Connected");
   // Registry replacement triggers discovery; each LED subscribes to its own store.
-  const leds = useMemo(
-    () =>
-      Object.entries(registry).filter(
-        ([, store]) => store.getState().kind === "Led",
-      ),
-    [registry],
-  );
+  
 
-  const servos = useMemo(
-    () =>
-      Object.entries(registry).filter(
-        ([, store]) => store.getState().kind === "Servo",
-      ),
-    [registry],
-  );
-
+ 
   const otherModules = Object.entries(registry).filter(([, store]) =>
     [
       "Button",
@@ -40,9 +20,12 @@ export default function Dashboard() {
       "RemoteReceiver",
       "Rfid",
       "StepperMotor",
+      "Led",
+      "Servo",
+      
     ].includes(store.getState().kind),
   );
-  const moduleCount = leds.length + servos.length + otherModules.length;
+  const moduleCount = otherModules.length;
 
   return (
     <>
@@ -72,29 +55,13 @@ export default function Dashboard() {
                 switch (store.getState().kind) {
                   case "Button":
                     return <RegisteredButtonView key={id} moduleId={id} />;
-                  case "Imu":
-                    return <RegisteredImuView key={id} moduleId={id} />;
-                  case "RemoteReceiver":
-                    return (
-                      <RegisteredRemoteReceiverView key={id} moduleId={id} />
-                    );
-                  case "Rangefinder":
-                    return <RegisteredRangefinderView key={id} moduleId={id} />;
-                  case "Rfid":
-                    return <RegisteredRfidView key={id} moduleId={id} />;
-                  case "StepperMotor":
-                    return <RegisteredStepperView key={id} moduleId={id} />;
+                  // case "Led":
+                  //   return <RegisteredLedView key={id} moduleId={id} />;
                   default:
                     return null;
                 }
               })}
-              {leds.map(([id]) => (
-                <RegisteredLedView key={id} moduleId={id} />
-              ))}
-
-              {servos.map(([id]) => (
-                <RegisteredServoView key={id} moduleId={id} />
-              ))}
+             
             </div>
           </>
         ) : (
