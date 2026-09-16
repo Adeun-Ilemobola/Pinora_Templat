@@ -15,13 +15,7 @@ export default function Dashboard() {
   const otherModules = Object.entries(registry).filter(([, store]) =>
     [
       "Button",
-      "Imu",
-      "Rangefinder",
-      "RemoteReceiver",
-      "Rfid",
-      "StepperMotor",
       "Led",
-      "Servo",
       
     ].includes(store.getState().kind),
   );

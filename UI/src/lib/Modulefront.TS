@@ -6,7 +6,7 @@ import {
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
-import { createLed, LedEvent, type LedModule } from "./Modules/Led";
+//import { createLed, LedEvent, type LedModule } from "./Modules/Led";
 
 import { StoreApi } from "zustand/vanilla";
 import { create } from "zustand";
@@ -198,7 +198,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
   RegistrationEvent: (event: Registration) => {
     try {
       const factories = {
-        Led: createLed,
+        //Led: createLed,
         Button: createButton,
         
       };
