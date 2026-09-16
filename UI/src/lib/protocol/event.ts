@@ -1,13 +1,13 @@
-import { ServoEventSchema } from "../Modules/servo";
+//import { ServoEventSchema } from "../Modules/servo";
 import { ButtonEventSchema } from "../Modules/button";
-import { ImuEventSchema } from "../Modules/imu";
-import { RemoteButtonEventSchema } from "../Modules/remote-receiver";
-import { RangefinderEventSchema } from "../Modules/rangefinder";
-import { RfidEventSchema } from "../Modules/rfid";
-import { StepperMotorEventSchema } from "../Modules/stepper";
+// import { ImuEventSchema } from "../Modules/imu";
+// import { RemoteButtonEventSchema } from "../Modules/remote-receiver";
+// import { RangefinderEventSchema } from "../Modules/rangefinder";
+// import { RfidEventSchema } from "../Modules/rfid";
+// import { StepperMotorEventSchema } from "../Modules/stepper";
 import { z } from "zod";
 import { LedEventSchema } from "../Modules/Led";
-import { LidarEventSchema } from "../Modules/lidar";
+//import { LidarEventSchema } from "../Modules/lidar";
 
 export const LogPrioritySchema = z.enum(["Low", "Medium", "High", "Critical"]);
 
@@ -22,21 +22,21 @@ export const SysLogEventSchema = z.strictObject({
 export type SysLogEvent = z.infer<typeof SysLogEventSchema>;
 
 export const ModuleEventSchema = z.union([
-  z.strictObject({ Servo: ServoEventSchema }),
+  //z.strictObject({ Servo: ServoEventSchema }),
   z.strictObject({ Button: ButtonEventSchema }),
-  z.strictObject({ Imu: ImuEventSchema }),
-  z.strictObject({ RemoteReceiver: RemoteButtonEventSchema }),
-  z.strictObject({ Rangefinder: RangefinderEventSchema }),
-  z.strictObject({ Rfid: RfidEventSchema }),
-  z.strictObject({ StepperMotor: StepperMotorEventSchema }),
+  //z.strictObject({ Imu: ImuEventSchema }),
+  // z.strictObject({ RemoteReceiver: RemoteButtonEventSchema }),
+  // z.strictObject({ Rangefinder: RangefinderEventSchema }),
+  // z.strictObject({ Rfid: RfidEventSchema }),
+  // z.strictObject({ StepperMotor: StepperMotorEventSchema }),
 
   z.strictObject({
     Led: LedEventSchema,
   }),
 
-  z.strictObject({
-    Lidar: LidarEventSchema,
-  }),
+  // z.strictObject({
+  //   Lidar: LidarEventSchema,
+  // }),
 
   z.strictObject({
     SysLog: SysLogEventSchema,
