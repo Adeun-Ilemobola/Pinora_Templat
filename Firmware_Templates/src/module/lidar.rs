@@ -1,5 +1,5 @@
 use crate::core::hardware::{I2cDriver, RangefinderI2c, TimerState};
-use crate::core::transport::transport_core::{EmitterError, TransportCore};
+use crate::core::transport::transport_emiter::{EmitterError, TransportEmiter};
 use pinora_protocol::module::lidar::{LidarEvent, RangPoint, ScanState};
 use pinora_protocol::module::servomodule::ServoCapability;
 
@@ -51,7 +51,7 @@ impl<'d> Lidar<'d> {
         pwm: SharedPwm<'d>,
         manuel_id: String,
         rangefinder_i2c: RangefinderI2c<'d>,
-        sender: TransportCore,
+        sender: TransportEmiter,
     ) -> anyhow::Result<Lidar<'d>> {
         let mc = ModuleCore::new(ModuleType::Lidar, &manuel_id, None, sender.clone());
         let config = ServoCapability {

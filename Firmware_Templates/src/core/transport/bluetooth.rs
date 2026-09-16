@@ -1,7 +1,6 @@
 
 use pinora_protocol::registration::ProtocolMessage;
-
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Bluetooth {
 }
 

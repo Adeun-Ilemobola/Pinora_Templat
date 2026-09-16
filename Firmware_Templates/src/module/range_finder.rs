@@ -1,4 +1,4 @@
-use crate::core::transport::transport_core::{TransportCore , EmitterError};
+use crate::core::transport::transport_emiter::{TransportEmiter , EmitterError};
 use crate::core::hardware::RangefinderI2c;
 use crate::core::modulecore::{Module, ModuleCore, ModuleError};
 use pinora_protocol::{
@@ -27,7 +27,7 @@ impl<'d> Rangefinder<'d> {
         rangefinder_i2c: RangefinderI2c<'d>,
         manual_id: String,
         cluster_id: Option<String>,
-        sender: TransportCore,
+        sender: TransportEmiter,
     ) -> anyhow::Result<Rangefinder<'d>> {
         let mut sensor = VL53L1X::new(rangefinder_i2c, DEFAULT_ADDRESS);
 

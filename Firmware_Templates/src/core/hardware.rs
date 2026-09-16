@@ -20,8 +20,8 @@ use pinora_protocol::registration::SystemInfo;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::core::transport::transport_core::EmitterError;
-use crate::core::transport::transport_core::TransportCore;
+use crate::core::transport::transport_emiter::{TransportEmiter , EmitterError};
+
 
 pub struct OutputPinCore<'d> {
     pin_number: u8,
@@ -198,7 +198,7 @@ impl<'d> HardwareContext<'d> {
     }
 }
 
-pub fn print_esp_system_info(emit: TransportCore) -> Result<(), EmitterError> {
+pub fn print_esp_system_info(emit: TransportEmiter) -> Result<(), EmitterError> {
     unsafe {
         // -------------------------
         // RAM / heap information

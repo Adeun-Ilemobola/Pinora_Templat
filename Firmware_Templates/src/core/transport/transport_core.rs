@@ -1,19 +1,19 @@
+use esp_idf_svc::{eventloop::{EspEventLoop, System}, hal::modem::Modem, nvs::{EspNvsPartition, NvsDefault}, sys::EspError};
 use pinora_protocol::{
-    registration::{ProtocolMessage, SystemInfo},
+    registration::{ProtocolMessage},
     IncomingCommand,
 };
-use std::io;
+use std::{io, sync::{Mutex, mpsc}};
 use std::io::{BufRead, ErrorKind};
 use std::{
-    fmt,
     sync::{
-        mpsc::{self, Sender, SyncSender, TrySendError , Receiver},
+        mpsc::{Receiver},
         Arc,
     },
     thread,
 };
 
-use crate::core::transport::bluetooth::Bluetooth;
+use crate::core::transport::{bluetooth::Bluetooth, transport_emiter::TransportEmiter};
 use crate::core::transport::wifi::Wifi;
 
 #[derive(Debug, Clone, Copy)]
@@ -22,75 +22,74 @@ pub enum TransportType {
     Bluetooth,
     Serial,
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EmitterError {
-    Disconnected,
-}
 
-impl fmt::Display for EmitterError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("event emitter is disconnected")
-    }
-}
-impl std::error::Error for EmitterError {}
-
-#[derive(Debug, Clone)]
 enum Core {
     Wifi(Wifi),
     Bluetooth(Bluetooth),
 }
-#[derive(Debug, Clone)]
 pub struct TransportCore {
     pub transport_type: Arc<TransportType>,
-    core: Arc<Option<Core>>,
-    pub sender: Option<SyncSender<ProtocolMessage>>,
+    core: Arc<Mutex<Option<Core>>>,
+   pub  emitter: TransportEmiter,
+    
 }
 
 impl TransportCore {
-    pub fn new(transport_type: TransportType) -> Self {
+    pub fn new(transport_type: TransportType  ,sys_loop: EspEventLoop<System>, nvs: EspNvsPartition<NvsDefault> , modem: Modem<'static>) -> Result<Self, EspError> {
+
+        let (emitter, receiver) = TransportEmiter::new();
+
         let core = match transport_type {
-            TransportType::Wifi => Some(Core::Wifi(Wifi::new())),
+            TransportType::Wifi => Some(
+                Core::Wifi(
+                    Wifi::new(sys_loop, nvs, modem)?
+                )
+            ),
             TransportType::Bluetooth => Some(Core::Bluetooth(Bluetooth::new())),
             _ => None,
         };
         let mut transport_core = TransportCore {
             transport_type: Arc::new(transport_type),
-            core: Arc::new(core),
-            sender: None,
+            core: Arc::new(Mutex::new(core)),
+            emitter,
         };
-        transport_core.sender = Some(transport_core.build_sender(transport_type));
-        transport_core
+        transport_core.build_sender(transport_type, receiver);
+        Ok(transport_core)
     }
-    fn build_sender(&mut self, transport: TransportType) -> SyncSender<ProtocolMessage> {
-        let core: Arc<Option<Core>> = Arc::clone(&self.core);
-        let (sender, receiver) = mpsc::sync_channel::<ProtocolMessage>(128);
+
+    
+    fn build_sender(&mut self, transport: TransportType , tr:Receiver<ProtocolMessage>) {
+        let core: Arc<Mutex<Option<Core>>> = Arc::clone(&self.core);
+        let receiver = tr;
 
         thread::spawn(move || {
+
             while let Ok(event) = receiver.recv() {
                 if let Err(error) = Self::send(event, transport, Arc::clone(&core)) {
                     log::error!("Failed to emit event: {error}");
                 }
             }
+
         });
 
-        sender
+
     }
 
     fn send(
         data: ProtocolMessage,
         mode: TransportType,
-        core: Arc<Option<Core>>,
+        core: Arc<Mutex<Option<Core>>>,
     ) -> Result<(), String> {
-        if let Some(_) = &*core {
+        if let Some(_) = &*core.lock().unwrap() {
             match mode {
                 TransportType::Wifi => {
-                    if let Some(Core::Wifi(wifi)) = &*core {
+                    if let Some(Core::Wifi(wifi)) = &*core.lock().unwrap() {
                         // Handle Wifi-specific sending logic here
                         wifi.event(data.clone());
                     }
                 }
                 TransportType::Bluetooth => {
-                    if let Some(Core::Bluetooth(bluetooth)) = &*core {
+                    if let Some(Core::Bluetooth(bluetooth)) = &*core.lock().unwrap() {
                         // Handle Bluetooth-specific sending logic here
                         bluetooth.event(data.clone());
                     }
@@ -106,63 +105,23 @@ impl TransportCore {
 
         Ok(())
     }
-    pub fn emit_reliable(&self, message: ProtocolMessage) -> Result<(), EmitterError> {
-        if let Some(sender) = &self.sender {
-            return sender.send(message).map_err(|_| EmitterError::Disconnected);
-        }
-        Err(EmitterError::Disconnected)
-    }
-
-    pub fn try_emit(&self, message: ProtocolMessage) {
-        if let Some(sender) = &self.sender {
-            match sender.try_send(message) {
-                Ok(()) => {}
-
-                Err(TrySendError::Full(_)) => {
-                    log::warn!("Event queue is full; dropping runtime message");
-                }
-
-                Err(TrySendError::Disconnected(_)) => {
-                    log::error!("Event emitter is disconnected");
-                }
-            }
-            return;
-        }
-        // match self.sender.try_send(message) {
-        //     Ok(()) => {}
-
-        //     Err(TrySendError::Full(_)) => {
-        //         log::warn!("Event queue is full; dropping runtime message");
-        //     }
-
-        //     Err(TrySendError::Disconnected(_)) => {
-        //         log::error!("Event emitter is disconnected");
-        //     }
-        // }
-    }
-    pub fn system_info(&self, data: SystemInfo) -> Result<(), EmitterError> {
-        self.emit_reliable(ProtocolMessage::System(data))
-    }
-
-    pub fn any(&self, data: ProtocolMessage) {
-        self.try_emit(data);
-    }
+    
 
     pub fn handle_incoming(&self) -> Receiver<IncomingCommand> {
         // Implement handling of incoming protocol messages here
-        let core: Arc<Option<Core>> = Arc::clone(&self.core);
+        let core: Arc<Mutex<Option<Core>>> = Arc::clone(&self.core);
         let transport_type: Arc<TransportType> = Arc::clone(&self.transport_type);
 
         let (command_sender, command_receiver) = mpsc::channel::<IncomingCommand>();
         std::thread::spawn(move || {
             match &*transport_type {
                 TransportType::Bluetooth => {
-                    if let Some(Core::Bluetooth(bluetooth)) = &*core {
+                    if let Some(Core::Bluetooth(bluetooth)) = &*core.lock().unwrap() {
                         // Handle Bluetooth-specific incoming logic here
                     }
                 }
                 TransportType::Wifi => {
-                    if let Some(Core::Wifi(wifi)) = &*core {
+                    if let Some(Core::Wifi(wifi)) = &*core.lock().unwrap() {
                         // Handle Wifi-specific incoming logic here
                     }
                 }

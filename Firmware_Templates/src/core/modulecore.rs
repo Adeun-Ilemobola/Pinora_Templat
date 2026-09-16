@@ -1,14 +1,15 @@
 use uuid::Uuid;
 
-use crate::core::transport::transport_core::{EmitterError, TransportCore};
 use pinora_protocol::{command::ModuleCommand, global_definitions::ModuleType, module_event::{EventPackage, ModuleEvent, SysLogEvent}, registration::{ProtocolMessage, Registration}};
+
+use crate::core::transport::transport_emiter::{TransportEmiter , EmitterError};
 #[derive(Debug, Clone)]
 pub struct ModuleCore {
     pub id: String,
     pub module_type: ModuleType,
     pub manuel_id: String,
     pub parent_id: String,
-    emitter: TransportCore
+    emitter: TransportEmiter
 
 }
 
@@ -17,7 +18,7 @@ impl ModuleCore {
         module_type: ModuleType,
         manuel_id: &str,
         parent_id: Option<String>,
-        emitter: TransportCore,
+        emitter: TransportEmiter,
     ) -> Self {
         Self {
             id: Uuid::new_v4().to_string(),

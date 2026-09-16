@@ -1,7 +1,7 @@
 
 use crate::core::hardware::{InputPin, InputPinCore, Pull};
 use crate::core::modulecore::{Module, ModuleCore, ModuleError};
-use crate::core::transport::transport_core::TransportCore;
+use crate::core::transport::transport_emiter::{TransportEmiter };
 use esp_idf_svc::hal::gpio::Level;
 use pinora_protocol::{
     command::ModuleCommand,
@@ -22,7 +22,7 @@ pub struct Buttonmodule<'d> {
 }
 
 impl<'d> Buttonmodule<'d> {
-    pub fn new<T>(pin: T , lool_up_id:String , sender:TransportCore) -> anyhow::Result<Buttonmodule<'d>>
+    pub fn new<T>(pin: T , lool_up_id:String , sender:TransportEmiter) -> anyhow::Result<Buttonmodule<'d>>
     where
         T: InputPin + 'd,
     {

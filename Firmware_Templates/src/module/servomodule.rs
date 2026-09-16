@@ -1,4 +1,4 @@
-use crate::core::transport::transport_core::{TransportCore , EmitterError};
+use crate::core::transport::transport_emiter::{TransportEmiter , EmitterError};
 use crate::core::hardware::SharedPwm;
 use crate::core::modulecore::{ Module, ModuleCore, ModuleError};
 use crate::utilities::math::{pulse_us_to_tick, range_i32};
@@ -35,7 +35,7 @@ impl<'d> ServoModule<'d> {
         channel: Channel,
         config: ServoCapability,
         cluster_id: Option<String>,
-        sender: TransportCore,
+        sender: TransportEmiter,
     ) -> anyhow::Result<ServoModule<'d>> {
         let mut s = ServoModule {
             core: ModuleCore::new(ModuleType::Servo, &manuel_id, cluster_id, sender),
