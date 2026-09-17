@@ -1,6 +1,6 @@
 import { Collapsible } from "@base-ui/react/collapsible";
 import { NavLink, Outlet, useMatch } from "react-router";
-import { ChevronDown, CircuitBoard, LayoutDashboard, Moon, ScanEye, Sun, Terminal } from "lucide-react";
+import { ChevronDown, CircuitBoard, LayoutDashboard, Moon, Sun, Terminal } from "lucide-react";
 
 import {
   Sidebar,
