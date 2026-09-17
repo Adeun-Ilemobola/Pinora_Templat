@@ -15,8 +15,10 @@ ui-release:
 # Build everything
 build-all: build-protocol build-ui build-firmware
 
-build-protocol:
-    cd protocol && cargo build
+dev-all: check-all  ui
+
+
+build-protocol: cd protocol && cargo build
 
 build-ui:
     cd UI && cargo build
