@@ -1,6 +1,6 @@
 [build]
 target = "xtensa-esp32-espidf"
-# Pinora sets this key when scaffolding: C:/pt/<project UUID prefix> on Windows.
+# Pinora sets this key when scaffolding: C:/p/<5-character base36 key> on Windows.
 # Non-Windows generated projects keep the local target directory.
 target-dir = "target"
 
