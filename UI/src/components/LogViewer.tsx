@@ -45,7 +45,6 @@ const LogRow = memo(function LogRow({
 }) {
   const entry = describeLog(message);
   const [expanded, setExpanded] = useState(false);
-  // @ts-expect-error TS7053 -- temporary
   const priorityClass = entry.priority ? priorities[entry.priority] : undefined;
 
   return (
