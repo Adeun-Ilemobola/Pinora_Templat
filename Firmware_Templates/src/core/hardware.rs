@@ -154,7 +154,7 @@ pub type SharedPwm<'d> = Rc<RefCell<Pca9685<SharedI2cDevice<'d>>>>;
 pub type LedTimer<'d> = ledc::LedcTimerDriver<'d, ledc::LowSpeed>;
 
 pub struct HardwareContext<'d> {
-    pub servo_pwm: SharedPwm<'d>,
+   // pub servo_pwm: SharedPwm<'d>,
     pub led_timer: LedTimer<'d>,
     pub i2c_bus: I2cBus<'d>,
 }
@@ -165,7 +165,7 @@ impl<'d> HardwareContext<'d> {
         TIMER: ledc::LedcTimer<SpeedMode = ledc::LowSpeed> + 'd,
     {
         Ok(Self {
-            servo_pwm: Self::create_shared_pwm(i2c_bus.clone())?,
+            //servo_pwm: Self::create_shared_pwm(i2c_bus.clone())?,
             led_timer: Self::create_led_timer(timer)?,
             i2c_bus,
         })

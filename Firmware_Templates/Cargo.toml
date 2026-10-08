@@ -1,14 +1,10 @@
 [package]
 name = "Firmware_Templates"
-version = "0.5.0-alpha"
+version = "0.8.0-alpha"
 authors = [""]
 edition = "2021"
 resolver = "2"
 rust-version = "1.82"
-
-[[bin]]
-name = "Firmware_Templates"
-harness = false # do not use the built-in cargo test harness -> resolve rust-analyzer errors
 
 [profile.release]
 opt-level = "s"

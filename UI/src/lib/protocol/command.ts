@@ -1,6 +1,6 @@
 
 import { z } from "zod";
-//import { LedCommandSchema } from "../Modules/Led";
+import { LedCommandSchema } from "../Modules/Led";
 
 export const ModuleCommandSchema = z.union([
   // z.object({ Servo: ServoCommandSchema }),
@@ -8,9 +8,9 @@ export const ModuleCommandSchema = z.union([
   // z.object({ Rfid: RfidCommandSchema }),
   // z.object({ StepperMotor: StepperMotorCommandSchema }),
 
-    // z.object({
-    //   Led: LedCommandSchema,
-    // }),
+    z.object({
+      Led: LedCommandSchema,
+    }),
 
   // z.object({
   //   Lidar: LidarCommandSchema,

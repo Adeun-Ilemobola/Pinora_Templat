@@ -1,7 +1,7 @@
 import { ButtonEventSchema } from "../Modules/button";
 //
 import { z } from "zod";
-//import { LedEventSchema } from "../Modules/Led";
+import { LedEventSchema } from "../Modules/Led";
 
 export const LogPrioritySchema = z.enum(["Low", "Medium", "High", "Critical"]);
 
@@ -19,9 +19,9 @@ export const ModuleEventSchema = z.union([
   z.strictObject({ Button: ButtonEventSchema }),
   
 
-  // z.strictObject({
-  //   Led: LedEventSchema,
-  //}),
+  z.strictObject({
+    Led: LedEventSchema,
+  }),
 
   // z.strictObject({
   //   Lidar: LidarEventSchema,

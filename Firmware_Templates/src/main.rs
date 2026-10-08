@@ -60,13 +60,15 @@ fn main() -> anyhow::Result<()> {
     esp_idf_svc::log::EspLogger::initialize_default();
     let p = Peripherals::take()?;
 
+
+    configure_console_uart()?;
     let sys_loop = EspSystemEventLoop::take()?;
     let nvs = EspDefaultNvsPartition::take()?;
-    let transport_core = TransportType::Serial;
+    // Select one transport for this firmware image: Serial, Wifi, or Bluetooth.
+    let transport_core = TransportType::Bluetooth;
     let tansport = TransportCore::new(transport_core, sys_loop.clone(), nvs.clone(), p.modem)?;
     let sync_sender = tansport.emitter.clone();
 
-    configure_console_uart()?;
     print_esp_system_info(sync_sender.clone())?;
     let mut modules: HashMap<String, ModuleHandle<'_>> = HashMap::new();
     let mut last_yield_us = now_us();

@@ -6,7 +6,18 @@ CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE=4096
 CONFIG_FREERTOS_IDLE_TASK_STACKSIZE=4096
 
-# You might have to increase this further if you spawn your own Rust threads 
-# that allocate large stack variables; or better yet - use 
-# `std::thread::Builder::new().stack_size(XXX)` for spawning
+# You might have to increase this further if you spawn your own Rust threads
+# that allocate large stack variables; or better yet - use
+# std::thread::Builder::new().stack_size(XXX) for spawning
 CONFIG_PTHREAD_TASK_STACK_SIZE_DEFAULT=4096
+
+# Larger application partition
+CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y
+
+# ESP32 Bluetooth Classic SPP. BLE is unused by this transport.
+CONFIG_BT_ENABLED=y
+CONFIG_BT_BLUEDROID_ENABLED=y
+CONFIG_BT_CLASSIC_ENABLED=y
+CONFIG_BT_SPP_ENABLED=y
+CONFIG_BTDM_CTRL_MODE_BR_EDR_ONLY=y
+CONFIG_BT_BTC_TASK_STACK_SIZE=4096

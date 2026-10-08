@@ -1,5 +1,7 @@
-# Pinora desktop — v0.5.0-alpha
+# Pinora desktop — v0.8.0-alpha
 
-The authoritative developer entry point is the [root README](../README.md), including the alpha architecture warning, current React/Zustand/Tauri boundaries, build commands, and limitations.
+The authoritative developer entry point is the [root README](../README.md), including the alpha architecture warning, React/Zustand/Tauri boundaries, transport behavior, build commands, and limitations. The maintainer reports Bluetooth works; a complete automated hardware validation is not claimed.
 
-From this directory, `bun run tauri dev` starts native development and `bun run tauri build` packages the desktop. `bun run build` checks TypeScript and builds frontend assets. The LiDAR page remains a prototype; see the [architecture review](../docs/architecture-audit.md).
+From this directory, `bun run tauri dev` starts native development and `bun run tauri build` packages the desktop. `bun run build` checks TypeScript and builds frontend assets. Before a Rust/Tauri build, copy the [Wi-Fi config example](../protocol/src/wifi_config.example.rs) to ignored `protocol/src/wifi_config.rs`; the protocol module is compiled even when Bluetooth is selected. The Transport card offers USB Serial, an authenticated Wi-Fi listener, and a paired Bluetooth Classic SPP outgoing virtual COM port. Windows may report that port as `Unknown` to `serialport`; Tauri checks Windows device metadata before listing it. See the [Bluetooth pairing and port guide](../Firmware_Templates/BLUETOOTH_TRANSPORT.md). Wi-Fi and Serial require their respective firmware source selection; see the [Wi-Fi guide](../Firmware_Templates/WIFI_TRANSPORT.md).
+
+The Tauri backend owns COM readers and the TCP listener. It forwards complete lines as `espState` events. `useModuleFront` owns connection state, the registration map and logs; individual Zustand module stores drive controls. The dashboard routes LED and Button registrations, while the LiDAR page is unmounted experimental code. See the [architecture review](../docs/architecture-audit.md). No first-party automated test scripts are shipped in this alpha tree.

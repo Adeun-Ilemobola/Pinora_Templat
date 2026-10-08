@@ -3,7 +3,7 @@ import { TransportForm } from "@/components/TransportForm";
 import { Esp32StatsCard } from "@/components/Esp32StatsCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { useModuleFront } from "@/lib/Modulefront";
-// import { RegisteredLedView } from "@/lib/Modules/Led";
+import { RegisteredLedView } from "@/lib/Modules/Led";
 
 export default function Dashboard() {
   const registry = useModuleFront((state) => state.ModuleRegistry);
@@ -49,8 +49,8 @@ export default function Dashboard() {
                 switch (store.getState().kind) {
                   case "Button":
                     return <RegisteredButtonView key={id} moduleId={id} />;
-                  // case "Led":
-                  //   return <RegisteredLedView key={id} moduleId={id} />;
+                  case "Led":
+                    return <RegisteredLedView key={id} moduleId={id} />;
                   default:
                     return null;
                 }

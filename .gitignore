@@ -70,3 +70,6 @@ Desktop.ini
 *.temp
 
 /protocol/Cargo.lock
+
+# Local development network credentials; copy the tracked example and edit locally.
+/protocol/src/wifi_config.rs

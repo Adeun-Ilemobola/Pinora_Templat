@@ -6,7 +6,14 @@ import {
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
-//import { createLed, LedEvent, type LedModule } from "./Modules/Led";
+import { createLed, LedEvent, type LedModule } from "./Modules/Led";
+import type { ImuModule } from "./Modules/imu";
+import type { LidarModule } from "./Modules/lidar";
+import type { RangefinderModule } from "./Modules/rangefinder";
+import type { RemoteReceiverModule } from "./Modules/remote-receiver";
+import type { RfidModule } from "./Modules/rfid";
+import type { ServoModule } from "./Modules/servo";
+import type { StepperModule } from "./Modules/stepper";
 
 import { StoreApi } from "zustand/vanilla";
 import { create } from "zustand";
@@ -39,11 +46,24 @@ export function registrationHasParent(registration: Registration): boolean {
 }
 
 export type AnyModule =
-  // | LedModule
+  | LedModule
   | ButtonModule
-  
+  | ImuModule
+  | LidarModule
+  | RangefinderModule
+  | RemoteReceiverModule
+  | RfidModule
+  | ServoModule
+  | StepperModule;
 
-type PortConnectionType = "Connected" | "Disconnected" | "Error";
+
+type PortConnectionType = "Connected" | "Disconnected" | "Listening" | "Error";
+type TransportMode = "Serial" | "Wi-Fi" | "Bluetooth";
+type WifiListenerStatus = {
+  listening: boolean;
+  connected: boolean;
+  port: number;
+};
 
 type ModuleRegistry = {
   [id: string]: StoreApi<AnyModule>;
@@ -51,14 +71,19 @@ type ModuleRegistry = {
 
 interface ModuleCoreArchive {
   PortStat: PortConnectionType;
+  TransportMode: TransportMode | null;
   PortError: string | null;
   PortState: {
     name: string;
     rate: number;
   };
+  WifiPort: number | null;
   UnlistenFnArr: UnlistenFn[];
 
   Connect: (portName: string, rate: number) => Promise<void>;
+  ConnectBluetooth: (portName: string) => Promise<void>;
+  ConnectWifi: (port: number) => Promise<void>;
+  RefreshWifiStatus: () => Promise<void>;
   Disconnect: () => Promise<void>;
   InitializeListeners: () => Promise<void>;
 
@@ -78,15 +103,18 @@ interface ModuleCoreArchive {
 
 export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
   PortStat: "Disconnected",
+  TransportMode: null,
   PortError: null,
   PortState: {
     name: "",
     rate: 0,
   },
+  WifiPort: null,
   UnlistenFnArr: [],
   Connect: async (portName: string, rate: number) => {
     // Implementation for connecting to a port
     await get().Disconnect();
+    set({ TransportMode: "Serial" });
     await get().InitializeListeners();
 
     await invoke("start_port", { name: portName, rate: rate })
@@ -107,15 +135,85 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
         set({ PortStat: "Error", PortError: error.toString() });
       });
   },
+  ConnectWifi: async (port: number) => {
+    await get().Disconnect();
+    set({
+      TransportMode: "Wi-Fi",
+      PortStat: "Listening",
+      PortError: null,
+      systemInfo: null,
+      logs: [],
+      ModuleRegistry: {},
+      LookUpId: {},
+    });
+    await get().InitializeListeners();
+    try {
+      await invoke("start_wifi_listener", { port });
+      set({ WifiPort: port });
+    } catch (error) {
+      get().UnlistenFnArr.forEach((unlisten) => unlisten());
+      set({ UnlistenFnArr: [] });
+      set({ PortStat: "Error", PortError: String(error), TransportMode: null });
+      throw error;
+    }
+  },
+  ConnectBluetooth: async (portName: string) => {
+    await get().Disconnect();
+    set({
+      TransportMode: "Bluetooth",
+      PortStat: "Disconnected",
+      PortError: null,
+      systemInfo: null,
+      logs: [],
+      ModuleRegistry: {},
+      LookUpId: {},
+    });
+    await get().InitializeListeners();
+    try {
+      await invoke("start_bluetooth_port", { name: portName });
+      set({
+        PortStat: "Connected",
+        PortState: { name: portName, rate: 115200 },
+      });
+    } catch (error) {
+      get().UnlistenFnArr.forEach((unlisten) => unlisten());
+      set({
+        UnlistenFnArr: [],
+        PortStat: "Error",
+        PortError: String(error),
+        TransportMode: null,
+      });
+      throw error;
+    }
+  },
+  RefreshWifiStatus: async () => {
+    let status = await invoke<WifiListenerStatus>("get_wifi_listener_status");
+    if (status.listening && get().UnlistenFnArr.length === 0) {
+      await get().InitializeListeners();
+      status = await invoke<WifiListenerStatus>("get_wifi_listener_status");
+    }
+    set({
+      WifiPort: status.port,
+    });
+    if (status.listening) {
+      set({
+        TransportMode: "Wi-Fi",
+        PortStat: status.connected ? "Connected" : "Listening",
+        PortError: null,
+      });
+    }
+  },
   Disconnect: async () => {
-    set({ systemInfo: null });
+    set({ systemInfo: null, ModuleRegistry: {}, LookUpId: {} });
     try {
       await invoke("stop_port");
+      await invoke("stop_wifi_listener");
 
       console.log("Disconnected from port");
 
       set({
         PortStat: "Disconnected",
+        TransportMode: null,
         PortError: null,
         PortState: {
           name: "",
@@ -169,7 +267,27 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
         console.error("Failed to handle Pinora message:", message, error);
       }
     });
-    set({ UnlistenFnArr: [...get().UnlistenFnArr, unlisten] });
+    const unlistenWifi = await listen<string>("wifiConnection", (event) => {
+      if (get().TransportMode === "Wi-Fi") {
+        if (event.payload === "Connected") {
+          set({ PortStat: "Connected" });
+        } else {
+          set({ PortStat: "Listening", systemInfo: null, ModuleRegistry: {}, LookUpId: {} });
+        }
+      }
+    });
+    const unlistenBluetooth = await listen<string>("bluetoothConnection", (event) => {
+      if (get().TransportMode === "Bluetooth" && event.payload === "Disconnected") {
+        set({
+          PortStat: "Error",
+          PortError: "Bluetooth SPP connection was lost. Disconnect and reconnect.",
+          systemInfo: null,
+          ModuleRegistry: {},
+          LookUpId: {},
+        });
+      }
+    });
+    set({ UnlistenFnArr: [...get().UnlistenFnArr, unlisten, unlistenWifi, unlistenBluetooth] });
   },
   HandleEvent: (event: ProtocolMessage) => {
     recordLogReceipt(event);
@@ -198,7 +316,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
   RegistrationEvent: (event: Registration) => {
     try {
       const factories = {
-        //Led: createLed,
+        Led: createLed,
         Button: createButton,
         
       };
@@ -236,8 +354,8 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
         console.error("Module event kind mismatch:", id, eventKindType);
         return;
       }
-      // if (eventKindType === "Led")
-      //   (moduleStore as StoreApi<LedModule>).getState().handleEvent(eventData as LedEvent);
+      if (eventKindType === "Led")
+        (moduleStore as StoreApi<LedModule>).getState().handleEvent(eventData as LedEvent);
       if (eventKindType === "Button")
         (moduleStore as StoreApi<ButtonModule>).getState().handleEvent(eventData as ButtonEvent);
      

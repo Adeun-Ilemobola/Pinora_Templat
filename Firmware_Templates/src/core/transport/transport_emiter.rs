@@ -7,7 +7,7 @@ use std::{
     },
 };
 
-use pinora_protocol::{ProtocolMessage, SystemInfo};
+use pinora_protocol::{EventPackage, LogPriority, ModuleEvent, ProtocolMessage, SysLogEvent, SystemInfo};
 
 
 
@@ -43,10 +43,12 @@ impl TransportEmiter {
         self.try_emit(data);
     }
     pub fn emit_reliable(&self, message: ProtocolMessage) -> Result<(), EmitterError> {
+        // Registration/system messages wait for queue space so new connections can discover them.
         self.tx.send(message).map_err(|_| EmitterError::Disconnected)?;
         Ok(())
     }
     pub fn try_emit(&self, message: ProtocolMessage) {
+        // Avoid stalling module ticks for runtime telemetry when the transport is backed up.
         match self.tx.try_send(message) {
             Ok(()) => {}
 
@@ -58,6 +60,19 @@ impl TransportEmiter {
                 log::error!("Event emitter is disconnected");
             }
         }
+    }
+    pub fn  log(&self, message: String , priority: LogPriority , raw_err: Option<String>) {
+        self.try_emit(ProtocolMessage::ModuleEvent(
+            EventPackage{
+                id: "log".to_string(),
+                event: ModuleEvent::SysLog(SysLogEvent{
+                    text: message,
+                    priority: priority,
+                    raw_err: raw_err,
+                })
+
+            }
+        ));
     }
 
 }

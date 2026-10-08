@@ -1,8 +1,7 @@
 [build]
 target = "xtensa-esp32-espidf"
-# Pinora sets this key when scaffolding: C:/p/<5-character base36 key> on Windows.
-# Non-Windows generated projects keep the local target directory.
-target-dir = "target"
+# Keep ESP-IDF build output on a short Windows path.
+target-dir = "C:/t"
 
 [target.'cfg(target_os = "espidf")']
 linker = "ldproxy"
