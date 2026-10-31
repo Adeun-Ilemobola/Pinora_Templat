@@ -19,6 +19,7 @@ fn event(n: u32) -> ProtocolMessage {
 
 fn system() -> SystemInfo {
     SystemInfo {
+        protocol_version: PROTOCOL_VERSION,
         esp_idf_version: "v5.5.3".into(),
         total_heap: "a".into(),
         current_free_heap: "b".into(),

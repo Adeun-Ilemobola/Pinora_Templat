@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 pub struct RangPoint {
     pub x: i32,
     pub y: i32,
+    /// Misspelling kept on the wire (C-01); `distance` is accepted on input.
+    #[serde(alias = "distance")]
     pub distant: u16,
 }
 
@@ -15,6 +17,8 @@ pub struct Point {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ScanState {
+    /// Misspelling kept on the wire (C-01); `Idle` is accepted on input.
+    #[serde(alias = "Idle")]
     Idol,
     Scanning,
     StopScan,

@@ -29,6 +29,7 @@ cmd.stepper.set_mode.moving	{"id":"u","command":{"StepperMotor":{"SetMode":{"mod
 cmd.stepper.set_mode.pivot	{"id":"u","command":{"StepperMotor":{"SetMode":{"mode":"Pivot"}}}}
 cmd.stepper.set_pivot_max	{"id":"u","command":{"StepperMotor":{"SetPivotMax":{"pivot_max":45.5}}}}
 cmd.stepper.set_pivot_min	{"id":"u","command":{"StepperMotor":{"SetPivotMin":{"pivot_min":-45.5}}}}
+cmd.system.rediscover	{"id":"SSI","command":{"System":{"Rediscover":{}}}}
 evt.button.ckick	{"ModuleEvent":{"event":{"Button":{"Ckick":{}}},"id":"module-uuid"}}
 evt.imu.accel	{"ModuleEvent":{"event":{"Imu":{"event_type":"Accel","raw_axes":{"x":-1,"y":2,"z":16384},"axes":{"x":-0.5,"y":0.25,"z":1.0}}},"id":"module-uuid"}}
 evt.imu.gyro	{"ModuleEvent":{"event":{"Imu":{"event_type":"Gyro","raw_axes":{"x":-1,"y":2,"z":16384},"axes":{"x":-0.5,"y":0.25,"z":1.0}}},"id":"module-uuid"}}
@@ -105,4 +106,4 @@ msg.registration.servo	{"Registration":{"id":"module-uuid","module_type":"Servo"
 msg.registration.stepper	{"Registration":{"id":"module-uuid","module_type":"StepperMotor","lool_up_id":"led1","parent_id":""}}
 msg.registration.syslog	{"Registration":{"id":"module-uuid","module_type":"SysLog","lool_up_id":"led1","parent_id":""}}
 msg.registration.with_parent	{"Registration":{"id":"child-uuid","module_type":"Servo","lool_up_id":"servo_x","parent_id":"lidar-uuid"}}
-msg.system	{"System":{"esp_idf_version":"v5.5.3","total_heap":"300.00 KiB (307200 bytes)","current_free_heap":"200.00 KiB (204800 bytes)","lowest_free_heap":"190.00 KiB (194560 bytes)","largest_allocation":"100.00 KiB (102400 bytes)","maximum_app_slot":"3.00 MiB (3145728 bytes)","flash":"4.00 MiB (4194304 bytes)"}}
+msg.system	{"System":{"protocol_version":1,"esp_idf_version":"v5.5.3","total_heap":"300.00 KiB (307200 bytes)","current_free_heap":"200.00 KiB (204800 bytes)","lowest_free_heap":"190.00 KiB (194560 bytes)","largest_allocation":"100.00 KiB (102400 bytes)","maximum_app_slot":"3.00 MiB (3145728 bytes)","flash":"4.00 MiB (4194304 bytes)"}}

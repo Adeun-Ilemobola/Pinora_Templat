@@ -3,7 +3,7 @@
 //! Values are formatted strings captured once; they are not refreshed later.
 //! `maximum_app_slot` is the size of the *running* partition, not a scan of all slots.
 
-use pinora_protocol::registration::SystemInfo;
+use pinora_protocol::registration::{SystemInfo, PROTOCOL_VERSION};
 use std::{ffi::CStr, ptr};
 
 use esp_idf_svc::sys;
@@ -58,6 +58,7 @@ pub fn print_esp_system_info(emit: TransportEmitter) -> Result<(), EmitterError>
         };
 
         emit.system_info(SystemInfo {
+            protocol_version: PROTOCOL_VERSION,
             esp_idf_version: idf_version.to_string(),
             total_heap: format_bytes(total_heap),
             current_free_heap: format_bytes(free_heap),

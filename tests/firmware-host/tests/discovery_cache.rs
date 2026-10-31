@@ -15,6 +15,7 @@ fn registration(id: &str, name: &str) -> ProtocolMessage {
 
 fn system(version: &str) -> ProtocolMessage {
     ProtocolMessage::System(SystemInfo {
+        protocol_version: PROTOCOL_VERSION,
         esp_idf_version: version.into(),
         total_heap: String::new(),
         current_free_heap: String::new(),

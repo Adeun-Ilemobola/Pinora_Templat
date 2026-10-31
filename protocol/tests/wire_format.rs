@@ -237,6 +237,13 @@ fn all_cases() -> Cases {
         cmd("u", ModuleCommand::Rfid(RfidCommand::ReadMode {})),
     );
     c.add(
+        "cmd.system.rediscover",
+        cmd(
+            SYSTEM_COMMAND_ID,
+            ModuleCommand::System(SystemCommand::Rediscover {}),
+        ),
+    );
+    c.add(
         "cmd.rfid.write_payload",
         cmd(
             "u",
@@ -283,6 +290,7 @@ fn all_cases() -> Cases {
     c.add(
         "msg.system",
         ProtocolMessage::System(SystemInfo {
+            protocol_version: PROTOCOL_VERSION,
             esp_idf_version: "v5.5.3".into(),
             total_heap: "300.00 KiB (307200 bytes)".into(),
             current_free_heap: "200.00 KiB (204800 bytes)".into(),
@@ -622,4 +630,62 @@ fn bluetooth_identity_and_limits_are_unchanged() {
     assert_eq!(SERVICE_NAME, "Pinora SPP");
     assert_eq!(MAX_MESSAGE_BYTES, 8192);
     assert_eq!(SPP_WRITE_CHUNK_BYTES, 512);
+}
+
+#[test]
+fn protocol_v1_constants() {
+    assert_eq!(PROTOCOL_VERSION, 1);
+    assert_eq!(SYSTEM_COMMAND_ID, "SSI");
+}
+
+#[test]
+fn pre_v1_system_snapshots_parse_as_version_0() {
+    // Firmware from before protocol v1 sends no `protocol_version` field.
+    let json = r#"{"System":{"esp_idf_version":"v5.5.3","total_heap":"a","current_free_heap":"b","lowest_free_heap":"c","largest_allocation":"d","maximum_app_slot":"e","flash":"f"}}"#;
+    match serde_json::from_str::<ProtocolMessage>(json).unwrap() {
+        ProtocolMessage::System(info) => assert_eq!(info.protocol_version, 0),
+        other => panic!("unexpected {other:?}"),
+    }
+}
+
+#[test]
+fn corrected_spellings_are_accepted_on_input_but_not_emitted() {
+    // Audit Phase 2A (PIN-TPL-021): output keeps the historical names (contract C-01).
+    let registration: Registration =
+        serde_json::from_str(r#"{"id":"u","module_type":"Led","lookup_id":"led1","parent_id":""}"#)
+            .unwrap();
+    assert_eq!(registration.lool_up_id, "led1");
+    assert!(
+        serde_json::to_string(&registration)
+            .unwrap()
+            .contains("\"lool_up_id\"")
+    );
+
+    let click: ButtonEvent = serde_json::from_str(r#"{"Click":{}}"#).unwrap();
+    assert_eq!(click, ButtonEvent::Ckick {});
+    assert_eq!(serde_json::to_string(&click).unwrap(), r#"{"Ckick":{}}"#);
+
+    let idle: ScanState = serde_json::from_str(r#""Idle""#).unwrap();
+    assert_eq!(idle, ScanState::Idol);
+
+    let point: RangPoint = serde_json::from_str(r#"{"x":1,"y":2,"distance":3}"#).unwrap();
+    assert_eq!(point.distant, 3);
+    assert!(
+        serde_json::to_string(&point)
+            .unwrap()
+            .contains("\"distant\"")
+    );
+}
+
+#[test]
+fn old_and_new_messages_without_system_commands_are_unchanged() {
+    // Pre-v1 desktops never send ModuleCommand::System; a v1 command still parses.
+    let json = r#"{"id":"SSI","command":{"System":{"Rediscover":{}}}}"#;
+    assert_eq!(
+        serde_json::from_str::<IncomingCommand>(json).unwrap(),
+        IncomingCommand {
+            id: "SSI".into(),
+            command: ModuleCommand::System(SystemCommand::Rediscover {}),
+        }
+    );
 }
