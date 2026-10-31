@@ -139,7 +139,7 @@ Current startup wiring:
 | `servo` | Constructor and insertion are commented out; no active servo registration or command route |
 | Shared I2C | I2C0, SDA GPIO21, SCL GPIO22, 100 kHz |
 
-[HardwareContext](Firmware_Templates/src/core/hardware/context.rs) currently creates the LED timer and retains the I2C bus. The PCA9685 initialization call is commented out, as is servo startup. Servo construction still contains test motion if that path is re-enabled.
+[HardwareContext](Firmware_Templates/src/core/hardware/context.rs) currently creates the LED timer and retains the I2C bus. The PCA9685 initialization call is commented out, as is servo startup. Since audit Phase 1D, servo, stepper and LiDAR construction moves nothing; their sweeps are explicit `run_self_test()` calls, stepper targets are bounded, and LiDAR scans always terminate.
 
 The main thread owns `HashMap<String, Box<dyn Module>>` and peripheral lifetimes. I2C/PWM sharing uses `Rc<RefCell<...>>` and `RcDevice` on that thread. Each iteration ticks all modules, processes at most one command, and yields 1 ms after roughly 650 ms between yields. This is cooperative polling, not a fixed-rate scheduler. Tick errors are reported as rate-limited `SysLog`s, and a failing command is reported as a `SysLog` without stopping the loop ([runtime/dispatch.rs](Firmware_Templates/src/runtime/dispatch.rs)). Out-of-range LED brightness is clamped to 100 with a warning.
 

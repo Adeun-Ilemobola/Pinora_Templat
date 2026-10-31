@@ -4,14 +4,15 @@
 //!
 //! # Read before enabling anything here
 //!
-//! * **Uncommanded motion.** `ServoModule::new` sweeps the servo through a test
-//!   pattern, `StepperMotor::new` starts in `Homing` and moves on the first ticks,
-//!   and `Lidar::first_emit` sweeps both servos to the ROI corners. Targets are not
-//!   bounded (PIN-TPL-004). The LiDAR scan may never terminate (PIN-TPL-005).
+//! * **Motion.** Since Phase 1D nothing moves during construction or registration,
+//!   stepper targets are bounded, and LiDAR scans terminate (PIN-TPL-004/-005). The
+//!   servo and LiDAR sweeps still exist as explicit `run_self_test()` calls, which
+//!   move hardware. Verify on a supervised bench before enabling (1D result D-V5).
 //! * **Pin conflicts with the active LEDs** (GPIO 12/14/27): the joystick button uses
 //!   GPIO12, and the RFID RGB LED uses GPIO 12/14/27 (PIN-TPL-018).
-//! * **Bluetooth has no application-level authorization** (PIN-TPL-003). Any paired
-//!   device could drive these actuators.
+//! * **Bluetooth has no application-level authorization** (PIN-TPL-003). Pairing is
+//!   limited to 120 s after boot (Phase 1C), but any device paired in that window
+//!   could drive these actuators until Phase 2B adds authentication.
 //! * The servo and LiDAR blocks need `HardwareContext::servo_pwm`, which is currently
 //!   commented out in `core/hardware/context.rs`. The RFID block needs an SPI driver
 //!   that is not created anywhere.

@@ -2,8 +2,8 @@
 //!
 //! # Lifecycle
 //!
-//! 1. **Construction** in `board` acquires the hardware. Some actuators currently
-//!    *move* here (PIN-TPL-004).
+//! 1. **Construction** in `board` acquires the hardware. It must not move anything
+//!    (since Phase 1D no module does; PIN-TPL-004).
 //! 2. Insertion into the [`ModuleRegistry`], keyed by runtime UUID.
 //! 3. [`Module::register`], then [`Module::first_emit`], once each.
 //! 4. [`Module::tick`] on every main-loop iteration, forever.

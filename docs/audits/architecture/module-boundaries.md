@@ -23,7 +23,7 @@ pub trait Module {
 ```
 
 **Lifecycle.**
-1. Construction in `main.rs`. This is where hardware is acquired, and actuators currently **move here** (PIN-TPL-004).
+1. Construction in `main.rs`. This is where hardware is acquired. Before Phase 1D, actuators **moved here**; since 1D construction is motion-free (PIN-TPL-004).
 2. Insertion into `HashMap<String, Box<dyn Module>>` keyed by UUID.
 3. `register()` then `first_emit()` for each module, in HashMap order.
 4. `tick()` forever.
