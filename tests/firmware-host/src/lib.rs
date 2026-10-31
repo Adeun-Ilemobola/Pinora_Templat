@@ -25,6 +25,14 @@ pub mod modules {
     }
 }
 
+pub mod runtime {
+    #[path = "../../../../Firmware_Templates/src/runtime/dispatch.rs"]
+    pub mod dispatch;
+
+    #[path = "../../../../Firmware_Templates/src/runtime/tick_errors.rs"]
+    pub mod tick_errors;
+}
+
 pub mod utilities {
     #[path = "../../../../Firmware_Templates/src/utilities/math.rs"]
     pub mod math;

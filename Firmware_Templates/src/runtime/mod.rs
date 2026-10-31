@@ -4,10 +4,13 @@
 //! `HashMap` order), handles at most one command, and yields to FreeRTOS for 1 ms
 //! only after at least 650 ms without a yield (PIN-TPL-009).
 //!
-//! Error semantics (contract C-16, documented here and not changed in Phase 0):
-//! * `tick()` errors are discarded.
-//! * A `handle_command()` error is returned with `?`, which ends `main` and so stops
-//!   all command processing without rebooting (PIN-TPL-001).
+//! Error semantics (contract C-16, changed in Phase 1B, PIN-TPL-001):
+//! * `tick()` errors are reported as rate-limited `SysLog`s ([`tick_errors`]).
+//! * A `handle_command()` error is reported as a `SysLog` and the loop continues
+//!   ([`dispatch`]). Previously it ended `main` and stopped all command processing.
+
+pub mod dispatch;
+pub mod tick_errors;
 
 use std::sync::mpsc::Receiver;
 
@@ -31,31 +34,27 @@ pub fn register_all(modules: &mut ModuleRegistry<'_>) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Runs the main loop. `last_yield_us` is the timestamp taken in `main` before the
-/// hardware was set up, so the first yield happens exactly when it did before.
+/// Runs the main loop forever. `last_yield_us` is the timestamp taken in `main`
+/// before the hardware was set up.
 ///
 /// Commands addressed to `"SSI"` are accepted and ignored (reserved, contract C-05).
 pub fn run(
     modules: &mut ModuleRegistry<'_>,
     command_receiver: Receiver<IncomingCommand>,
     mut last_yield_us: f64,
-) -> anyhow::Result<()> {
+) -> ! {
+    let mut tick_errors = tick_errors::TickErrorReporter::new();
+
     loop {
         for module in modules.values_mut() {
-            let _ = module.tick();
+            if let Err(error) = module.tick() {
+                // The clock is read only when an error occurs.
+                tick_errors.record(module.as_ref(), error, now_us());
+            }
         }
 
         if let Ok(command) = command_receiver.try_recv() {
-            if let Some(module) = modules.get_mut(&command.id) {
-                module.handle_command(&command.command)?;
-            } else if command.id == "SSI" {
-            } else {
-                log::error!(
-                    "No top-level module found for command id={} command={:?}",
-                    command.id,
-                    command.command
-                );
-            }
+            dispatch::dispatch(modules, &command);
         }
         let now = now_us();
 
