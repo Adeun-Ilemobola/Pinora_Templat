@@ -94,7 +94,7 @@ release: range_u32(524353) = 81        range_u32(4000000000) = 19894661
 | Affected files | `Firmware_Templates/src/core/transport/bluetooth.rs:85-92` (auto-confirm SSP), `:128-136` (IO capability `NONE`), `:138` (server start), `:208` (discoverable, never reverted) |
 | Current location (after Phase 0) | `Firmware_Templates/src/core/transport/bluetooth.rs:104-110` (auto-confirm), `:162-171` (IO capability), `:173` (server), `:243` (discoverable) |
 | Confidence | Confirmed (static). Exploitation not attempted; no radio testing was performed |
-| Status | Open |
+| Status | In Progress: Phase 1C added the 120 s pairing window (phases/phase-1/phase-1c/RESULT.md); application-level authentication remains (2B) |
 | Proposed phase | 1C (+2B) (roadmap, pending approval) |
 
 **What is wrong.** The firmware advertises itself as discoverable for its whole uptime and declares no input/output capability, so Secure Simple Pairing uses Just Works. It then answers every `PairingUserConfirmationRequest` with `true`. The SPP link is encrypted, but encryption comes from that unauthenticated pairing. After connection, any well-formed `IncomingCommand` is executed: there is no token, allow-list or bonding check. Wi-Fi by contrast requires a shared token, though a weak one (PIN-TPL-013).
@@ -213,7 +213,7 @@ Worked example: ROI x from 90 to −50 with step 3. That is 140/3 steps, which i
 | Affected files | `UI/src/lib/Modulefront.TS:256-264` (`JSON.parse` then unvalidated `HandleEvent`), `:294` (appends any object to `logs`); `UI/src/lib/logs.ts:52`, `:65` (assumes shape); `UI/src/components/LogViewer.tsx:46`, `:117` (calls `describeLog`/`matchesLog` during render); `UI/src-tauri/src/lib.rs:156-164` (COM reader forwards raw lines) |
 | Current location (after Phase 0) | `UI/src/lib/Modulefront.ts:234-264` (listener, `JSON.parse` `:252`), `:290`; `UI/src/lib/logs.ts:52`, `:65`; `UI/src/components/LogViewer.tsx:46`, `:117`; `UI/src-tauri/src/serial_transport.rs:170-178` |
 | Confidence | Confirmed: probe executed (`describeLog` and `matchesLog` throw `TypeError`). The end-to-end UI effect is Probable: no error boundary or `errorElement` exists, so React Router's default error screen replaces the app |
-| Status | Open |
+| Status | **Resolved** in Phase 1C (2026-10-31); Verified after the hardware check in phases/phase-1/phase-1c/RESULT.md (C-V6) |
 | Proposed phase | 1C (roadmap, pending approval) |
 
 **What is wrong.** On USB Serial and Bluetooth, the Tauri COM reader forwards every newline-terminated line to React as `espState`. Only Wi-Fi validates with the Rust protocol types. The frontend accepts any line that starts with `{` and parses as JSON. It appends the object to `logs` before any shape check. `describeLog` assumes every non-Registration, non-System object has a `ModuleEvent` with exactly one key. Any other JSON object throws a `TypeError` inside `LogViewer`'s render, including firmware console noise, a future protocol variant, or `{"ModuleEvent":{"id":"x","event":{}}}`.

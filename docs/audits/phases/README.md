@@ -12,7 +12,8 @@ Every phase follows the same pattern: approval → work → verification → doc
 | [Roadmap](ROADMAP.md) | Ordered remediation scope (10 subphases) | **Approved** (scope and order) | all 27 | — | Approved 2026-10-31 | `6f22bd2a` | — |
 | [Phase 1A](phase-1/phase-1a/PLAN.md) ([result](phase-1/phase-1a/RESULT.md)) | Firmware host-test harness and CI | **Completed — Verified** (A1–A7; CI not yet run on GitHub) | 008 | 28 host tests; mutation check; firmware ELF unchanged | Approved 2026-10-31 | `fbc53466`…`3fef4539` on `phase-1a/host-test-harness` (local) | 2026-10-31 |
 | [Phase 1B](phase-1/phase-1b/PLAN.md) ([result](phase-1/phase-1b/RESULT.md)) | Firmware command safety | **Completed — Verified** (hardware-independent B-V1…B-V5; hardware check B-V6 pending) | 001, 002, 025 → Resolved | 46 host tests; mutation check; golden unchanged | Approved 2026-10-31 (clamp) | `bc181a67`…`9551123c` on `phase-1b/command-safety` (local) | 2026-10-31 |
-| Phase 1C | Trust boundaries | **Awaiting Approval** | 003 (pairing), 006 | — | — | — | — |
-| Phases 1D, 2A, 2B, 2C, 2D, 2E, 3A | See [ROADMAP.md](ROADMAP.md) | Proposed | see roadmap | — | — | — | — |
+| [Phase 1C](phase-1/phase-1c/PLAN.md) ([result](phase-1/phase-1c/RESULT.md)) | Trust boundaries | **Completed — Verified** (hardware-independent C-V1…C-V5; hardware check C-V6 pending) | 006 → Resolved; 003 → In Progress | 53 host + 4 Tauri + 22 frontend tests; mutation check | Approved 2026-10-31 (defaults: 120 s, espConsole) | `143f8dac`…`8afd9a02` on `phase-1c/trust-boundaries` (local) | 2026-10-31 |
+| Phase 1D | Actuator and LiDAR safety | **Awaiting Approval** | 004, 005 | — | — | — | — |
+| Phases 2A, 2B, 2C, 2D, 2E, 3A | See [ROADMAP.md](ROADMAP.md) | Proposed | see roadmap | — | — | — | — |
 
-Only `phase-1/phase-1a/` and `phase-1/phase-1b/` exist. Each later subphase directory is created when that subphase is authorized.
+Only `phase-1/phase-1a/`, `phase-1/phase-1b/` and `phase-1/phase-1c/` exist. Each later subphase directory is created when that subphase is authorized.

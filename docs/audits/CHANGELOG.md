@@ -2,6 +2,16 @@
 
 Newest entries first. Each entry is tagged **[AUDIT]** (documentation only, no source change) or **[SOURCE]** (template source, build or config changed).
 
+## 2026-10-31 — Phase 1C, Trust boundaries **[SOURCE]**
+
+- Approved; no option chosen, so recommended defaults applied (120 s pairing window, `espConsole` event). Branch `phase-1c/trust-boundaries` (local, not pushed), cut from the 1B tip.
+- `143f8dac` firmware: pure `pairing_window.rs`; SSP pairing accepted only for 120 s after SPP start, then connectable but non-discoverable; bonded peers still connect.
+- `cd1906a6` Tauri: `line_classifier.rs` validates COM lines as Rust `ProtocolMessage`s; others go to the new additive `espConsole` event.
+- `9c503b41` UI: total `describeLog`/`matchesLog`; per-route `RouteError` boundary; `espConsole` listener.
+- `f8f11b6c`, `8afd9a02` docs (Bluetooth guide, READMEs, architecture, contract notes C-04/C-07) and CI (Tauri unit tests).
+- Verification C-V1…C-V5 pass: 53 host, 4 Tauri, 22 frontend tests; golden unchanged; firmware +772 B text; mutation check caught all three reverted fixes. Hardware check C-V6 not run.
+- Register: PIN-TPL-006 **Resolved**; PIN-TPL-003 In Progress (authentication remains for 2B). Totals 15 Open, 9 In Progress, 4 Resolved.
+
 ## 2026-10-31 — Phase 1B, Firmware command safety **[SOURCE]**
 
 - Approved with decision: clamp out-of-range LED values. Branch `phase-1b/command-safety` (local, not pushed), cut from the 1A tip.

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Phase | 1C |
-| Status | **Approved** 2026-10-31 |
+| Status | **Completed — Verified** (see [RESULT.md](RESULT.md)). Approved 2026-10-31 |
 | Decisions | The user authorized 1C without choosing between the options, so the **recommended defaults** apply: a **120 s** pairing window, and a **new `espConsole` event** for non-protocol COM lines. Both are single constants or one event name, easy to change |
 | Branch | `phase-1c/trust-boundaries`, cut from `phase-1b/command-safety` @ `3578e795` (local, not pushed) |
 | Linked findings | PIN-TPL-003 (pairing-policy part; application-level authentication stays for 2B), PIN-TPL-006 |

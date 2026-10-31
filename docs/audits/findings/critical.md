@@ -21,4 +21,6 @@ These findings must be re-rated **Critical** when the named condition becomes tr
 
 **Phase 1B 2026-10-31:** PIN-TPL-001 resolved, so its entry no longer applies. PIN-TPL-003, -004 and -005 remain on the list until 1C and 1D.
 
+**Phase 1C 2026-10-31:** PIN-TPL-003 is reduced, not cleared: new pairings are limited to 120 s after boot, but a device paired in that window can still drive any registered actuator. The entry stays until application-level authentication (2B).
+
 Any future Critical finding is recorded here with its full template, and its history is kept after resolution.
