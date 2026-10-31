@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Phase | 0 |
-| Status | **Awaiting Approval** |
+| Status | **Completed — Verified** (approved 2026-10-31; see [RESULT.md](RESULT.md)) |
 | Baseline revision | `5b5c8ed4` (`main`, clean) |
 | Author | Initial audit, 2026-10-31 |
 | Linked findings | PIN-TPL-008 (characterization tests only), -015 (file-name case only), -016, -018 (documentation only), -020 (file organization only), -021 (internal names only), -022, -024 (README only), -026 (documentation only) |

@@ -8,10 +8,10 @@
 | **Scope** | `C:\Dev\Pinora\Pinora_Templat` only. `2dLidar`, `pinora_cli`, `pinora_studio` and `UI` are **not audited** |
 | **Audit date** | 2026-10-31 |
 | **Baseline** | `main` @ `5b5c8ed4`, clean working tree |
-| **Current operation** | Initial audit |
-| **Current stage** | Initial audit **complete**. Phase 0 plan written |
-| **Approval status** | ⏸ **Awaiting approval for Phase 0** (with decisions D1–D6) |
-| **Source changes so far** | **None** |
+| **Current operation** | Phase 0, Structural Reorganization |
+| **Current stage** | Phase 0 **Completed — Verified** (hardware-independent V1–V10; hardware smoke test not done). See [RESULT](phases/phase-0/RESULT.md) |
+| **Approval status** | ⏸ **Stopped for review.** Next: the post-Phase-0 reassessment and roadmap, which needs its own approval |
+| **Source changes so far** | Phase 0 structural changes on local branch `phase-0/structural-reorganization` (not pushed; `main` unchanged at `5b5c8ed4`) |
 | **Last synchronization** | 2026-10-31: mirror verified by SHA-256 over all files (see the mirror's `SYNC-STATUS.md`) |
 
 ## Severity totals
@@ -20,7 +20,7 @@
 |:-:|:-:|:-:|:-:|:-:|
 | **0** | **6** | **14** | **6** | **26** |
 
-All 26 are **Open**. Four High findings are on the [Critical escalation watch-list](findings/critical.md): they become Critical as soon as actuator or LiDAR code is enabled.
+18 Open · 8 In Progress (structural parts done in Phase 0) · 0 Resolved. Functional defects are untouched. Four High findings are on the [Critical escalation watch-list](findings/critical.md): they become Critical as soon as actuator or LiDAR code is enabled.
 
 ## Most important risks
 
@@ -42,23 +42,23 @@ All 26 are **Open**. Four High findings are on the [Critical escalation watch-li
 | PIN-TPL-005 | High | LiDAR scan never terminates; unbounded memory *(latent)* | Open |
 | PIN-TPL-006 | High | Malformed device input crashes the desktop log view | Open |
 | PIN-TPL-007 | Med | Rust↔TS contract handwritten, partial, unversioned | Open |
-| PIN-TPL-008 | Med | No automated tests or CI | Open |
+| PIN-TPL-008 | Med | No automated tests or CI | In Progress |
 | PIN-TPL-009 | Med | Main loop busy-polls; no timing guarantees | Open |
 | PIN-TPL-010 | Med | Telemetry backpressure and silent drops | Open |
 | PIN-TPL-011 | Med | Frontend log history unbounded, copied per message | Open |
 | PIN-TPL-012 | Med | Connection-state desync; no state replay | Open |
 | PIN-TPL-013 | Med | Wi-Fi dev-grade auth; fragile boot dependency | Open |
 | PIN-TPL-014 | Med | Tauri commands block the UI thread | Open |
-| PIN-TPL-015 | Med | Fresh clone does not build; machine-specific config | Open |
-| PIN-TPL-016 | Med | Duplicated logic and dead code | Open |
+| PIN-TPL-015 | Med | Fresh clone does not build; machine-specific config | In Progress |
+| PIN-TPL-016 | Med | Duplicated logic and dead code | In Progress |
 | PIN-TPL-017 | Med | Module identity and hierarchy incomplete | Open |
-| PIN-TPL-018 | Med | Hard-coded pins; LED on strapping pin GPIO12 | Open |
+| PIN-TPL-018 | Med | Hard-coded pins; LED on strapping pin GPIO12 | In Progress |
 | PIN-TPL-019 | Med | Defects in inactive RFID, IR and rangefinder modules | Open |
-| PIN-TPL-020 | Med | Frontend god-store, oversized files, `any` | Open |
-| PIN-TPL-021 | Low | Misspellings (wire names frozen, internal fixable) | Open |
-| PIN-TPL-022 | Low | Formatting and lint not enforced | Open |
+| PIN-TPL-020 | Med | Frontend god-store, oversized files, `any` | In Progress |
+| PIN-TPL-021 | Low | Misspellings (wire names frozen, internal fixable) | In Progress |
+| PIN-TPL-022 | Low | Formatting and lint not enforced | In Progress |
 | PIN-TPL-023 | Low | Tauri scaffold metadata, CSP off, leftovers | Open |
-| PIN-TPL-024 | Low | Documentation drift | Open |
+| PIN-TPL-024 | Low | Documentation drift | In Progress |
 | PIN-TPL-025 | Low | Events report requested, not applied values | Open |
 | PIN-TPL-026 | Low | UART0 driver bypasses HAL ownership | Open |
 
@@ -66,9 +66,10 @@ Full records: [findings/](findings/README.md).
 
 ## Outstanding problems and next step
 
-- **Proposed next step:** Phase 0, Structural Reorganization ([plan](phases/phase-0/PLAN.md)). It reorganizes files, makes internal-only renames, adds doc comments and characterization tests, and runs formatting. It freezes all contracts C-01 … C-19, and it fixes **no** functional defects.
-- **Awaiting approval:** Phase 0 plus decisions D1 (branch), D2 (local commits), D3 (delete 2 dead files), D4 (manifest tidy-up; recommended *No*), D5 (use the `C:/t` firmware cache), D6 (accept log-target and panic-string differences).
-- **Validation gaps:** the firmware build and the Vite build were not run during the audit (they would write outside the docs). No hardware or runtime verification was done.
+- **Done:** Phase 0, Structural Reorganization ([plan](phases/phase-0/PLAN.md), [result](phases/phase-0/RESULT.md)). Decisions: D1–D3 yes, D4 no, D5–D6 yes. One local commit per step (P0.1–P0.7) on `phase-0/structural-reorganization`; all checks V1–V10 pass; no contract, manifest, lockfile or config changed.
+- **Your review:** inspect the branch, optionally run the hardware smoke test in RESULT §8, and decide whether to merge it into `main`. Merging and pushing are your decisions.
+- **Proposed next step:** post-Phase-0 reassessment and remediation roadmap (Phase 1A, 1B, …). **Not started**; needs your approval.
+- **Validation gaps:** no hardware or runtime verification yet. Firmware module logic has no host tests (PIN-TPL-008).
 
 ## Documents
 
@@ -79,14 +80,14 @@ Full records: [findings/](findings/README.md).
 | Communication flow | [architecture/communication-flow.md](architecture/communication-flow.md) |
 | Frozen contracts | [architecture/compatibility-contracts.md](architecture/compatibility-contracts.md) |
 | Issue register | [findings/README.md](findings/README.md) · [critical](findings/critical.md) · [high](findings/high.md) · [medium](findings/medium.md) · [low](findings/low.md) |
-| Phases | [phases/README.md](phases/README.md) · [Phase 0 plan](phases/phase-0/PLAN.md) |
+| Phases | [phases/README.md](phases/README.md) · [Phase 0 plan](phases/phase-0/PLAN.md) · [Phase 0 result](phases/phase-0/RESULT.md) |
 | Report | [reports/initial-audit.md](reports/initial-audit.md) |
 | Evidence | [evidence/validation-baseline.md](evidence/validation-baseline.md) · [evidence/probes.md](evidence/probes.md) |
 | Changelog | [CHANGELOG.md](CHANGELOG.md) |
 
 ## Version control
 
-- `docs/audits/` belongs to the template repository but is **not yet committed**. The audit made no commits, by instruction. Commit it when you are ready, for example `git add docs/audits` followed by a commit on a branch of your choice.
+- `docs/audits/` is committed on the local branch `phase-0/structural-reorganization` (first commit `cb773d3b`); it is not on `main` until you merge.
 - The workspace mirror `C:\Dev\Pinora\Audits\` is **not under version control**: `C:\Dev\Pinora` is not a Git repository, and no repository was created.
 - Pre-existing `docs/architecture-audit.md` (an earlier review) was left unchanged.
 

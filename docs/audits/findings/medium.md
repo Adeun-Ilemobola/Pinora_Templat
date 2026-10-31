@@ -37,7 +37,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Severity | Medium (a prerequisite for safely fixing every other finding) |
 | Affected files | Entire repository; no `#[test]`, `tests/`, `*.test.ts`, or CI configuration exists |
 | Confidence | Confirmed (`git ls-files` and source search) |
-| Status | Open |
+| Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
 | Proposed phase | 0 (characterization tests only), then 1C |
 
 **What is wrong.** There are no unit tests, contract tests, integration tests or CI workflow. Firmware logic is entangled with ESP-IDF types, so none of it can run on a host. Examples are `TimerState` calling `esp_timer_get_time` and modules owning `PinDriver`/`LedcDriver` directly.
@@ -216,7 +216,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Severity | Medium |
 | Affected files | `protocol/src/lib.rs:6` + `.gitignore` (`/protocol/src/wifi_config.rs` required but untracked); `Firmware_Templates/.cargo/config.toml:4` (`target-dir = "C:/t"`); `Firmware_Templates/Cargo.toml:17-20` (Git patches without `rev`); `.gitignore` (`/protocol/Cargo.lock` ignored); `UI/src/lib/Modulefront.TS` (upper-case `.TS` extension); `justfile` (`clean-ui` uses PowerShell syntax; `[windows]` shell only); `Firmware_Templates/Cargo.toml:29`, `:32` (`rand`, `embassy-time` declared but unused by source) |
 | Confidence | Confirmed, except the `.TS` case-sensitivity break, which is Probable: `tsc` on Windows resolved it as `Modulefront.ts`, and Linux or case-sensitive macOS would not |
-| Status | Open |
+| Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
 | Proposed phase | 0 (file-name case and unused dependency removal only, if approved) / 2C |
 
 **What is wrong.** A fresh clone fails every Rust build until the developer creates an untracked secrets file. The firmware target directory is a hard-coded Windows drive path. `cargo update` would pull the moving `master` of three ESP-IDF crates. The standalone protocol lockfile is not tracked. One TypeScript source file has an upper-case extension, so it resolves only on case-insensitive file systems.
@@ -240,7 +240,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Severity | Medium |
 | Affected files | `Firmware_Templates/src/core/emitter.rs` (not compiled: `core/mod.rs:3` comments it out); `TransportType` defined three times (`core/emitter.rs:9`, `core/transport/transport_core.rs:21`, `UI/src-tauri/src/lib.rs:40-44`); `remember()` duplicated (`wifi.rs:225`, `bluetooth.rs:330`); newline framing implemented four times (`wifi.rs:182-209`, `bluetooth.rs:238-262`, `UI/src-tauri/src/lib.rs:156-164`, `UI/src-tauri/src/wifi_transport.rs:223-244`); ~130 lines of commented-out wiring (`Firmware_Templates/src/main.rs:96-207`); `UI/src/lib/ModuleGeter.ts` (no importers); `transport_core.rs:121-125` (returns a receiver whose sender is dropped when no transport supplies one) |
 | Confidence | Confirmed |
-| Status | Open |
+| Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
 | Proposed phase | 0 |
 
 **What is wrong.** Several concepts exist in parallel copies, and dead files look live. Framing differs subtly: firmware Wi-Fi caps lines at 8 KiB, Tauri Wi-Fi at 256 KiB, and the Tauri COM reader is uncapped.
@@ -288,7 +288,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Severity | Medium |
 | Affected files | `Firmware_Templates/src/main.rs:209-254` (LEDs on GPIO 12/14/27); commented alternates reuse the same pins: `:130` joystick button GPIO12, `:172-174` RFID RGB on GPIO12/14/27 |
 | Confidence | Probable. GPIO12 (MTDI) selects flash voltage at reset on classic ESP32 modules unless eFuses override it. The actual board, eFuse state and LED wiring were not inspected |
-| Status | Open |
+| Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
 | Proposed phase | 2C (documentation in Phase 0) |
 
 **What is wrong.** Wiring is authored inline in `main()` with no board description or conflict check. `led1` drives GPIO12, a strapping pin: if external circuitry holds it high at reset, the module selects 1.8 V flash and fails to boot on 3.3 V-flash modules. Commented module wiring reuses GPIO 12, 14 and 27, so uncommenting it collides with the LEDs. `Peripherals::take()` would make that a compile error in most cases, but not when the pins come from different code paths.
@@ -336,7 +336,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Severity | Medium |
 | Affected files | `UI/src/lib/Modulefront.TS` (385 lines: transport lifecycle, IPC listeners, registry, lookup map, logs, system info); `UI/src/lib/Modules/lidar.tsx` (948 lines), `stepper.tsx` (552), `rangefinder.tsx` (382), each combining Zod schema, Zustand store, IPC commands and React views; `UI/tsconfig.json:27` (`noImplicitAny: false`); `UI/src/lib/IncomingCommand.ts:4` (`command: any`); `UI/src/lib/Modules/Led.tsx:49` (`handleEvent: (event: any)`) |
 | Confidence | Confirmed |
-| Status | Open |
+| Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
 | Proposed phase | 0 (file organization) / 2C (store redesign) |
 
 **What is wrong.** One Zustand store owns unrelated concerns, and its actions call `invoke` directly. Module files mix protocol schemas, state, side effects and UI. `strict` is on, but `noImplicitAny` is off and outgoing commands are typed `any`, so the command schemas in `protocol/command.ts` are never enforced on send. Seven module UIs (servo, stepper, LiDAR, rangefinder, RFID, IMU, remote receiver) are compiled but never registered.

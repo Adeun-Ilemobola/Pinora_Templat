@@ -1,5 +1,7 @@
 # Current system — as implemented at commit `5b5c8ed4`
 
+> **Historical baseline.** Phase 0 later moved files without changing behavior. For the current paths, see the path map in [phases/phase-0/RESULT.md](../phases/phase-0/RESULT.md) §2. This document will be refreshed by the post-Phase-0 reassessment.
+
 This document describes the code as it actually exists. It is not based on older READMEs or plans. Where the repository-root `README.md` or `docs/architecture-audit.md` disagree with the code, the code wins, and the disagreement is recorded as PIN-TPL-024.
 
 ## 1. Repository boundary

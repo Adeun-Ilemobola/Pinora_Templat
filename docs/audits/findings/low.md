@@ -11,7 +11,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Severity | Low |
 | Affected files | Wire-visible (**must not change without a protocol version**): `lool_up_id` (`protocol/src/registration.rs:11`), `Ckick` (`protocol/src/module/buttonmodule.rs:5`), `Idol` (`protocol/src/module/lidar.rs:18`), `distant` (`protocol/src/module/lidar.rs:7`). Internal only (safe in Phase 0): `manuel_id` (field, `Firmware_Templates/src/core/modulecore.rs`), `TransportEmiter` / `transport_emiter.rs`, local `tansport` (`main.rs:69`), `buzer_pin`, `write_chuck` (`module/rfid.rs`), `testrang`, `UI/src/lib/ModuleGeter.ts`. Protocol-crate public type names `RangPoint`, `MddeRfid` do not appear on the wire but are public crate API, so they are frozen in Phase 0 (see contract C-08 in [compatibility contracts](../architecture/compatibility-contracts.md)) |
 | Confidence | Confirmed (wire visibility checked by serialization probe) |
-| Status | Open |
+| Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
 | Proposed phase | 0 (internal names) / 2A (wire names, versioned) |
 
 **What is wrong.** Spelling errors appear across identifiers. Some are serialized JSON keys or enum tags. Others are only Rust or TypeScript symbols.
@@ -35,7 +35,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Severity | Low |
 | Affected files | All three Rust packages: `cargo fmt --check` reports 78 diff hunks in `Firmware_Templates`, 21 in `protocol` and 6 in `UI/src-tauri`. Clippy: one warning in `protocol` (`Axes::add` shadows `std::ops::Add::add`) and two in `UI/src-tauri` (unused `ConnectionState` fields, unused `ConnectionType::Disconnected`). No ESLint or Prettier configuration in `UI` |
 | Confidence | Confirmed (see [validation baseline](../evidence/validation-baseline.md)) |
-| Status | Open |
+| Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
 | Proposed phase | 0 |
 
 **What is wrong.** Code style is inconsistent (indentation, spacing, import grouping). Lints are not run.
@@ -83,7 +83,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Severity | Low |
 | Affected files | `README.md:174` (says TypeScript LiDAR start/stop/test are strings; `UI/src/lib/Modules/lidar.tsx:75-77` now uses objects); `.espConfig/esp_config.json:6-7` (`source ~/export-esp.sh && cargo build`, `cargo flash … /dev/ttyUSB0`, project name `template`); `Firmware_Templates/pre-script.rhai` (lists ten chip targets; only classic ESP32 is configured); `README.md`, `docs/architecture-audit.md`, `Firmware_Templates/BLUETOOTH_TRANSPORT.md` refer to verification by a named external agent (“Codex”) whose records are not in the repository |
 | Confidence | Confirmed |
-| Status | Open |
+| Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
 | Proposed phase | 0 (documentation only; `.espConfig` and `pre-script.rhai` content left unchanged; see contract C-10) |
 
 **What is wrong.** Some statements are out of date, and legacy generator metadata contains commands that would not work on this project.
@@ -131,7 +131,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Severity | Low |
 | Affected files | `Firmware_Templates/src/main.rs:30-56`, `:64` |
 | Confidence | Confirmed (static) |
-| Status | Open |
+| Status | Open (ownership invariant documented in code during Phase 0) |
 | Proposed phase | 3B |
 
 **What is wrong.** `configure_console_uart` calls `uart_driver_install` and `uart_vfs_dev_use_driver` on UART0 through `unsafe` `sys` calls, while `Peripherals::take()` still hands out `p.uart0` as if it were free.
