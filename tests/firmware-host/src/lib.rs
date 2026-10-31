@@ -18,6 +18,13 @@ pub mod core {
     }
 }
 
+pub mod modules {
+    pub mod actuators {
+        #[path = "../../../../../Firmware_Templates/src/modules/actuators/led_mapping.rs"]
+        pub mod led_mapping;
+    }
+}
+
 pub mod utilities {
     #[path = "../../../../Firmware_Templates/src/utilities/math.rs"]
     pub mod math;

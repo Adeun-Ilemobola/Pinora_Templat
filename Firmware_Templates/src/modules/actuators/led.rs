@@ -1,16 +1,20 @@
 //! PWM LED on one LEDC channel. `SetState { state }` maps 0–100 % onto the 13-bit
 //! duty range; `Toggle` switches between 0 and 100.
 //!
-//! Known defect (PIN-TPL-002): `state` is not range-checked. Values above 100 saturate
-//! the duty, values above 524 352 overflow (panic in debug builds, wrapped duty in
-//! release builds), and the reported `Brightness` echoes the unchecked input.
+//! Requests above 100 are clamped to 100 and reported with a `SysLog` warning.
+//! `Brightness` always reports the level actually applied (PIN-TPL-002, Phase 1B).
+//! The arithmetic lives in [`super::led_mapping`] so it can be tested on the host.
 
 use crate::core::hardware::{ledc, LedTimer, OutputPin};
 use crate::core::module::{Module, ModuleCore, ModuleError};
 use crate::core::transport::emitter::{EmitterError, TransportEmitter};
-use crate::utilities::math::range_u32;
+use crate::modules::actuators::led_mapping::{
+    applied_level, clamp_warning, level_to_duty, toggled_level,
+};
 use pinora_protocol::{
-    command::ModuleCommand, global_definitions::ModuleType, module_event::ModuleEvent,
+    command::ModuleCommand,
+    global_definitions::ModuleType,
+    module_event::{LogPriority, ModuleEvent, SysLogEvent},
 };
 
 pub use pinora_protocol::module::ledmodule::{LedCommandPayload, LedEvent};
@@ -43,11 +47,20 @@ impl<'d> LedModule<'d> {
         Ok(ledmodule)
     }
 
+    /// Applies a brightness request. Out-of-range requests are clamped and reported.
     pub fn set_state(&mut self, state: u32) -> anyhow::Result<()> {
-        let p = range_u32(state, 0, 100, 0, self.pwm.get_max_duty());
-        self.pwm.set_duty(p)?;
-        self.state = state;
-        self.emit(ModuleEvent::Led(LedEvent::Brightness { level: state }));
+        let level = applied_level(state);
+        if level != state {
+            self.log(SysLogEvent {
+                text: clamp_warning(state, level),
+                raw_err: None,
+                priority: LogPriority::Medium,
+            });
+        }
+        self.pwm
+            .set_duty(level_to_duty(level, self.pwm.get_max_duty()))?;
+        self.state = level;
+        self.emit(ModuleEvent::Led(LedEvent::Brightness { level }));
 
         Ok(())
     }
@@ -56,13 +69,7 @@ impl<'d> LedModule<'d> {
     }
 
     pub fn toggle(&mut self) -> anyhow::Result<()> {
-        if self.state == 0 {
-            self.set_state(100)?;
-        } else {
-            self.set_state(0)?;
-        }
-
-        Ok(())
+        self.set_state(toggled_level(self.state))
     }
 }
 
