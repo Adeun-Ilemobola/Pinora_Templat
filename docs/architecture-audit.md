@@ -47,7 +47,7 @@ Current firmware startup registers three PWM LED modules, named `led1`, `led2`, 
 | Identity | Commands route through a top-level UUID map; duplicate lookup names can replace frontend lookup entries. |
 | Replay | Wi-Fi/SPP replay system and registration messages, not runtime values. Early startup messages depend on transport caching. |
 | Queues | Firmware queues are bounded; runtime events can drop. The desktop COM line buffer and frontend log history are unbounded. |
-| Failure paths | Some module tick errors are discarded and command-handler errors can exit the firmware main loop. Error handling varies by transport. |
+| Failure paths | Tick and command-handler errors are reported as `SysLog`s and the main loop continues (since audit Phase 1B). Error handling still varies by transport. |
 | Security | Wi-Fi uses a plaintext static development token and a listener on all interfaces. Bluetooth Just Works pairing lacks numeric-comparison MITM protection. |
 | Scope | No automatic failover or simultaneous firmware transport routing. Experimental module families remain inactive. |
 | Packaging | Tauri product identity and metadata retain template-level values; a first-party license is not declared. |

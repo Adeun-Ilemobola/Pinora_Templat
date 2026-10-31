@@ -43,9 +43,9 @@ sequenceDiagram
   W->>W: buffer bytes until "\n", serde parse IncomingCommand
   W->>L: mpsc (sync_channel 128, blocking send)
   L->>L: try_recv (≤1 per iteration); lookup by UUID
-  L->>M: handle_command (Err ⇒ main exits, PIN-TPL-001)
-  M->>M: set_duty(range_u32(state…)) (unclamped, PIN-TPL-002)
-  M-->>L: emit Brightness{level: state} (try_emit)
+  L->>M: dispatch → handle_command (Err ⇒ High SysLog, loop continues; Phase 1B)
+  M->>M: clamp to 0–100 (+ Medium SysLog if clamped), set_duty (Phase 1B)
+  M-->>L: emit Brightness{level: applied} (try_emit)
 ```
 
 Unknown IDs are logged on the firmware console only. The desktop is not told. `"SSI"` is accepted and ignored.

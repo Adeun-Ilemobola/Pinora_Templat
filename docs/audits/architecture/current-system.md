@@ -86,7 +86,7 @@ The baseline layout (before Phase 0) is recorded in [phases/phase-0/RESULT.md §
 
 **Scheduling.** The main loop is cooperative and busy-polling, with a 1 ms yield after ≥ 650 ms (PIN-TPL-009). Each iteration ticks every module in `HashMap` order, which is unspecified, and then processes at most one command.
 
-**Error handling.** Tick errors are discarded. Handler errors terminate `main` (PIN-TPL-001). Constructors return `anyhow::Result`; some modules use `Result<_, ()>` mapped to `ModuleError::OperationFailed`. There are several `.unwrap()` calls in inactive actuator paths (PIN-TPL-004).
+**Error handling.** Since Phase 1B, tick errors are reported as rate-limited `SysLog`s (`runtime/tick_errors.rs`) and handler errors as `SysLog`s without stopping the loop (`runtime/dispatch.rs`). Before 1B, tick errors were discarded and handler errors terminated `main` (PIN-TPL-001). Constructors return `anyhow::Result`; some modules use `Result<_, ()>` mapped to `ModuleError::OperationFailed`. There are several `.unwrap()` calls in inactive actuator paths (PIN-TPL-004).
 
 **Unsafe code.** There are seven `unsafe` sites: UART driver install, `esp_timer_get_time`, heap/flash/partition queries, `modem.reborrow()`, the `from_raw_parts` copy of SPP data (null-checked, copied before return), and two GAP security calls. No soundness defect was found. Each site is a short FFI call with checked inputs. The ownership bypass in UART0 is recorded as PIN-TPL-026.
 

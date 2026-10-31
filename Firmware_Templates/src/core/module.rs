@@ -84,7 +84,8 @@ pub trait Module {
     fn id(&self) -> &str {
         &self.core().id
     }
-    /// Called every main-loop iteration. Errors are currently discarded by the loop.
+    /// Called every main-loop iteration. Errors are reported as rate-limited `SysLog`s
+    /// (`runtime::tick_errors`).
     fn tick(&mut self) -> Result<(), ModuleError>;
 
     fn register(&self) -> Result<(), EmitterError> {
@@ -124,6 +125,6 @@ pub trait Module {
         self.emit(ModuleEvent::SysLog(data));
     }
     /// Receives every command family; modules ignore families that are not theirs.
-    /// An `Err` here currently stops the main loop (PIN-TPL-001).
+    /// An `Err` is reported as a `SysLog` and the loop continues (`runtime::dispatch`).
     fn handle_command(&mut self, command: &ModuleCommand) -> anyhow::Result<()>;
 }
