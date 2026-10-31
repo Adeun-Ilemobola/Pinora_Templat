@@ -25,6 +25,9 @@ pub mod modules {
     pub mod actuators {
         #[path = "../../../../../Firmware_Templates/src/modules/actuators/led_mapping.rs"]
         pub mod led_mapping;
+
+        #[path = "../../../../../Firmware_Templates/src/modules/actuators/stepper_motion.rs"]
+        pub mod stepper_motion;
     }
 }
 

@@ -1,14 +1,15 @@
 //! Unipolar stepper (28BYJ-48 style, 4096 half-steps per revolution), driven directly
 //! on four GPIOs or through a 74HC595 shift register.
 //!
-//! Hazards (PIN-TPL-004): the motor starts in `Homing` and sweeps ±90° three times as
-//! soon as it is ticked, with no limit switch. `MoveToAngle` and the pivot limits are
-//! not bounded. Coils stay energized when idle. GPIO errors in shift-register mode
-//! panic. Not instantiated in the current image.
-
-use std::time::Instant;
-
-use serde::{Deserialize, Serialize};
+//! Motion decisions (modes, limits, homing and pivot targets, when to release the
+//! coils) live in the pure [`super::stepper_motion`] core, which is host-tested. This
+//! module only checks the step timer, drives the coils and emits events.
+//!
+//! Safety (PIN-TPL-004, Phase 1D): the motor starts `Idle` and moves only on command.
+//! Out-of-range targets are rejected (reported by the dispatcher as a `SysLog`). Coils
+//! are de-energized when idle unless [`StepperMotor::set_hold_when_idle`] is enabled.
+//! Coil-write errors are returned instead of panicking. Not instantiated in the
+//! current image.
 
 use crate::core::{
     hardware::{OutputPinCore, TimerState},
@@ -16,6 +17,7 @@ use crate::core::{
 };
 
 use crate::core::transport::emitter::{EmitterError, TransportEmitter};
+use crate::modules::actuators::stepper_motion::{step_to_angle, Output, StepperMotion};
 
 use pinora_protocol::{
     command::ModuleCommand, global_definitions::ModuleType, module_event::ModuleEvent,
@@ -25,29 +27,6 @@ pub use pinora_protocol::module::stepper::{
     PivotPoint, StepperMotorCommandPayload, StepperMotorEvent, StepperStateType,
 };
 
-#[derive(Debug, Clone, Copy)]
-pub struct PivotLimits {
-    pub min: f32,
-    pub max: f32,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum StepperState {
-    Idle,
-    Moving,
-    Homing { cycle: u32 },
-    Pivot { point: PivotPoint },
-}
-impl From<&StepperState> for StepperStateType {
-    fn from(state: &StepperState) -> Self {
-        match state {
-            StepperState::Idle => Self::Idle,
-            StepperState::Moving => Self::Moving,
-            StepperState::Homing { .. } => Self::Homing,
-            StepperState::Pivot { .. } => Self::Pivot,
-        }
-    }
-}
 pub struct StepperPins<'d> {
     pub in1: OutputPinCore<'d>,
     pub in2: OutputPinCore<'d>,
@@ -88,22 +67,14 @@ const SEQUENCE_74HC595: [u8; 8] = [
 ];
 pub struct StepperMotor<'d> {
     core: ModuleCore,
-    // pins: StepperPins<'d>,
     step_timer: TimerState,
-    step: f32,
-    target_step: f32,
-
-    // origin: Option<f32>,
-    mode: StepperState,
+    motion: StepperMotion,
     motion_mode: StepperPinMode<'d>,
-    test_time: Instant,
-    pivot_point: PivotPoint,
-    pivot_limits: PivotLimits,
 }
 
 impl<'d> StepperMotor<'d> {
+    /// Creates the stepper `Idle` at the origin. No coil is driven here.
     pub fn new(
-        // pins_bus: StepperPins<'d>,
         motion_mode: StepperPinMode<'d>,
         lookup_name: String,
         cluster_id: Option<String>,
@@ -111,188 +82,89 @@ impl<'d> StepperMotor<'d> {
     ) -> anyhow::Result<StepperMotor<'d>> {
         let motor = StepperMotor {
             core: ModuleCore::new(ModuleType::StepperMotor, &lookup_name, cluster_id, sender),
-            // pins: pins_bus,
             step_timer: TimerState::from_ms(1.25),
-            target_step: 0.0,
-            step: 0.0,
-            mode: StepperState::Homing { cycle: 1 },
-            test_time: Instant::now(),
-            // origin: None,
-            pivot_point: PivotPoint::Max,
-            pivot_limits: PivotLimits::new(-90.0, 90.0),
+            motion: StepperMotion::new(),
             motion_mode,
         };
         Ok(motor)
     }
-    pub fn angle_to_step(angle: f32) -> f32 {
-        (angle * 4096.0 / 360.0).round()
-    }
-    pub fn step_to_angle(step: f32) -> f32 {
-        step * 360.0 / 4096.0
-    }
-    pub fn target_step(&mut self, target: f32) {
-        self.test_time = Instant::now();
-        self.target_step = self.step + (target);
 
-        self.mode = StepperState::Moving;
-    }
-    pub fn target_angle(&mut self, target: f32) {
-        self.test_time = Instant::now();
-
-        self.target_step = self.step + (Self::angle_to_step(target));
-
-        self.mode = StepperState::Moving;
-    }
-    fn set_relative_angle_target(&mut self, angle: f32) {
-        self.target_step = self.step + Self::angle_to_step(angle);
-    }
-    fn set_angle(&mut self, angle: f32) {
-        self.target_step = Self::angle_to_step(angle);
+    /// Keep the coils energized when idle (holding torque). Off by default.
+    pub fn set_hold_when_idle(&mut self, hold: bool) {
+        self.motion.set_hold_when_idle(hold);
     }
 
     fn tick_inner(&mut self) -> anyhow::Result<()> {
-        match self.mode {
-            StepperState::Idle => {}
-
-            StepperState::Homing { mut cycle } => {
-                if cycle > 3 {
-                    self.mode = StepperState::Idle;
-                    self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetMode {
-                        mode: StepperStateType::from(&self.mode),
-                    }));
-                    return Ok(());
-                }
-                match self.pivot_point {
-                    PivotPoint::Max => self.move_pivot(PivotPoint::Min)?,
-                    PivotPoint::Min => self.move_pivot(PivotPoint::Max)?,
-                }
-
-                if self.step == self.target_step {
-                    cycle += 1;
-                    let elapsed = self.test_time.elapsed();
-                    println!(
-                        "Reached {:.2}° in {:?}",
-                        Self::step_to_angle(self.step),
-                        elapsed
-                    );
-
-                    match self.pivot_point {
-                        PivotPoint::Max => self.pivot_point = PivotPoint::Min,
-                        PivotPoint::Min => self.pivot_point = PivotPoint::Max,
-                    }
-
-                    self.emit(ModuleEvent::StepperMotor(
-                        StepperMotorEvent::GetPivotPoint {
-                            pivot_point: self.pivot_point.clone(),
-                        },
-                    ));
-                    self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetAngle {
-                        angle: Self::step_to_angle(self.step),
-                        step: self.step,
-                    }));
-                    self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetMode {
-                        mode: StepperStateType::from(&self.mode),
-                    }));
-
-                    self.mode = StepperState::Homing { cycle };
-                }
+        let timer = &mut self.step_timer;
+        let pins = &mut self.motion_mode;
+        let output = self.motion.tick(|sequence_index| {
+            // Not yet time for the next electrical step.
+            if !timer.ready() {
+                return Ok(false);
             }
+            write_coils(pins, Some(sequence_index))?;
+            timer.reset();
+            Ok::<bool, anyhow::Error>(true)
+        })?;
+        self.apply(output)
+    }
 
-            StepperState::Moving => {
-                self.move_to();
-                if self.step == self.target_step {
-                    self.mode = StepperState::Idle;
-                    self.target_step = 0.0;
-                    self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetMode {
-                        mode: StepperStateType::from(&self.mode),
-                    }));
-                }
-            }
-            StepperState::Pivot { point } => match point {
-                PivotPoint::Max => {
-                    self.move_pivot(point)?;
-                }
-                PivotPoint::Min => {
-                    self.move_pivot(point)?;
-                }
-            },
+    fn apply(&mut self, output: Output) -> anyhow::Result<()> {
+        if output.release_coils {
+            write_coils(&mut self.motion_mode, None)?;
         }
-
+        for event in output.events {
+            self.emit(ModuleEvent::StepperMotor(event));
+        }
         Ok(())
     }
+}
 
-    pub fn move_pivot(&mut self, next: PivotPoint) -> anyhow::Result<()> {
-        if self.target_step != Self::angle_to_step(self.pivot_limits.value(next)) {
-            self.set_relative_angle_target(self.pivot_limits.value(next));
-        }
-        self.move_to();
-        Ok(())
-    }
+/// Drives one half-step pattern, or de-energizes every coil when `sequence_index` is
+/// `None`.
+fn write_coils(pins: &mut StepperPinMode<'_>, sequence_index: Option<usize>) -> anyhow::Result<()> {
+    match pins {
+        StepperPinMode::Auto(p) => {
+            let sequence = sequence_index.map_or(0, |index| SEQUENCE_74HC595[index]);
+            // Keep latch LOW while loading bits.
+            p.latch.low()?;
 
-    fn move_to(&mut self) {
-        if self.step == self.target_step {
-            return;
-        }
-        // Not yet time for the next electrical step.
-        if !self.step_timer.ready() {
-            return;
-        }
+            // Send 8 bits, MSB first.
+            for bit in (0..8).rev() {
+                let is_high = (sequence & (1 << bit)) != 0;
 
-        let direction = if self.target_step > self.step {
-            1.0
-        } else {
-            -1.0
-        };
-
-        let next_step = self.step + direction;
-        let sequence_index = next_step.rem_euclid(SEQUENCE_74HC595.len() as f32) as usize;
-
-        match &mut self.motion_mode {
-            StepperPinMode::Auto(p) => {
-                // let sequence_index = next_step.rem_euclid(4.0) as usize;
-                let sequence = SEQUENCE_74HC595[sequence_index];
-                // Keep latch LOW while loading bits.
-                let _ = p.latch.low();
-
-                // Send 8 bits, MSB first.
-                for bit in (0..8).rev() {
-                    let is_high = (sequence & (1 << bit)) != 0;
-
-                    if is_high {
-                        p.data.high().unwrap();
-                    } else {
-                        p.data.low().unwrap();
-                    }
-
-                    // Rising edge tells 74HC595:
-                    // "take whatever is currently on DATA"
-                    p.clock.high().unwrap();
-                    p.clock.low().unwrap();
+                if is_high {
+                    p.data.high()?;
+                } else {
+                    p.data.low()?;
                 }
-                // Transfer the completed byte to Q0-Q7.
-                p.latch.high().unwrap();
-                p.latch.low().unwrap();
+
+                // Rising edge tells 74HC595:
+                // "take whatever is currently on DATA"
+                p.clock.high()?;
+                p.clock.low()?;
             }
-            StepperPinMode::Manuel(p) => {
-                // let sequence_index = next_step.rem_euclid(8.0) as usize;
-                let sequence = POSITIVE_SEQUENCE[sequence_index];
-                let _ = p.in1.set_state(sequence[0] == 1);
-                let _ = p.in2.set_state(sequence[1] == 1);
-                let _ = p.in3.set_state(sequence[2] == 1);
-                let _ = p.in4.set_state(sequence[3] == 1);
-            }
-        };
-        self.step = next_step;
-        self.step_timer.reset();
-    }
+            // Transfer the completed byte to Q0-Q7.
+            p.latch.high()?;
+            p.latch.low()?;
+        }
+        StepperPinMode::Manuel(p) => {
+            let sequence = sequence_index.map_or([0; 4], |index| POSITIVE_SEQUENCE[index]);
+            p.in1.set_state(sequence[0] == 1)?;
+            p.in2.set_state(sequence[1] == 1)?;
+            p.in3.set_state(sequence[2] == 1)?;
+            p.in4.set_state(sequence[3] == 1)?;
+        }
+    };
+    Ok(())
 }
 
 impl<'d> Module for StepperMotor<'d> {
     fn register(&self) -> Result<(), EmitterError> {
         self.emit_registration()?;
         self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetAngle {
-            angle: Self::step_to_angle(self.step),
-            step: self.step,
+            angle: step_to_angle(self.motion.step()),
+            step: self.motion.step(),
         }));
         Ok(())
     }
@@ -304,81 +176,18 @@ impl<'d> Module for StepperMotor<'d> {
     fn core(&self) -> &ModuleCore {
         &self.core
     }
+    /// Commands outside the limits return an error (reported by the dispatcher) and
+    /// do not move the motor.
     fn handle_command(&mut self, command: &ModuleCommand) -> anyhow::Result<()> {
         match command {
-            ModuleCommand::StepperMotor(payload) => match payload {
-                StepperMotorCommandPayload::MoveToAngle { angle } => {
-                    self.set_angle(*angle);
-                    self.mode = StepperState::Moving;
-                    self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetMode {
-                        mode: StepperStateType::from(&self.mode),
-                    }));
-                }
-                StepperMotorCommandPayload::SetPivotMax { pivot_max } => {
-                    self.pivot_limits.update_max(*pivot_max);
-                    self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetPivotMax {
-                        pivot_max: self.pivot_limits.max,
-                    }));
-                }
-                StepperMotorCommandPayload::SetPivotMin { pivot_min } => {
-                    self.pivot_limits.update_min(*pivot_min);
-                    self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetPivotMin {
-                        pivot_min: self.pivot_limits.min,
-                    }));
-                }
-                StepperMotorCommandPayload::MoveToOrigin {} => {
-                    self.set_angle(0.0);
-                    self.move_to();
-                }
-                StepperMotorCommandPayload::MoveToPivotMax {} => {
-                    self.pivot_point = PivotPoint::Max;
-                    self.move_pivot(self.pivot_point)?;
-                }
-                StepperMotorCommandPayload::MoveToPivotMin {} => {
-                    self.pivot_point = PivotPoint::Min;
-                    self.move_pivot(self.pivot_point)?;
-                }
-                StepperMotorCommandPayload::SetMode { mode } => {
-                    self.mode = match *mode {
-                        StepperStateType::Idle => StepperState::Idle,
-                        StepperStateType::Homing => StepperState::Homing { cycle: 1 },
-                        StepperStateType::Pivot => StepperState::Pivot {
-                            point: PivotPoint::Max,
-                        },
-                        StepperStateType::Moving => StepperState::Moving,
-                    };
-                }
-            },
+            ModuleCommand::StepperMotor(payload) => {
+                let output = self.motion.handle(payload)?;
+                self.apply(output)?;
+            }
             _ => {
                 // Ignore commands intended for other module types.
             }
         }
         Ok(())
-    }
-}
-
-impl PivotLimits {
-    pub fn new(min: f32, max: f32) -> Self {
-        Self { min, max }
-    }
-
-    pub fn value(&self, point: PivotPoint) -> f32 {
-        match point {
-            PivotPoint::Min => self.min,
-            PivotPoint::Max => self.max,
-        }
-    }
-
-    pub fn opposite(&self, point: PivotPoint) -> PivotPoint {
-        match point {
-            PivotPoint::Min => PivotPoint::Max,
-            PivotPoint::Max => PivotPoint::Min,
-        }
-    }
-    pub fn update_max(&mut self, n: f32) {
-        self.max = n
-    }
-    pub fn update_min(&mut self, n: f32) {
-        self.min = n
     }
 }
