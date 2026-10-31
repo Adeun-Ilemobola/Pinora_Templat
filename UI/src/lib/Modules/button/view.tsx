@@ -2,45 +2,12 @@ import { ParentControlledState } from "@/components/ParentControlledState";
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useState } from "react";
 import { CircleDot } from "lucide-react";
-import { createStore, type StoreApi } from "zustand/vanilla";
+import { type StoreApi } from "zustand/vanilla";
 import { useStore } from "zustand";
-import { useModuleFront } from "../Modulefront";
+import { useModuleFront } from "../../Modulefront";
 import { ModuleCard } from "@/components/ModuleCard";
-import { z } from "zod";
+import { ButtonModule } from "./store";
 
-export const ButtonEventSchema = z.union([
-  z.object({
-    Ckick: z.object({}),
-  }),
-]);
-
-export type ButtonEvent = z.infer<typeof ButtonEventSchema>;
-
-type ButtonInstance = {
-  hasParent: boolean;
-  id: string;
-  kind: "Button";
-  look_up_id: string;
-  state: { clickCount: number };
-};
-export interface ButtonModule extends ButtonInstance {
-  handleEvent: (event: ButtonEvent) => void;
-}
-export function createButton(hasParent: boolean , id: string, look_up_id: string): StoreApi<ButtonModule> {
-  return createStore<ButtonModule>((set, get) => ({
-    hasParent,
-    id,
-    kind: "Button",
-    look_up_id,
-    state: { clickCount: 0 },
-    handleEvent: (event) => {
-      if ("Ckick" in event)
-        set({
-          state: { ...get().state, clickCount: get().state.clickCount + 1 },
-        });
-    },
-  }));
-}
 export const ButtonView = ({ id }: { id: string }) => {
   const moduleId = useModuleFront((state) => state.LookUpId[id]);
   if (!moduleId) return <div>Waiting for Button {id}...</div>;

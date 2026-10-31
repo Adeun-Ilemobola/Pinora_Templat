@@ -1,98 +1,13 @@
 import { ParentControlledState } from "@/components/ParentControlledState";
-
-import { createStore, StoreApi } from "zustand/vanilla";
+import { StoreApi } from "zustand/vanilla";
 import { useEffect, useState } from "react";
 import { useStore } from "zustand";
-import { useModuleFront } from "../Modulefront";
-import { IncomingCommand } from "../IncomingCommand";
+import { useModuleFront } from "../../Modulefront";
 import { ModuleCard } from "@/components/ModuleCard";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-
-import { z } from "zod";
-
-export const LedEventSchema = z.union([
-  z.strictObject({
-    Brightness: z.strictObject({
-      level: z.number(),
-    }),
-  }),
-]);
-
-export type LedEvent = z.infer<typeof LedEventSchema>;
-
-export const LedCommandSchema = z.union([
-  z.strictObject({
-    SetState: z.strictObject({
-      state: z.number(),
-    }),
-  }),
-
-  z.strictObject({
-    Toggle: z.strictObject({}),
-  }),
-]);
-
-export type LedCommand = z.infer<typeof LedCommandSchema>;
-type LedInstance = {
-  id: string;
-  kind: "Led";
-  state: number;
-  look_up_id: string;
-  hasParent: boolean;
-};
-
-export interface LedModule extends LedInstance {
-  toggle: () => void;
-  setBrightness: (v: number) => void;
-  handleEvent: (event: any) => void;
-}
-
-export function createLed(
-  hasParent: boolean,
-  id: string,
-  look_up_id: string,
-): StoreApi<LedModule> {
-  return createStore<LedModule>((set) => ({
-    hasParent,
-    id,
-    kind: "Led",
-    state: 0,
-    look_up_id,
-    toggle: () => {
-      const payload = {
-        id,
-        command: {
-          Led: {
-            Toggle: {},
-          },
-        },
-      };
-      IncomingCommand(payload);
-    },
-    setBrightness: (v) => {
-      const payload = {
-        id,
-        command: {
-          Led: {
-            SetState: { state: v },
-          },
-        },
-      };
-      IncomingCommand(payload);
-    },
-    handleEvent: (event: LedEvent) => {
-      const [key, value] = Object.entries(event)[0];
-      // Handle incoming events for the LED module
-
-      if (key === "Brightness") {
-        console.log("[LedModule - CORE] Brightness level:", value.level);
-        set({ state: value.level });
-      }
-    },
-  }));
-}
+import { LedModule } from "./store";
 
 export const LedView = ({ id }: { id: string }) => {
   const moduleId = useModuleFront((state) => state.LookUpId[id]);

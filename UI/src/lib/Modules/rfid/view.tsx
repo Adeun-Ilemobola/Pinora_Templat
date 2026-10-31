@@ -4,113 +4,16 @@ import { useEffect } from "react";
 import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
 import { ScanLine } from "lucide-react";
-import { createStore, type StoreApi } from "zustand/vanilla";
+import { type StoreApi } from "zustand/vanilla";
 import { useStore } from "zustand";
-import { useModuleFront } from "../Modulefront";
+import { useModuleFront } from "../../Modulefront";
 import { ModuleCard } from "@/components/ModuleCard";
 import { useState } from "react";
-import { IncomingCommand } from "../IncomingCommand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { z } from "zod";
+import { RfidCommandSchema } from "./schema";
+import { RfidModule } from "./store";
 
-export const RfidModeSchema = z.enum(["Read", "Write"]);
-
-export type RfidMode = z.infer<typeof RfidModeSchema>;
-
-export const RfidWriteStateSchema = z.enum(["Good", "Bad"]);
-
-export type RfidWriteState = z.infer<typeof RfidWriteStateSchema>;
-
-export const RfidCommandSchema = z.union([
-  z.object({ WriteMode: z.object({}) }),
-
-  z.object({ ReadMode: z.object({}) }),
-
-  z.object({
-    WritePayload: z.object({
-      data: z.array(z.number().int().min(0).max(255)),
-    }),
-  }),
-]);
-
-export type RfidCommand = z.infer<typeof RfidCommandSchema>;
-
-export const RfidEventSchema = z.union([
-  z.object({
-    GetCard: z.object({
-      card_uid: z.string(),
-      card_data: z.string(),
-    }),
-  }),
-
-  z.object({
-    GetMode: z.object({
-      mode: RfidModeSchema,
-    }),
-  }),
-
-  z.object({
-    GetWriteState: z.object({
-      state: RfidWriteStateSchema,
-      info: z.string(),
-    }),
-  }),
-]);
-
-export type RfidEvent = z.infer<typeof RfidEventSchema>;
-
-type RfidInstance = {
-  hasParent: boolean;
-  id: string;
-  kind: "Rfid";
-  look_up_id: string;
-  state: {
-    GetCard: { card_uid: string; card_data: string } | null;
-    GetMode: { mode: RfidMode } | null;
-    GetWriteState: { state: RfidWriteState; info: string } | null;
-  };
-};
-export interface RfidModule extends RfidInstance {
-  handleEvent: (event: RfidEvent) => void;
-  readMode: () => Promise<unknown>;
-  writeMode: () => Promise<unknown>;
-  writePayload: (data: number[]) => Promise<unknown>;
-}
-export function createRfid(hasParent: boolean, id: string, look_up_id: string): StoreApi<RfidModule> {
-  return createStore<RfidModule>((set, get) => ({
-    hasParent,
-    id,
-    look_up_id,
-    state: { GetCard: null, GetMode: null, GetWriteState: null },
-    kind: "Rfid",
-    readMode: () =>
-      IncomingCommand({
-        id,
-        command: { Rfid: RfidCommandSchema.parse({ ReadMode: {} }) },
-      }),
-    writeMode: () =>
-      IncomingCommand({
-        id,
-        command: { Rfid: RfidCommandSchema.parse({ WriteMode: {} }) },
-      }),
-    writePayload: (bytes: number[]) =>
-      IncomingCommand({
-        id,
-        command: {
-          Rfid: RfidCommandSchema.parse({ WritePayload: { data: bytes } }),
-        },
-      }),
-    handleEvent: (event) => {
-      if ("GetCard" in event)
-        set({ state: { ...get().state, GetCard: event.GetCard } });
-      if ("GetMode" in event)
-        set({ state: { ...get().state, GetMode: event.GetMode } });
-      if ("GetWriteState" in event)
-        set({ state: { ...get().state, GetWriteState: event.GetWriteState } });
-    },
-  }));
-}
 export const RfidView = ({ id }: { id: string }) => {
   const moduleId = useModuleFront((state) => state.LookUpId[id]);
   if (!moduleId) return <div>Waiting for Rfid {id}...</div>;

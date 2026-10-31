@@ -2,170 +2,17 @@ import { ParentControlledState } from "@/components/ParentControlledState";
 import { Badge } from "@/components/ui/badge";
 import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-
-import { createStore, type StoreApi } from "zustand/vanilla";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { type StoreApi } from "zustand/vanilla";
 import { useStore } from "zustand";
-import { useModuleFront } from "../Modulefront";
+import { useModuleFront } from "../../Modulefront";
 import { ModuleCard } from "@/components/ModuleCard";
 import { useState } from "react";
-import { IncomingCommand } from "../IncomingCommand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { z } from "zod";
+import { RangefinderDistanceModeSchema, RangefinderDistanceMode, RangefinderCommandSchema } from "./schema";
+import { RangefinderModule } from "./store";
 
-export const RangefinderDistanceModeSchema = z.enum(["Short", "Long"]);
-
-export type RangefinderDistanceMode = z.infer<
-  typeof RangefinderDistanceModeSchema
->;
-
-export const RangefinderCommandSchema = z.union([
-  z.literal("StartRanging"),
-
-  z.literal("StopRanging"),
-
-  z.object({
-    SetTimingBudget: z.object({
-      milliseconds: z.number().int().min(0).max(65535),
-    }),
-  }),
-
-  z.object({
-    SetDistanceMode: z.object({
-      mode: RangefinderDistanceModeSchema,
-    }),
-  }),
-]);
-
-export type RangefinderCommand = z.infer<typeof RangefinderCommandSchema>;
-
-export const RangefinderEventSchema = z.union([
-  z.object({
-    Range: z.object({
-      millimeters: z.number().int().min(0).max(65535),
-    }),
-  }),
-
-  z.object({
-    RangingState: z.object({
-      is_ranging: z.boolean(),
-    }),
-  }),
-
-  z.object({
-    TimingBudget: z.object({
-      milliseconds: z.number().int().min(0).max(65535),
-    }),
-  }),
-
-  z.object({
-    DistanceMode: z.object({
-      mode: RangefinderDistanceModeSchema,
-    }),
-  }),
-
-  z.object({
-    InvalidMeasurement: z.object({
-      status: z.string(),
-    }),
-  }),
-]);
-
-export type RangefinderEvent = z.infer<typeof RangefinderEventSchema>;
-
-type RangefinderInstance = {
-  hasParent: boolean;
-  id: string;
-  kind: "Rangefinder";
-  look_up_id: string;
-  state: {
-    Range: { millimeters: number } | null;
-    RangingState: { is_ranging: boolean } | null;
-    TimingBudget: { milliseconds: number } | null;
-    DistanceMode: { mode: RangefinderDistanceMode } | null;
-    InvalidMeasurement: { status: string } | null;
-  };
-};
-export interface RangefinderModule extends RangefinderInstance {
-  handleEvent: (event: RangefinderEvent) => void;
-  startRanging: () => Promise<unknown>;
-  stopRanging: () => Promise<unknown>;
-  setTimingBudget: (milliseconds: number) => Promise<unknown>;
-  setDistanceMode: (mode: RangefinderDistanceMode) => Promise<unknown>;
-}
-export function createRangefinder(
-  hasParent: boolean,
-  id: string,
-  look_up_id: string,
-): StoreApi<RangefinderModule> {
-  return createStore<RangefinderModule>((set, get) => ({
-    hasParent,
-    id,
-    look_up_id,
-    kind: "Rangefinder",
-    state: {
-      Range: null,
-      RangingState: null,
-      TimingBudget: null,
-      DistanceMode: null,
-      InvalidMeasurement: null,
-    },
-    startRanging: () =>
-      IncomingCommand({
-        id,
-        command: {
-          Rangefinder: RangefinderCommandSchema.parse("StartRanging"),
-        },
-      }),
-    stopRanging: () =>
-      IncomingCommand({
-        id,
-        command: { Rangefinder: RangefinderCommandSchema.parse("StopRanging") },
-      }),
-    setTimingBudget: (milliseconds: number) =>
-      IncomingCommand({
-        id,
-        command: {
-          Rangefinder: RangefinderCommandSchema.parse({
-            SetTimingBudget: { milliseconds },
-          }),
-        },
-      }),
-    setDistanceMode: (mode: RangefinderDistanceMode) =>
-      IncomingCommand({
-        id,
-        command: {
-          Rangefinder: RangefinderCommandSchema.parse({
-            SetDistanceMode: { mode },
-          }),
-        },
-      }),
-    handleEvent: (event) => {
-      if ("Range" in event)
-        set({ state: { ...get().state, Range: event.Range } });
-      if ("RangingState" in event)
-        set({ state: { ...get().state, RangingState: event.RangingState } });
-      if ("TimingBudget" in event)
-        set({ state: { ...get().state, TimingBudget: event.TimingBudget } });
-      if ("DistanceMode" in event)
-        set({ state: { ...get().state, DistanceMode: event.DistanceMode } });
-      if ("InvalidMeasurement" in event)
-        set({
-          state: {
-            ...get().state,
-            InvalidMeasurement: event.InvalidMeasurement,
-          },
-        });
-    },
-  }));
-}
 export const RangefinderView = ({ id }: { id: string }) => {
   const moduleId = useModuleFront((state) => state.LookUpId[id]);
   if (!moduleId) return <div>Waiting for Rangefinder {id}...</div>;

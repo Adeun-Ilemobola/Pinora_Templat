@@ -1,104 +1,11 @@
 import { ParentControlledState } from "@/components/ParentControlledState";
 import { Badge } from "@/components/ui/badge";
-import { createStore, type StoreApi } from "zustand/vanilla";
+import { type StoreApi } from "zustand/vanilla";
 import { useStore } from "zustand";
-import { useModuleFront } from "../Modulefront";
+import { useModuleFront } from "../../Modulefront";
 import { ModuleCard } from "@/components/ModuleCard";
-import { z } from "zod";
+import { ImuModule } from "./store";
 
-export const RawAxesSchema = z.object({
-  x: z.number().int().min(-32768).max(32767),
-  y: z.number().int().min(-32768).max(32767),
-  z: z.number().int().min(-32768).max(32767),
-});
-
-export type RawAxes = z.infer<typeof RawAxesSchema>;
-
-export const AxesSchema = z.object({
-  x: z.number(),
-  y: z.number(),
-  z: z.number(),
-});
-
-export type Axes = z.infer<typeof AxesSchema>;
-
-export const MpuDeviceModeSchema = z.enum(["Collecting", "Idle", "Off"]);
-
-export type MpuDeviceMode = z.infer<typeof MpuDeviceModeSchema>;
-
-export const ImuEventSchema = z.discriminatedUnion("event_type", [
-  z.object({
-    event_type: z.literal("Gyro"),
-    raw_axes: RawAxesSchema,
-    axes: AxesSchema,
-  }),
-
-  z.object({
-    event_type: z.literal("Accel"),
-    raw_axes: RawAxesSchema,
-    axes: AxesSchema,
-  }),
-
-  z.object({
-    event_type: z.literal("Mode"),
-    mode: MpuDeviceModeSchema,
-  }),
-]);
-
-export type ImuEvent = z.infer<typeof ImuEventSchema>;
-
-type ImuInstance = {
-  hasParent: boolean;
-  id: string;
-  kind: "Imu";
-  look_up_id: string;
-  state: {
-    Gyro: Extract<ImuEvent, { event_type: "Gyro" }> | null;
-    Accel: Extract<ImuEvent, { event_type: "Accel" }> | null;
-    Mode: MpuDeviceMode | null;
-  };
-};
-export interface ImuModule extends ImuInstance {
-  handleEvent: (event: ImuEvent) => void;
-}
-export function createImu(
-  hasParent: boolean,
-  id: string,
-  look_up_id: string,
-): StoreApi<ImuModule> {
-  return createStore<ImuModule>((set, get) => ({
-    hasParent,
-    id,
-    look_up_id,
-    kind: "Imu",
-    state: {
-      Gyro: {
-        event_type: "Gyro",
-        raw_axes: { x: 0, y: 0, z: 0 },
-        axes: { x: 0, y: 0, z: 0 },
-      },
-      Accel: {
-        event_type: "Accel",
-        raw_axes: { x: 0, y: 0, z: 0 },
-        axes: { x: 0, y: 0, z: 0 },
-      },
-      Mode: "Off",
-    },
-    handleEvent: (event) => {
-      switch (event.event_type) {
-        case "Gyro":
-          set({ state: { ...get().state, Gyro: event } });
-          break;
-        case "Accel":
-          set({ state: { ...get().state, Accel: event } });
-          break;
-        case "Mode":
-          set({ state: { ...get().state, Mode: event.mode } });
-          break;
-      }
-    },
-  }));
-}
 export const ImuView = ({ id }: { id: string }) => {
   const moduleId = useModuleFront((state) => state.LookUpId[id]);
   if (!moduleId) return <div>Waiting for Imu {id}...</div>;
