@@ -1,12 +1,9 @@
-
 use crate::core::hardware::{InputPin, InputPinCore, Pull};
 use crate::core::modulecore::{Module, ModuleCore, ModuleError};
-use crate::core::transport::transport_emiter::{TransportEmiter };
+use crate::core::transport::transport_emiter::TransportEmiter;
 use esp_idf_svc::hal::gpio::Level;
 use pinora_protocol::{
-    command::ModuleCommand,
-    global_definitions::ModuleType,
-    module_event::ModuleEvent,
+    command::ModuleCommand, global_definitions::ModuleType, module_event::ModuleEvent,
 };
 
 pub use pinora_protocol::module::buttonmodule::ButtonEvent;
@@ -22,11 +19,15 @@ pub struct Buttonmodule<'d> {
 }
 
 impl<'d> Buttonmodule<'d> {
-    pub fn new<T>(pin: T , lool_up_id:String , sender:TransportEmiter) -> anyhow::Result<Buttonmodule<'d>>
+    pub fn new<T>(
+        pin: T,
+        lool_up_id: String,
+        sender: TransportEmiter,
+    ) -> anyhow::Result<Buttonmodule<'d>>
     where
         T: InputPin + 'd,
     {
-        let  buttonmodule = Buttonmodule {
+        let buttonmodule = Buttonmodule {
             core: ModuleCore::new(ModuleType::Button, &lool_up_id, None, sender),
             state: Level::High,
             pin_driver: InputPinCore::new(pin, Pull::Up)?,
@@ -35,7 +36,7 @@ impl<'d> Buttonmodule<'d> {
             prev_state: Level::High,
         };
 
-       Ok(buttonmodule)
+        Ok(buttonmodule)
     }
     pub fn update_state(&mut self) -> anyhow::Result<()> {
         let current_state = self.pin_driver.now()?;
@@ -61,7 +62,6 @@ impl<'d> Buttonmodule<'d> {
         }
         Ok(false)
     }
-    
 }
 impl<'d> Module for Buttonmodule<'d> {
     fn tick(&mut self) -> Result<(), ModuleError> {
@@ -73,10 +73,7 @@ impl<'d> Module for Buttonmodule<'d> {
     fn core(&self) -> &ModuleCore {
         &self.core
     }
-    fn handle_command(
-        &mut self,
-        _command: &ModuleCommand,
-    ) -> anyhow::Result<()> {
+    fn handle_command(&mut self, _command: &ModuleCommand) -> anyhow::Result<()> {
         Ok(())
     }
 

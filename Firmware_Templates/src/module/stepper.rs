@@ -3,15 +3,14 @@ use std::time::Instant;
 use serde::{Deserialize, Serialize};
 
 use crate::core::{
-        hardware::{OutputPinCore, TimerState}, modulecore::{Module, ModuleCore, ModuleError},
-    };
+    hardware::{OutputPinCore, TimerState},
+    modulecore::{Module, ModuleCore, ModuleError},
+};
 
-    use crate::core::transport::transport_emiter::{TransportEmiter , EmitterError};
+use crate::core::transport::transport_emiter::{EmitterError, TransportEmiter};
 
 use pinora_protocol::{
-    command::ModuleCommand,
-    global_definitions::ModuleType,
-    module_event::ModuleEvent,
+    command::ModuleCommand, global_definitions::ModuleType, module_event::ModuleEvent,
 };
 
 pub use pinora_protocol::module::stepper::{
@@ -291,8 +290,7 @@ impl<'d> Module for StepperMotor<'d> {
     }
 
     fn tick(&mut self) -> Result<(), ModuleError> {
-        self.tick_inner()
-            .map_err(|_| ModuleError::OperationFailed)
+        self.tick_inner().map_err(|_| ModuleError::OperationFailed)
     }
 
     fn core(&self) -> &ModuleCore {

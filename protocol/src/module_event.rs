@@ -1,8 +1,14 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{LidarEvent, RangefinderEvent, RemoteButtonEvent, ServoEvent, module::{buttonmodule::ButtonEvent, imu::imu_type::ImuEvent, ledmodule::LedEvent, rfid::RfidEvent, stepper::StepperMotorEvent}};
+use crate::{
+    LidarEvent, RangefinderEvent, RemoteButtonEvent, ServoEvent,
+    module::{
+        buttonmodule::ButtonEvent, imu::imu_type::ImuEvent, ledmodule::LedEvent, rfid::RfidEvent,
+        stepper::StepperMotorEvent,
+    },
+};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq )]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ModuleEvent {
     Led(LedEvent),
     Servo(ServoEvent),
@@ -13,14 +19,13 @@ pub enum ModuleEvent {
     StepperMotor(StepperMotorEvent),
     Imu(ImuEvent),
     Rfid(RfidEvent),
-    RemoteReceiver(RemoteButtonEvent)
+    RemoteReceiver(RemoteButtonEvent),
 }
 
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq )]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct EventPackage {
     pub event: ModuleEvent,
-    pub id: String
+    pub id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
@@ -31,24 +36,9 @@ pub enum LogPriority {
     Critical,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SysLogEvent {
     pub text: String,
     pub raw_err: Option<String>,
     pub priority: LogPriority,
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

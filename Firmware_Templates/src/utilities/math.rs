@@ -12,8 +12,6 @@ pub fn range_u32(
     (value - input_min) * (output_max - output_min) / (input_max - input_min) + output_min
 }
 
-
-
 pub fn range_i32(
     value: i32,
     input_min: i32,
@@ -62,8 +60,6 @@ pub fn range_i16(
         as i16
 }
 
-
-
 pub fn constrain_f32(value: f32, min: f32, max: f32) -> f32 {
     value.clamp(min, max)
 }
@@ -71,7 +67,6 @@ pub fn constrain_f32(value: f32, min: f32, max: f32) -> f32 {
 pub fn constrain_u32(value: u32, min: u32, max: u32) -> u32 {
     value.clamp(min, max)
 }
-
 
 pub fn pulse_us_to_tick(pulse_us: i32) -> u16 {
     // For PCA9685 at about 60 Hz.

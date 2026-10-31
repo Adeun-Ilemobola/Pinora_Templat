@@ -16,19 +16,9 @@ pub enum RangefinderCommandPayload {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum RangefinderEvent {
-    Range {
-        millimeters: u16,
-    },
-    RangingState {
-        is_ranging: bool,
-    },
-    TimingBudget {
-        milliseconds: u16,
-    },
-    DistanceMode {
-        mode: RangefinderDistanceMode,
-    },
-    InvalidMeasurement {
-        status: String,
-    },
+    Range { millimeters: u16 },
+    RangingState { is_ranging: bool },
+    TimingBudget { milliseconds: u16 },
+    DistanceMode { mode: RangefinderDistanceMode },
+    InvalidMeasurement { status: String },
 }

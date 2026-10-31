@@ -1,8 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-
-
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 
 pub enum RemoteButton {
@@ -69,9 +66,8 @@ impl RemoteButton {
     }
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 
 pub enum RemoteButtonEvent {
-    Click { key: RemoteButton }
+    Click { key: RemoteButton },
 }

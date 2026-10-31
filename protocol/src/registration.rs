@@ -1,9 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    global_definitions::ModuleType,
-    module_event::EventPackage,
-};
+use crate::{global_definitions::ModuleType, module_event::EventPackage};
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Registration {
     pub id: String,
@@ -12,7 +9,7 @@ pub struct Registration {
     pub parent_id: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ProtocolMessage {
     Registration(Registration),
     ModuleEvent(EventPackage),

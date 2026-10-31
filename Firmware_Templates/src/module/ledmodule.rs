@@ -1,12 +1,9 @@
-
 use crate::core::hardware::{ledc, LedTimer, OutputPin};
 use crate::core::modulecore::{Module, ModuleCore, ModuleError};
-use crate::core::transport::transport_emiter::{TransportEmiter, EmitterError};
+use crate::core::transport::transport_emiter::{EmitterError, TransportEmiter};
 use crate::utilities::math::range_u32;
 use pinora_protocol::{
-    command::ModuleCommand,
-    global_definitions::ModuleType,
-    module_event::ModuleEvent,
+    command::ModuleCommand, global_definitions::ModuleType, module_event::ModuleEvent,
 };
 
 pub use pinora_protocol::module::ledmodule::{LedCommandPayload, LedEvent};
@@ -22,7 +19,7 @@ impl<'d> Ledmodule<'d> {
         manuel_id: String,
         timer: &LedTimer<'d>,
         cluster_id: Option<String>,
-        sender:TransportEmiter
+        sender: TransportEmiter,
     ) -> anyhow::Result<Ledmodule<'d>>
     where
         T: OutputPin + 'd,
@@ -30,12 +27,12 @@ impl<'d> Ledmodule<'d> {
     {
         let pwm = ledc::LedcDriver::new(channel, timer, pin)?;
 
-        let  ledmodule = Ledmodule {
+        let ledmodule = Ledmodule {
             core: ModuleCore::new(ModuleType::Led, &manuel_id, cluster_id, sender),
             state: 0,
             pwm,
         };
-      
+
         Ok(ledmodule)
     }
 
@@ -44,7 +41,6 @@ impl<'d> Ledmodule<'d> {
         self.pwm.set_duty(p)?;
         self.state = state;
         self.emit(ModuleEvent::Led(LedEvent::Brightness { level: state }));
-    
 
         Ok(())
     }

@@ -4,7 +4,7 @@ use embedded_hal_compat::Reverse;
 pub use esp_idf_svc::hal::delay::FreeRtos;
 pub use esp_idf_svc::hal::gpio::*;
 pub use esp_idf_svc::hal::i2c;
-pub use esp_idf_svc::hal::i2c::{I2c, I2cConfig, I2cDriver , I2cError};
+pub use esp_idf_svc::hal::i2c::{I2c, I2cConfig, I2cDriver, I2cError};
 pub use esp_idf_svc::hal::ledc;
 use esp_idf_svc::hal::ledc::config::TimerConfig;
 use esp_idf_svc::hal::ledc::Resolution;
@@ -20,8 +20,7 @@ use pinora_protocol::registration::SystemInfo;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::core::transport::transport_emiter::{TransportEmiter , EmitterError};
-
+use crate::core::transport::transport_emiter::{EmitterError, TransportEmiter};
 
 pub struct OutputPinCore<'d> {
     pin_number: u8,
@@ -80,16 +79,15 @@ impl<'d> OutputPinCore<'d> {
 
         Ok(())
     }
-    pub fn high(&mut self, )-> anyhow::Result<()> {
-         self.driver.set_high()?;
-         Ok(())
+    pub fn high(&mut self) -> anyhow::Result<()> {
+        self.driver.set_high()?;
+        Ok(())
     }
 
-      pub fn low(&mut self, )-> anyhow::Result<()> {
-         self.driver.set_low()?;
-         Ok(())
+    pub fn low(&mut self) -> anyhow::Result<()> {
+        self.driver.set_low()?;
+        Ok(())
     }
-
 
     pub fn toggle(&mut self) -> anyhow::Result<()> {
         self.driver.toggle()?;
@@ -111,7 +109,7 @@ pub struct TimerState {
 
 impl TimerState {
     pub fn from_ms(period_ms: f64) -> Self {
-        let period_us = period_ms  * 1_000.0;
+        let period_us = period_ms * 1_000.0;
         let now = now_us();
 
         Self {
@@ -119,8 +117,6 @@ impl TimerState {
             next_deadline_us: now + period_us,
         }
     }
-
-   
 
     pub fn ready(&mut self) -> bool {
         let now = now_us();
@@ -154,7 +150,7 @@ pub type SharedPwm<'d> = Rc<RefCell<Pca9685<SharedI2cDevice<'d>>>>;
 pub type LedTimer<'d> = ledc::LedcTimerDriver<'d, ledc::LowSpeed>;
 
 pub struct HardwareContext<'d> {
-   // pub servo_pwm: SharedPwm<'d>,
+    // pub servo_pwm: SharedPwm<'d>,
     pub led_timer: LedTimer<'d>,
     pub i2c_bus: I2cBus<'d>,
 }

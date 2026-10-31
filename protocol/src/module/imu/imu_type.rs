@@ -52,15 +52,7 @@ pub enum MpuDeviceMode {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "event_type")]
 pub enum ImuEvent {
-    Gyro {
-        raw_axes: RawAxes,
-        axes: Axes,
-    },
-    Accel {
-        raw_axes: RawAxes,
-        axes: Axes,
-    },
-    Mode {
-        mode: MpuDeviceMode,
-    },
+    Gyro { raw_axes: RawAxes, axes: Axes },
+    Accel { raw_axes: RawAxes, axes: Axes },
+    Mode { mode: MpuDeviceMode },
 }

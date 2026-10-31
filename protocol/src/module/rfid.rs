@@ -9,20 +9,12 @@ pub enum RfidCommand {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum RfidEvent {
-    GetCard {
-        card_uid: String,
-        card_data: String,
-    },
-    GetMode {
-        mode: MddeRfid,
-    },
-    GetWriteState {
-        state: WriteState,
-        info: String,
-    },
+    GetCard { card_uid: String, card_data: String },
+    GetMode { mode: MddeRfid },
+    GetWriteState { state: WriteState, info: String },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, )]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum MddeRfid {
     Read,
     Write,

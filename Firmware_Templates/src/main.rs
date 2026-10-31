@@ -60,7 +60,6 @@ fn main() -> anyhow::Result<()> {
     esp_idf_svc::log::EspLogger::initialize_default();
     let p = Peripherals::take()?;
 
-
     configure_console_uart()?;
     let sys_loop = EspSystemEventLoop::take()?;
     let nvs = EspDefaultNvsPartition::take()?;
@@ -72,8 +71,6 @@ fn main() -> anyhow::Result<()> {
     print_esp_system_info(sync_sender.clone())?;
     let mut modules: HashMap<String, ModuleHandle<'_>> = HashMap::new();
     let mut last_yield_us = now_us();
-
-  
 
     let i2c = I2cDriver::new(
         p.i2c0,
@@ -125,7 +122,7 @@ fn main() -> anyhow::Result<()> {
     // modules.insert(stepperx_id, Box::new(stepperx));
 
     // let joystick = {
-        
+
     //     JoyStick::new(
     //         p.pins.gpio12,
     //         p.adc1,
@@ -294,4 +291,3 @@ fn main() -> anyhow::Result<()> {
         }
     }
 }
-

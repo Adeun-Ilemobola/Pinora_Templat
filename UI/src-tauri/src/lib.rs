@@ -104,11 +104,12 @@ impl AppState {
             })?;
         if matches!(transport, TransportType::Serial) {
             // USB control-line sequencing can reset the board; SPP virtual ports skip it.
-            port.write_data_terminal_ready(false)
-                .map_err(|e| TransportError::ConnectionFailed {
+            port.write_data_terminal_ready(false).map_err(|e| {
+                TransportError::ConnectionFailed {
                     message: "Failed to set DTR".to_string(),
                     raw_error: Some(e.to_string()),
-                })?;
+                }
+            })?;
             port.write_request_to_send(true)
                 .map_err(|e| TransportError::ConnectionFailed {
                     message: "Failed to assert RTS".to_string(),
@@ -140,10 +141,19 @@ impl AppState {
                 let bytes_read = match reader_port.read(&mut buffer) {
                     Ok(count) if count > 0 => buffer[..count].to_vec(),
                     Ok(_) => Vec::new(),
-                    Err(error) if matches!(error.kind(), std::io::ErrorKind::TimedOut | std::io::ErrorKind::Interrupted) => Vec::new(),
+                    Err(error)
+                        if matches!(
+                            error.kind(),
+                            std::io::ErrorKind::TimedOut | std::io::ErrorKind::Interrupted
+                        ) =>
+                    {
+                        Vec::new()
+                    }
                     Err(error) => {
                         log::warn!("Port read failed: {error}");
-                        if matches!(transport, TransportType::Bluetooth) && running.load(Ordering::Relaxed) {
+                        if matches!(transport, TransportType::Bluetooth)
+                            && running.load(Ordering::Relaxed)
+                        {
                             let _ = app.emit("bluetoothConnection", "Disconnected");
                         }
                         break;
@@ -194,14 +204,22 @@ fn get_available_bluetooth_ports() -> Result<Vec<String>, String> {
     // Windows serialport can label SPP virtual COM ports Unknown, so check PnP ownership.
     let windows_ports = windows_bluetooth_ports()?;
 
-    Ok(ports.into_iter()
-        .filter(|port| matches!(port.port_type, SerialPortType::BluetoothPort)
-            || {
+    Ok(ports
+        .into_iter()
+        .filter(|port| {
+            matches!(port.port_type, SerialPortType::BluetoothPort) || {
                 #[cfg(windows)]
-                { windows_ports.iter().any(|name| name.eq_ignore_ascii_case(&port.port_name)) }
+                {
+                    windows_ports
+                        .iter()
+                        .any(|name| name.eq_ignore_ascii_case(&port.port_name))
+                }
                 #[cfg(not(windows))]
-                { false }
-            })
+                {
+                    false
+                }
+            }
+        })
         .map(|port| port.port_name)
         .collect())
 }
@@ -215,8 +233,10 @@ fn windows_bluetooth_ports() -> Result<Vec<String>, String> {
         .output()
         .map_err(|error| format!("Could not inspect Windows Bluetooth COM ports: {error}"))?;
     if !output.status.success() {
-        return Err(format!("Could not inspect Windows Bluetooth COM ports: {}",
-            String::from_utf8_lossy(&output.stderr).trim()));
+        return Err(format!(
+            "Could not inspect Windows Bluetooth COM ports: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
     }
     Ok(String::from_utf8_lossy(&output.stdout)
         .lines()
@@ -234,13 +254,17 @@ fn start_bluetooth_port(
 ) -> Result<(), String> {
     // Only allow a port found by the same outgoing-SPP discovery used by the selector.
     let available = get_available_bluetooth_ports()?;
-    if !available.iter().any(|port| port.eq_ignore_ascii_case(&name)) {
+    if !available
+        .iter()
+        .any(|port| port.eq_ignore_ascii_case(&name))
+    {
         return Err(format!("{name} is not a paired Bluetooth COM port"));
     }
     let mut state = state.lock().map_err(|error| error.to_string())?;
     state.name = name;
     state.rate = 115200; // Windows ignores the baud rate for SPP virtual COM ports.
-    state.connect(Arc::new(app), TransportType::Bluetooth)
+    state
+        .connect(Arc::new(app), TransportType::Bluetooth)
         .map_err(|error| format!("Bluetooth SPP connection failed: {error:?}"))?;
     Ok(())
 }

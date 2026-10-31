@@ -1,12 +1,11 @@
-use core::fmt;
 use crate::core::{hardware::SharedI2cDevice, modulecore::ModuleCore};
+use core::fmt;
 use serde::Serialize;
 
 pub use pinora_protocol::module::imu::imu_type::{Axes, ImuEvent, MpuDeviceMode, RawAxes};
 
-pub const  GYRO_XOUT_H: u8 = 0x43;
-pub  const ACCEL_XOUT_H: u8 = 0x3B;
-
+pub const GYRO_XOUT_H: u8 = 0x43;
+pub const ACCEL_XOUT_H: u8 = 0x3B;
 
 pub const ACCEL_SENSITIVITY: f32 = 16_384.0;
 pub const GYRO_SENSITIVITY: f32 = 131.0;
@@ -46,31 +45,26 @@ impl<'d> fmt::Debug for Mpu<'d> {
     }
 }
 
-
-
 pub struct MpuDevice<'d> {
     pub mpu: Mpu<'d>,
     pub core: ModuleCore,
-    pub  mode: MpuDeviceMode,
-    
-    pub gyro_raw :RawAxes,
-    pub accel_raw:RawAxes,
+    pub mode: MpuDeviceMode,
 
+    pub gyro_raw: RawAxes,
+    pub accel_raw: RawAxes,
 
-    pub gyro :Axes,
-    pub accel:Axes,
+    pub gyro: Axes,
+    pub accel: Axes,
     pub bias_gyro: Axes,
     pub bias_accel: Axes,
-    pub bias_collection_accel:Vec<Axes>,
-     pub bias_collection_gyro:Vec<Axes>,
+    pub bias_collection_accel: Vec<Axes>,
+    pub bias_collection_gyro: Vec<Axes>,
 
-
-    pub point_count:u16,
-    pub point_count_max:u16,
-
+    pub point_count: u16,
+    pub point_count_max: u16,
 }
 
-#[derive(Debug , Serialize )]
+#[derive(Debug, Serialize)]
 pub enum MpuDeviceErr {
     InitI2c {
         info: Option<String>,

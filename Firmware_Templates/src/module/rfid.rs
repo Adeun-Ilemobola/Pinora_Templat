@@ -1,8 +1,7 @@
-use crate::{
-    core::{
-         hardware::{OutputPinCore, TimerState}, modulecore::{ Module, ModuleCore, ModuleError},
-        transport::transport_emiter::{TransportEmiter , EmitterError},
-    },
+use crate::core::{
+    hardware::{OutputPinCore, TimerState},
+    modulecore::{Module, ModuleCore, ModuleError},
+    transport::transport_emiter::{EmitterError, TransportEmiter},
 };
 use pinora_protocol::{
     command::ModuleCommand,
@@ -12,10 +11,7 @@ use pinora_protocol::{
 use uuid::Uuid;
 
 use esp_idf_svc::hal::{delay::Ets, spi::SpiSingleDeviceDriver};
-use mfrc522::{
-    comm::blocking::spi::{ SpiInterface},
-    Initialized, Mfrc522, MifareKey,
-};
+use mfrc522::{comm::blocking::spi::SpiInterface, Initialized, Mfrc522, MifareKey};
 use serde::{Deserialize, Serialize};
 
 pub use pinora_protocol::module::rfid::{MddeRfid, RfidCommand, RfidEvent, WriteState};
@@ -30,7 +26,7 @@ pub enum RGBMode {
     Red,
     Green,
     Blue,
-    Off
+    Off,
 }
 
 fn rfid_spi_delay() {
@@ -68,7 +64,7 @@ impl<'d> Rfid<'d> {
         buzer_pin: OutputPinCore<'d>,
         core_id: &str,
         parent_id: Option<String>,
-        sender:TransportEmiter,
+        sender: TransportEmiter,
     ) -> anyhow::Result<Self> {
         let interface = SpiInterface::new(spi).with_delay(rfid_spi_delay as RfidDelay);
 
@@ -177,7 +173,7 @@ impl<'d> Rfid<'d> {
                             }));
                             return Ok(());
                         }
-                       
+
                         self.write_card(&uid)?;
                         self.read_card(&uid)?;
                         self.send_card_data(&uid)?;
@@ -371,7 +367,7 @@ impl<'d> Module for Rfid<'d> {
     fn handle_command(&mut self, command: &ModuleCommand) -> anyhow::Result<()> {
         match command {
             ModuleCommand::Rfid(command) => match command {
-                RfidCommand::ReadMode  {} => {
+                RfidCommand::ReadMode {} => {
                     self.mode = MddeRfid::Read;
                 }
                 RfidCommand::WriteMode {} => {

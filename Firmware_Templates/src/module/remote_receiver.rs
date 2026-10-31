@@ -3,9 +3,9 @@ use std::time::{Duration, Instant};
 use esp_idf_svc::hal::gpio::Level;
 
 use crate::core::{
-    transport::transport_emiter::{TransportEmiter , EmitterError},
     hardware::InputPinCore,
     modulecore::{Module, ModuleCore, ModuleError},
+    transport::transport_emiter::{EmitterError, TransportEmiter},
 };
 use pinora_protocol::{
     command::ModuleCommand, global_definitions::ModuleType, ModuleEvent::RemoteReceiver,

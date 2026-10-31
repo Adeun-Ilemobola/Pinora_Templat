@@ -1,6 +1,6 @@
-use crate::core::transport::transport_emiter::{TransportEmiter , EmitterError};
 use crate::core::hardware::RangefinderI2c;
 use crate::core::modulecore::{Module, ModuleCore, ModuleError};
+use crate::core::transport::transport_emiter::{EmitterError, TransportEmiter};
 use pinora_protocol::{
     command::ModuleCommand,
     global_definitions::ModuleType,
@@ -50,7 +50,7 @@ impl<'d> Rangefinder<'d> {
         sensor
             .set_timing_budget_ms(50)
             .map_err(|error| anyhow::anyhow!("Failed to set VL53L1X timing budget: {error:?}"))?;
-        
+
         let rangefinder = Self {
             core: ModuleCore::new(ModuleType::Rangefinder, &manual_id, cluster_id, sender),
             sensor,
@@ -60,8 +60,6 @@ impl<'d> Rangefinder<'d> {
             inter_measurement_ms: 60,
             distance_mode: DistanceMode::Long,
         };
-
-
 
         Ok(rangefinder)
     }
@@ -181,8 +179,10 @@ impl<'d> Module for Rangefinder<'d> {
         let data = self.update_range();
         match data {
             Ok(_) => {
-                self.emit(ModuleEvent::Rangefinder(RangefinderEvent::Range { millimeters: self.range() }));
-            },
+                self.emit(ModuleEvent::Rangefinder(RangefinderEvent::Range {
+                    millimeters: self.range(),
+                }));
+            }
             Err(_) => {
                 self.emit(ModuleEvent::SysLog(SysLogEvent {
                     text: "Failed to update range".to_string(),
@@ -198,8 +198,9 @@ impl<'d> Module for Rangefinder<'d> {
         &self.core
     }
     fn first_emit(&mut self) -> Result<(), EmitterError> {
-
-        self.emit(ModuleEvent::Rangefinder(RangefinderEvent::TimingBudget { milliseconds: self.timing_budget_ms.clone() }));
+        self.emit(ModuleEvent::Rangefinder(RangefinderEvent::TimingBudget {
+            milliseconds: self.timing_budget_ms.clone(),
+        }));
         Ok(())
     }
 

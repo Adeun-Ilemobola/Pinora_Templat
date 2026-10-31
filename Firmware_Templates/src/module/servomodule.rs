@@ -1,19 +1,14 @@
-use crate::core::transport::transport_emiter::{TransportEmiter , EmitterError};
 use crate::core::hardware::SharedPwm;
-use crate::core::modulecore::{ Module, ModuleCore, ModuleError};
+use crate::core::modulecore::{Module, ModuleCore, ModuleError};
+use crate::core::transport::transport_emiter::{EmitterError, TransportEmiter};
 use crate::utilities::math::{pulse_us_to_tick, range_i32};
 
-
 use pinora_protocol::{
-    command::ModuleCommand,
-    global_definitions::ModuleType,
-    module_event::ModuleEvent,
+    command::ModuleCommand, global_definitions::ModuleType, module_event::ModuleEvent,
 };
 use pwm_pca9685::Channel;
 
-pub use pinora_protocol::module::servomodule::{
-    ServoCapability, ServoCommandPayload, ServoEvent,
-};
+pub use pinora_protocol::module::servomodule::{ServoCapability, ServoCommandPayload, ServoEvent};
 
 pub struct ServoModule<'d> {
     core: ModuleCore,
@@ -23,7 +18,7 @@ pub struct ServoModule<'d> {
 
     offset: i32,
     angle: i32,
-    pivot:i32,
+    pivot: i32,
     min_pivot: i32,
     max_pivot: i32,
 }
@@ -46,7 +41,7 @@ impl<'d> ServoModule<'d> {
             max_pivot: config.max_pivot,
             min_pivot: config.min_pivot,
             channel: channel.clone(),
-            pivot:0
+            pivot: 0,
         };
         s.set_offset(s.offset)?;
         s.set_angle(0)?;
@@ -114,7 +109,7 @@ impl<'d> ServoModule<'d> {
     }
     pub fn set_angle_silent(&mut self, a: i32) -> anyhow::Result<()> {
         let pivotrang = a.clamp(self.min_pivot, self.max_pivot);
-         self.pivot = pivotrang;
+        self.pivot = pivotrang;
 
         let raw_rang =
             (self.offset + pivotrang).clamp(self.config.min_angle, self.config.max_angle);
@@ -141,11 +136,10 @@ impl<'d> ServoModule<'d> {
         Ok(())
     }
 
-    pub  fn  sync(&mut self){
-         self.emit(ModuleEvent::Servo(ServoEvent::GetAngle {
+    pub fn sync(&mut self) {
+        self.emit(ModuleEvent::Servo(ServoEvent::GetAngle {
             angle: self.pivot.clone(),
         }));
-
     }
     pub fn pivot_angle(&self) -> i32 {
         self.angle - self.offset
@@ -156,24 +150,19 @@ impl<'d> ServoModule<'d> {
 
     pub fn set_min_pivot(&mut self, min_pivot: i32) {
         self.min_pivot = min_pivot.min(self.max_pivot);
-        self.emit(ModuleEvent::Servo(ServoEvent::GetMinPivot {
-            min_pivot,
-        }));
+        self.emit(ModuleEvent::Servo(ServoEvent::GetMinPivot { min_pivot }));
     }
 
     pub fn set_max_pivot(&mut self, max_pivot: i32) {
         self.max_pivot = max_pivot.max(self.min_pivot);
-        self.emit(ModuleEvent::Servo(ServoEvent::GetMaxPivot {
-            max_pivot,
-        }));
+        self.emit(ModuleEvent::Servo(ServoEvent::GetMaxPivot { max_pivot }));
     }
 }
 
 impl<'d> Module for ServoModule<'d> {
-   fn tick(&mut self) -> Result<(), ModuleError> {
-       Ok(())
+    fn tick(&mut self) -> Result<(), ModuleError> {
+        Ok(())
     }
-
 
     fn core(&self) -> &ModuleCore {
         &self.core

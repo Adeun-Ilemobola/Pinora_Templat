@@ -74,7 +74,7 @@ where
         })
     }
 
-    fn axis_value(raw: u16 , centre: u16) -> i16 {
+    fn axis_value(raw: u16, centre: u16) -> i16 {
         if raw.abs_diff(centre) <= DEADZONE {
             0
         } else {

@@ -1,16 +1,11 @@
-
-
 use std::{
     fmt,
-    sync::{
-        mpsc::{ SyncSender, TrySendError , Receiver , sync_channel},
-    },
+    sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError},
 };
 
-use pinora_protocol::{EventPackage, LogPriority, ModuleEvent, ProtocolMessage, SysLogEvent, SystemInfo};
-
-
-
+use pinora_protocol::{
+    EventPackage, LogPriority, ModuleEvent, ProtocolMessage, SysLogEvent, SystemInfo,
+};
 
 #[derive(Debug)]
 pub enum EmitterError {
@@ -26,11 +21,10 @@ impl fmt::Display for EmitterError {
 #[derive(Debug, Clone)]
 pub struct TransportEmiter {
     tx: SyncSender<ProtocolMessage>,
-
 }
 
 impl TransportEmiter {
-    pub fn new() -> (Self , Receiver<ProtocolMessage>) {
+    pub fn new() -> (Self, Receiver<ProtocolMessage>) {
         let (tx, rx) = sync_channel::<ProtocolMessage>(128);
         (Self { tx }, rx)
     }
@@ -44,7 +38,9 @@ impl TransportEmiter {
     }
     pub fn emit_reliable(&self, message: ProtocolMessage) -> Result<(), EmitterError> {
         // Registration/system messages wait for queue space so new connections can discover them.
-        self.tx.send(message).map_err(|_| EmitterError::Disconnected)?;
+        self.tx
+            .send(message)
+            .map_err(|_| EmitterError::Disconnected)?;
         Ok(())
     }
     pub fn try_emit(&self, message: ProtocolMessage) {
@@ -61,20 +57,14 @@ impl TransportEmiter {
             }
         }
     }
-    pub fn  log(&self, message: String , priority: LogPriority , raw_err: Option<String>) {
-        self.try_emit(ProtocolMessage::ModuleEvent(
-            EventPackage{
-                id: "log".to_string(),
-                event: ModuleEvent::SysLog(SysLogEvent{
-                    text: message,
-                    priority: priority,
-                    raw_err: raw_err,
-                })
-
-            }
-        ));
+    pub fn log(&self, message: String, priority: LogPriority, raw_err: Option<String>) {
+        self.try_emit(ProtocolMessage::ModuleEvent(EventPackage {
+            id: "log".to_string(),
+            event: ModuleEvent::SysLog(SysLogEvent {
+                text: message,
+                priority: priority,
+                raw_err: raw_err,
+            }),
+        }));
     }
-
 }
-   
-

@@ -13,5 +13,5 @@ pub enum ModuleType {
     JoyStick,
     StepperMotor,
     Rfid,
-    RemoteReceiver
+    RemoteReceiver,
 }

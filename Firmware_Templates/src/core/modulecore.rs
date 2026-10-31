@@ -1,16 +1,20 @@
 use uuid::Uuid;
 
-use pinora_protocol::{command::ModuleCommand, global_definitions::ModuleType, module_event::{EventPackage, ModuleEvent, SysLogEvent}, registration::{ProtocolMessage, Registration}};
+use pinora_protocol::{
+    command::ModuleCommand,
+    global_definitions::ModuleType,
+    module_event::{EventPackage, ModuleEvent, SysLogEvent},
+    registration::{ProtocolMessage, Registration},
+};
 
-use crate::core::transport::transport_emiter::{TransportEmiter , EmitterError};
+use crate::core::transport::transport_emiter::{EmitterError, TransportEmiter};
 #[derive(Debug, Clone)]
 pub struct ModuleCore {
     pub id: String,
     pub module_type: ModuleType,
     pub manuel_id: String,
     pub parent_id: String,
-    emitter: TransportEmiter
-
+    emitter: TransportEmiter,
 }
 
 impl ModuleCore {
@@ -25,10 +29,9 @@ impl ModuleCore {
             module_type: module_type,
             manuel_id: manuel_id.to_string(),
             parent_id: parent_id.unwrap_or_default(),
-            emitter
+            emitter,
         }
     }
-
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,9 +57,8 @@ pub trait Module {
     fn register(&self) -> Result<(), EmitterError> {
         self.emit_registration()
     }
-      fn first_emit(&mut self) -> Result<(), EmitterError> {
-       
-       Ok(())
+    fn first_emit(&mut self) -> Result<(), EmitterError> {
+        Ok(())
     }
 
     fn emit_registration(&self) -> Result<(), EmitterError> {
@@ -67,8 +69,7 @@ pub trait Module {
             parent_id: self.core().parent_id.clone(),
         };
 
-        self
-            .core()
+        self.core()
             .emitter
             .emit_reliable(ProtocolMessage::Registration(registration))
     }

@@ -1,6 +1,2 @@
-pub  mod  imu_type;
-pub mod  mpu_impl;
-
-
-
-
+pub mod imu_type;
+pub mod mpu_impl;

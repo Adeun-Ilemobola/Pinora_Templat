@@ -1,4 +1,3 @@
-
 use std::{
     collections::VecDeque,
     sync::{
@@ -13,8 +12,9 @@ use std::{
 use esp_idf_svc::{
     bt::{
         gap::{DiscoveryMode, EspGap, GapEvent},
+        reduce_bt_memory,
         spp::{self, EspSpp, SppConfig, SppEvent, Status},
-        reduce_bt_memory, BtClassic, BtDriver, BtStatus,
+        BtClassic, BtDriver, BtStatus,
     },
     hal::modem::Modem,
     nvs::EspDefaultNvsPartition,
@@ -98,12 +98,22 @@ impl Bluetooth {
         // ESP-IDF callbacks only copy data and queue work; parsing and writes run on the worker.
         spp.subscribe(move |event| {
             let work = match event {
-                SppEvent::Start { status: Status::Success, .. } => Some(Work::Started),
-                SppEvent::ServerOpen { status: Status::Success, handle, .. } => {
-                    Some(Work::Connected(handle))
-                }
+                SppEvent::Start {
+                    status: Status::Success,
+                    ..
+                } => Some(Work::Started),
+                SppEvent::ServerOpen {
+                    status: Status::Success,
+                    handle,
+                    ..
+                } => Some(Work::Connected(handle)),
                 SppEvent::Close { handle, .. } => Some(Work::Closed(handle)),
-                SppEvent::DataInd { status: Status::Success, handle, length, data } => {
+                SppEvent::DataInd {
+                    status: Status::Success,
+                    handle,
+                    length,
+                    data,
+                } => {
                     if data.is_null() || length as usize > MAX_MESSAGE_BYTES {
                         callback_overflow.store(true, Ordering::Relaxed);
                         None
@@ -112,9 +122,12 @@ impl Bluetooth {
                         Some(Work::Data(handle, bytes.to_vec()))
                     }
                 }
-                SppEvent::Write { status, handle, cong, .. } => {
-                    Some(Work::WriteDone(handle, status == Status::Success, cong))
-                }
+                SppEvent::Write {
+                    status,
+                    handle,
+                    cong,
+                    ..
+                } => Some(Work::WriteDone(handle, status == Status::Success, cong)),
                 SppEvent::Cong { handle, cong, .. } => Some(Work::Congestion(handle, cong)),
                 _ => None,
             };
