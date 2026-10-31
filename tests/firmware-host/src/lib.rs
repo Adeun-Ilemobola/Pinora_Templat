@@ -15,6 +15,9 @@ pub mod core {
 
         #[path = "../../../../../Firmware_Templates/src/core/transport/discovery_cache.rs"]
         pub mod discovery_cache;
+
+        #[path = "../../../../../Firmware_Templates/src/core/transport/pairing_window.rs"]
+        pub mod pairing_window;
     }
 }
 

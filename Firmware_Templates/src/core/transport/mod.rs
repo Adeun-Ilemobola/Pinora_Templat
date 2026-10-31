@@ -9,6 +9,7 @@ pub mod bluetooth;
 pub mod discovery_cache;
 pub mod emitter;
 pub mod manager;
+pub mod pairing_window;
 pub mod serial;
 pub mod wifi;
 //pub mod zigbee;

@@ -23,10 +23,11 @@ use std::{
         Arc, Mutex,
     },
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use crate::core::transport::discovery_cache::remember;
+use crate::core::transport::pairing_window::{PairingWindow, PAIRING_WINDOW};
 use esp_idf_svc::{
     bt::{
         gap::{DiscoveryMode, EspGap, GapEvent},
@@ -85,8 +86,11 @@ impl Bluetooth {
         let (outbound, work_rx) = mpsc::sync_channel(128);
         let (incoming_tx, incoming) = mpsc::sync_channel(128);
         let overflow = Arc::new(AtomicBool::new(false));
+        // Set by the worker while the pairing window is open; read by the GAP callback.
+        let pairing_open = Arc::new(AtomicBool::new(false));
 
         let gap_for_callback = gap.clone();
+        let callback_pairing_open = pairing_open.clone();
         gap.subscribe(move |event| match event {
             GapEvent::AuthenticationCompleted { status, .. } => {
                 if status == BtStatus::Success {
@@ -102,10 +106,16 @@ impl Bluetooth {
                 }
             }
             GapEvent::PairingUserConfirmationRequest { bd_addr, .. } => {
-                // The development board has no input or display: SSP Just Works.
+                // The development board has no input or display: SSP Just Works. New
+                // pairings are accepted only while the pairing window is open (PIN-TPL-003).
+                let accept = callback_pairing_open.load(Ordering::Acquire);
+                if !accept {
+                    log::warn!("Bluetooth pairing rejected: the pairing window is closed");
+                }
+                // (`EspGap::reply_ssp_confirm` is cfg-gated off in this build, so call ESP-IDF directly.)
                 if let Err(error) = esp!(unsafe {
                     // SAFETY: `bd_addr` is a valid 6-byte address from the event; ESP-IDF only reads it.
-                    esp_bt_gap_ssp_confirm_reply(&bd_addr as *const _ as *mut _, true)
+                    esp_bt_gap_ssp_confirm_reply(&bd_addr as *const _ as *mut _, accept)
                 }) {
                     log::warn!("Bluetooth SSP confirmation failed: {error}");
                 }
@@ -177,7 +187,16 @@ impl Bluetooth {
         thread::Builder::new()
             .name("bluetooth-transport".into())
             .stack_size(8192)
-            .spawn(move || run_worker(worker_gap, worker_spp, work_rx, incoming_tx, overflow))?;
+            .spawn(move || {
+                run_worker(
+                    worker_gap,
+                    worker_spp,
+                    work_rx,
+                    incoming_tx,
+                    overflow,
+                    pairing_open,
+                )
+            })?;
 
         Ok(Self {
             outbound,
@@ -214,6 +233,7 @@ fn run_worker(
     work_rx: Receiver<Work>,
     incoming: SyncSender<IncomingCommand>,
     overflow: Arc<AtomicBool>,
+    pairing_open: Arc<AtomicBool>,
 ) {
     let mut connection = None;
     let mut write_pending = false;
@@ -222,8 +242,21 @@ fn run_worker(
     let mut pending = VecDeque::new();
     let mut system = None;
     let mut registrations = Vec::new();
+    let started = Instant::now();
+    let mut pairing = PairingWindow::new(PAIRING_WINDOW);
 
     loop {
+        if pairing.poll_expired(started.elapsed()) {
+            // Window over: stop accepting new pairings and stop advertising. Bonded peers
+            // can still connect because the device stays connectable.
+            pairing_open.store(false, Ordering::Release);
+            match gap.set_scan_mode(true, DiscoveryMode::NonDiscoverable) {
+                Ok(()) => {
+                    log::info!("Bluetooth pairing window closed; device is no longer discoverable")
+                }
+                Err(error) => log::error!("Bluetooth could not leave discoverable mode: {error}"),
+            }
+        }
         if overflow.swap(false, Ordering::Relaxed) {
             // A lost callback may contain frame bytes or write state, so resynchronize by reconnecting.
             input.clear();
@@ -242,8 +275,12 @@ fn run_worker(
             Work::Started => {
                 if let Err(error) = gap.set_scan_mode(true, DiscoveryMode::Discoverable) {
                     log::error!("Bluetooth advertising failed: {error}");
-                } else {
-                    log::info!("Pinora SPP service is discoverable");
+                } else if pairing.open(started.elapsed()) {
+                    pairing_open.store(true, Ordering::Release);
+                    log::info!(
+                        "Pinora SPP service is discoverable; pairing accepted for {} s",
+                        PAIRING_WINDOW.as_secs()
+                    );
                 }
             }
             Work::Connected(handle) => {
