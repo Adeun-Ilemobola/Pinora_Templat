@@ -40,7 +40,7 @@ flowchart LR
     React["React views\nDashboard / Logs"] --> Store["useModuleFront\n(Zustand god-store)"]
     Store --> ModStores["Per-module vanilla stores\n(LED, Button)"]
     ModStores -->|"invoke send_data(JSON string)"| Tauri["Tauri backend\nlib.rs / wifi_transport.rs"]
-    Tauri -->|"emit espState(raw line)"| Store
+    Tauri -->|"emit espState(validated line) / espConsole"| Store
   end
   Tauri -->|"USB COM (serialport)"| UART
   Tauri -->|"outgoing SPP virtual COM"| SPP
@@ -99,7 +99,8 @@ Serde types shared by firmware and the Tauri backend. They are the authoritative
 | File | Role |
 |---|---|
 | `lib.rs` | Plugin setup, managed state, handler list |
-| `serial_transport.rs` | `AppState` (one COM port + reader thread, emits `espState` and `bluetoothConnection`) |
+| `serial_transport.rs` | `AppState` (one COM port + reader thread; classifies lines via `line_classifier.rs` and emits `espState` / `espConsole`, plus `bluetoothConnection`) |
+| `line_classifier.rs` | Validates each COM line as a Rust `ProtocolMessage` (Phase 1C) |
 | `bluetooth_ports.rs` | Windows PnP `BTHENUM` query via PowerShell CIM |
 | `commands.rs` | The 10 IPC commands: `greet`, `start_port`, `get_available_ports`, `get_available_bluetooth_ports` (serialport ∩ Windows PnP `BTHENUM` via PowerShell CIM), `start_bluetooth_port`, `send_data` (COM first, else Wi-Fi), `stop_port`, `start_wifi_listener`, `stop_wifi_listener`, `get_wifi_listener_status` |
 | `wifi_transport.rs` | `WifiTransport`: non-blocking accept loop on `0.0.0.0:<port>`, `PINORA-AUTH 1 <token>` handshake, validates every inbound line as `ProtocolMessage` and every outbound command as `IncomingCommand`. Emits `espState` and `wifiConnection` |

@@ -82,7 +82,7 @@ flowchart LR
 
 | Transport | Start | Connected | Disconnect | Reconnect |
 |---|---|---|---|---|
-| Bluetooth SPP | Bluedroid init → SPP server start → *discoverable forever* | First `ServerOpen` accepted; later ones rejected | `Close`, write failure, overflow, oversize line → clears pending/input | Desktop reopens COM → replay of system + registrations |
+| Bluetooth SPP | Bluedroid init → SPP server start → discoverable and pairing accepted for 120 s, then connectable only (Phase 1C) | First `ServerOpen` accepted; later ones rejected | `Close`, write failure, overflow, oversize line → clears pending/input | Desktop reopens COM → replay of system + registrations |
 | Wi-Fi | **Blocks boot** until AP joined; failure aborts `main` | TCP connect + token → replay | Read 0 / error / oversize | Retry every ~2 s (drains outbound into cache meanwhile). No AP reassociation |
 | Serial | stdin reader thread | Always "connected" | n/a | No replay; registrations only at boot |
 
@@ -99,9 +99,9 @@ flowchart LR
 ## 5. Trust boundaries
 
 ```
-[nearby radio peer] --SPP (Just Works, no app auth)--> firmware      ← PIN-TPL-003
+[nearby radio peer] --SPP (Just Works within 120 s window, no app auth)--> firmware  ← PIN-TPL-003 (window: 1C; auth: 2B)
 [LAN peer with token] --TCP plaintext--> Tauri listener ⇄ firmware   ← PIN-TPL-013
-[firmware / UART noise] --raw lines--> Tauri COM reader --> React    ← PIN-TPL-006
+[firmware / UART noise] --> Tauri COM reader (validates; others → espConsole) --> React  ← PIN-TPL-006 (fixed 1C)
 [WebView script] --invoke send_data (CSP off)--> serial/TCP           ← PIN-TPL-023
 ```
 

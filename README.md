@@ -72,7 +72,7 @@ flowchart LR
 | Subsystem | Responsibility and state owner | Boundary |
 |---|---|---|
 | React frontend | Connection presentation, registry, per-module stores, logs, theme and view drafts | Tauri `invoke` commands and `espState` events |
-| Tauri backend | USB/SPP COM port lifecycle, TCP listener, writes, Wi-Fi authentication and wire validation | COM readers forward raw strings; Wi-Fi deserializes Rust protocol; depends on `pinora-protocol` but does not own module state |
+| Tauri backend | USB/SPP COM port lifecycle, TCP listener, writes, Wi-Fi authentication and wire validation | COM and Wi-Fi lines are validated as Rust `ProtocolMessage`s (COM since audit Phase 1C; other COM lines go to `espConsole`); depends on `pinora-protocol` but does not own module state |
 | Firmware | Hardware state, module UUIDs, top-level registry and scheduling | Typed commands in; typed protocol messages out |
 | Rust protocol | Serde wire definitions shared with firmware | No ESP-IDF or UI-framework dependencies |
 | TypeScript protocol | Manually maintained Zod schemas and inferred types | Duplicates only part of Rust protocol; not generated or enforced at the receive boundary |
@@ -113,7 +113,7 @@ All may change substantially before a stable release. See the [evidence-based re
 
 **Command:** LED slider commit/toggle → per-module action → [IncomingCommand.ts](UI/src/lib/IncomingCommand.ts) serializes `{id, command}` → `invoke("send_data")` → Tauri writes the selected USB/SPP COM port or authenticated TCP frame → selected firmware transport deserializes `IncomingCommand` → existing main-loop receiver → exact UUID lookup in the top-level registry → module `handle_command` → hardware write → returned event.
 
-**Event:** module emits `EventPackage { id, event }` → bounded transport emitter → selected firmware transport writes a JSON line → Tauri Wi-Fi listener validates the Rust `ProtocolMessage` or COM reader forwards a raw line as `espState` → frontend parses JSON → logs and routes registration/system/module event → per-module store → React subscription. Frontend JSON parsing is not Zod validation.
+**Event:** module emits `EventPackage { id, event }` → bounded transport emitter → selected firmware transport writes a JSON line → Tauri validates the line as a Rust `ProtocolMessage` (Wi-Fi listener or COM reader) and emits it as `espState`; COM lines that are not protocol messages are emitted as `espConsole` → frontend parses JSON → logs and routes registration/system/module event → per-module store → React subscription. Frontend JSON parsing is not Zod validation.
 
 **Connection:** frontend disconnects first and installs listeners. USB Serial opens a COM port and toggles DTR/RTS; Bluetooth opens a paired SPP virtual COM port without USB reset signaling. Wi-Fi starts an authenticated TCP listener. Bluetooth and Wi-Fi firmware workers cache system information and registrations for replay on reconnect; runtime module events are not replayed. Frontend disconnect clears the module registry and system info. A new connection also clears logs; disconnect retains logs.
 
@@ -172,7 +172,7 @@ Current LED examples (each transported as one JSON line):
 
 `lool_up_id`, `manuel_id`, `RangPoint`, `distant`, and `Idol` are existing spellings, not documentation typos to silently normalize. Runtime UUIDs are regenerated at boot; lookup names are caller-provided labels. No wire-version negotiation or compatibility handshake is implemented. Alpha protocol compatibility is not guaranteed. Aligning the protocol crate's package version does not add a schema version or change message layouts.
 
-The desktop duplicates protocol definitions manually in [UI/src/lib/protocol](UI/src/lib/protocol) and module files. Receive handling uses `JSON.parse` and casts rather than Zod `.parse`. Aggregate TS schemas cover active LED/Button plus SysLog, but omit other Rust families. Older Servo/LiDAR module files remain outside current registration routing; LiDAR start/stop/test are modeled as empty objects, matching the Rust empty struct variants. Tauri's Wi-Fi path validates inbound messages with Rust protocol types, while serial remains raw. This is documented debt, not a stable extension contract.
+The desktop duplicates protocol definitions manually in [UI/src/lib/protocol](UI/src/lib/protocol) and module files. Receive handling uses `JSON.parse` and casts rather than Zod `.parse`. Aggregate TS schemas cover active LED/Button plus SysLog, but omit other Rust families. Older Servo/LiDAR module files remain outside current registration routing; LiDAR start/stop/test are modeled as empty objects, matching the Rust empty struct variants. Tauri validates inbound messages with Rust protocol types on every transport (COM since audit Phase 1C). This is documented debt, not a stable extension contract.
 
 ## Module system
 
@@ -198,9 +198,9 @@ These labels describe source integration, not hardware qualification. Extending 
 | Bluetooth Classic SPP | Current firmware boot selection. Bluedroid server advertises `Pinora Dev ESP32`; authenticated/encrypted SPP carries the existing JSON lines. Tauri opens a paired Windows outgoing virtual COM port. Pairing and port discovery were observed; end-to-end operation is maintainer-reported. |
 | Wi-Fi/TCP | Source-selectable firmware path. ESP32 client connects to Tauri listener, authenticates with a shared development token, exchanges newline-delimited JSON, reconnects and replays system/registration messages. No encryption or production credential handling. |
 | Serial/UART | Source-selectable firmware path; newline-delimited JSON can mix with console output. |
-| Tauri IPC | USB/SPP COM port and Wi-Fi listener commands, `send_data`, `espState`, `wifiConnection`, and `bluetoothConnection` events. |
+| Tauri IPC | USB/SPP COM port and Wi-Fi listener commands, `send_data`, `espState`, `espConsole` (non-protocol COM lines, since audit Phase 1C), `wifiConnection`, and `bluetoothConnection` events. |
 
-Tauri's Wi-Fi path validates Rust protocol messages and commands; USB/SPP COM readers forward raw lines. Frontend stores directly invoke Tauri. Bluetooth firmware bounds commands to 8 KiB and chunks writes while waiting for SPP write completion and congestion clearance. The desktop COM reader has no line cap. There is no delivery acknowledgement/retry protocol.
+Tauri validates inbound Rust protocol messages on every transport (USB/SPP COM since audit Phase 1C, with other lines sent as `espConsole`) and Wi-Fi commands before sending. Frontend stores directly invoke Tauri. Bluetooth firmware bounds commands to 8 KiB and chunks writes while waiting for SPP write completion and congestion clearance. The desktop COM reader has no line cap. There is no delivery acknowledgement/retry protocol.
 
 On Windows, `serialport` can classify outgoing Bluetooth COM ports as `Unknown`. Tauri intersects available serial ports with Windows Bluetooth device metadata and excludes the incoming listener. Port numbers are assigned by Windows and must be discovered on each machine; USB programming and outgoing SPP ports are different devices.
 
@@ -239,7 +239,7 @@ Host protocol build check, from `protocol`:
 cargo +stable check
 ```
 
-The standalone protocol lockfile is ignored, so a fresh checkout resolves it locally on the first check. Do not regenerate the firmware lockfile to address that. Characterization tests (behavior-recording, not correctness tests) exist for the wire format (`cd protocol; cargo +stable test`) and the desktop log helpers (`cd UI; bun test`); there is no CI workflow.
+The standalone protocol lockfile is ignored, so a fresh checkout resolves it locally on the first check. Do not regenerate the firmware lockfile to address that. Characterization tests (behavior-recording, not correctness tests) exist for the wire format (`cd protocol; cargo +stable test`) and the desktop log helpers (`cd UI; bun test`); the hardware-free firmware code has host tests (`just test` runs all three suites), and `.github/workflows/ci.yml` runs them on push.
 
 Firmware, from `Firmware_Templates`, with the existing ESP 1.93 environment loaded:
 
@@ -277,7 +277,7 @@ No runtime consumer of `pinora.toml` or `.espConfig/esp_config.json` was found i
 
 ## Current limitations
 
-The [architecture review](docs/architecture-audit.md#architecture-quality-review) details partial reconnect replay, incomplete frontend runtime validation, startup event timing, serial error reporting, bounded transport queues and unbounded frontend logs, inconsistent error propagation, mixed payload tags, and partial LiDAR behavior. Characterization tests (behavior-recording, not correctness tests) exist for the wire format (`cd protocol; cargo +stable test`) and the desktop log helpers (`cd UI; bun test`); there is no CI workflow. The maintainer's Bluetooth report does not certify all commands, modules, or reconnection paths.
+The [architecture review](docs/architecture-audit.md#architecture-quality-review) details partial reconnect replay, incomplete frontend runtime validation, startup event timing, serial error reporting, bounded transport queues and unbounded frontend logs, inconsistent error propagation, mixed payload tags, and partial LiDAR behavior. Characterization tests (behavior-recording, not correctness tests) exist for the wire format (`cd protocol; cargo +stable test`) and the desktop log helpers (`cd UI; bun test`); the hardware-free firmware code has host tests (`just test` runs all three suites), and `.github/workflows/ci.yml` runs them on push. The maintainer's Bluetooth report does not certify all commands, modules, or reconnection paths.
 
 ## Roadmap / near-term direction
 

@@ -101,6 +101,10 @@ jobs:
       - name: Install stable Rust
         run: rustup toolchain install stable --profile minimal --component clippy
 
+      - name: Tauri backend unit tests (COM line classifier)
+        working-directory: UI/src-tauri
+        run: cargo +stable test --locked
+
       - name: Tauri backend clippy
         working-directory: UI/src-tauri
         run: cargo +stable clippy --locked

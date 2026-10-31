@@ -84,6 +84,10 @@ test-firmware-host:
 test-ui:
     cd UI && bun test
 
+# Tauri unit tests (needs UI/dist and protocol/src/wifi_config.rs; not in `test`).
+test-tauri:
+    cd UI/src-tauri && cargo test --locked
+
 
 # ============================================================
 # Firmware
