@@ -70,5 +70,5 @@ fn main() -> anyhow::Result<()> {
 
     let command_receiver = { transport.handle_incoming() };
 
-    runtime::run(&mut modules, command_receiver, last_yield_us)
+    runtime::run(&mut modules, command_receiver, last_yield_us, sync_sender)
 }

@@ -33,8 +33,27 @@ use crate::core::transport::emitter::{EmitterError, TransportEmitter};
 /// A boxed module as stored in the registry.
 pub type ModuleHandle<'a> = Box<dyn Module + 'a>;
 
-/// Top-level modules keyed by runtime UUID. Only these are routable (PIN-TPL-017).
+/// Top-level modules keyed by runtime UUID. Commands are routed to these first, then to
+/// their children via [`Module::child_mut`] (since Phase 2A; PIN-TPL-017).
 pub type ModuleRegistry<'a> = HashMap<String, ModuleHandle<'a>>;
+
+/// Lookup names used by more than one top-level module, sorted. The desktop maps
+/// lookup names to modules, so duplicates hide a module there (PIN-TPL-017).
+pub fn duplicate_lookup_names(registry: &ModuleRegistry<'_>) -> Vec<String> {
+    let mut counts: HashMap<&str, usize> = HashMap::new();
+    for module in registry.values() {
+        *counts
+            .entry(module.core().lookup_name.as_str())
+            .or_default() += 1;
+    }
+    let mut duplicates: Vec<String> = counts
+        .into_iter()
+        .filter(|(_, count)| *count > 1)
+        .map(|(name, _)| name.to_string())
+        .collect();
+    duplicates.sort();
+    duplicates
+}
 
 /// Identity and emitter shared by every module.
 #[derive(Debug, Clone)]
@@ -91,8 +110,16 @@ pub trait Module {
     fn register(&self) -> Result<(), EmitterError> {
         self.emit_registration()
     }
+    /// Reports current state (called after `register`, at boot and on every
+    /// rediscovery request). Default: nothing to report.
     fn first_emit(&mut self) -> Result<(), EmitterError> {
         Ok(())
+    }
+
+    /// A child module with this id, for composite modules (e.g. LiDAR's servos).
+    /// Lets the dispatcher route commands to children (since Phase 2A).
+    fn child_mut(&mut self, _id: &str) -> Option<&mut dyn Module> {
+        None
     }
 
     fn emit_registration(&self) -> Result<(), EmitterError> {

@@ -136,3 +136,103 @@ fn reserved_ssi_id_is_accepted_and_ignored() {
     );
     assert!(rx.try_recv().is_err());
 }
+
+// ---- Phase 2A: system commands and child routing (PIN-TPL-012, PIN-TPL-017) ----
+
+#[test]
+fn rediscover_on_the_reserved_id_is_returned_to_the_main_loop() {
+    let (mut registry, _id, rx) = setup();
+    let rediscover = command(
+        RESERVED_SSI_ID,
+        ModuleCommand::System(SystemCommand::Rediscover {}),
+    );
+    assert_eq!(
+        dispatch(&mut registry, &rediscover),
+        DispatchOutcome::Rediscover
+    );
+    assert!(
+        rx.try_recv().is_err(),
+        "the loop, not dispatch, sends discovery"
+    );
+}
+
+#[test]
+fn system_commands_sent_to_a_module_are_ignored_by_it() {
+    let (mut registry, id, rx) = setup();
+    let system = command(&id, ModuleCommand::System(SystemCommand::Rediscover {}));
+    assert_eq!(dispatch(&mut registry, &system), DispatchOutcome::Handled);
+    assert!(rx.try_recv().is_err());
+}
+
+/// A composite module that owns one `FlakyModule` child.
+struct Parent {
+    core: ModuleCore,
+    child: FlakyModule,
+}
+
+impl Module for Parent {
+    fn core(&self) -> &ModuleCore {
+        &self.core
+    }
+    fn tick(&mut self) -> Result<(), ModuleError> {
+        Ok(())
+    }
+    fn handle_command(&mut self, _command: &ModuleCommand) -> anyhow::Result<()> {
+        anyhow::bail!("the parent should not receive child commands")
+    }
+    fn child_mut(&mut self, id: &str) -> Option<&mut dyn Module> {
+        (self.child.id() == id).then_some(&mut self.child as &mut dyn Module)
+    }
+}
+
+fn setup_parent() -> (ModuleRegistry<'static>, String, Receiver<ProtocolMessage>) {
+    let (emitter, rx) = TransportEmitter::new();
+    let parent = Parent {
+        core: ModuleCore::new(ModuleType::Lidar, "lidar", None, emitter.clone()),
+        child: FlakyModule {
+            core: ModuleCore::new(ModuleType::Servo, "servo_x", None, emitter),
+            handled: 0,
+        },
+    };
+    let child_id = parent.child.id().to_string();
+    let mut registry: ModuleRegistry<'static> = HashMap::new();
+    registry.insert(parent.id().to_string(), Box::new(parent));
+    (registry, child_id, rx)
+}
+
+#[test]
+fn commands_to_a_child_id_reach_the_child() {
+    // Before Phase 2A this was "No top-level module found".
+    let (mut registry, child_id, _rx) = setup_parent();
+    assert_eq!(
+        dispatch(&mut registry, &set_state(&child_id)),
+        DispatchOutcome::Handled
+    );
+}
+
+#[test]
+fn a_failing_child_command_is_reported_from_the_child() {
+    let (mut registry, child_id, rx) = setup_parent();
+    assert_eq!(
+        dispatch(&mut registry, &toggle(&child_id)),
+        DispatchOutcome::Failed
+    );
+    match rx.try_recv().unwrap() {
+        ProtocolMessage::ModuleEvent(EventPackage {
+            id,
+            event: ModuleEvent::SysLog(_),
+        }) => {
+            assert_eq!(id, child_id)
+        }
+        other => panic!("unexpected {other:?}"),
+    }
+}
+
+#[test]
+fn ids_that_match_neither_a_module_nor_a_child_are_unknown() {
+    let (mut registry, _child_id, _rx) = setup_parent();
+    assert_eq!(
+        dispatch(&mut registry, &set_state("nope")),
+        DispatchOutcome::UnknownModule
+    );
+}

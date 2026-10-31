@@ -74,6 +74,12 @@ impl<'d> LedModule<'d> {
 }
 
 impl<'d> Module for LedModule<'d> {
+    /// Replays the current brightness (at boot and on rediscovery; Phase 2A).
+    fn first_emit(&mut self) -> Result<(), EmitterError> {
+        self.emit(ModuleEvent::Led(LedEvent::Brightness { level: self.state }));
+        Ok(())
+    }
+
     fn tick(&mut self) -> Result<(), ModuleError> {
         Ok(())
     }

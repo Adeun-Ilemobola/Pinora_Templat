@@ -210,6 +210,21 @@ impl<'d> Module for Lidar<'d> {
     fn core(&self) -> &ModuleCore {
         &self.core
     }
+    /// Exposes the two servos and the rangefinder so commands addressed to them are
+    /// routed (Phase 2A, PIN-TPL-017). Note: moving a servo directly does not update
+    /// the scan position until the next scan or `ChangeMotorAngle`.
+    fn child_mut(&mut self, id: &str) -> Option<&mut dyn Module> {
+        if self.servo_x.id() == id {
+            Some(&mut self.servo_x)
+        } else if self.servo_y.id() == id {
+            Some(&mut self.servo_y)
+        } else if self.rangefinder.id() == id {
+            Some(&mut self.rangefinder)
+        } else {
+            None
+        }
+    }
+
     /// Reports the configured ROI. Does not move the servos.
     fn first_emit(&mut self) -> Result<(), EmitterError> {
         self.emit(ModuleEvent::Lidar(LidarEvent::Roi {

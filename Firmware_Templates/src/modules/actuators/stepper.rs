@@ -169,6 +169,22 @@ impl<'d> Module for StepperMotor<'d> {
         Ok(())
     }
 
+    /// Replays the current mode and pivot limits (at boot and on rediscovery; Phase 2A).
+    /// The position is sent by `register`.
+    fn first_emit(&mut self) -> Result<(), EmitterError> {
+        let (pivot_min, pivot_max) = self.motion.pivot_limits();
+        self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetMode {
+            mode: self.motion.mode().kind(),
+        }));
+        self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetPivotMin {
+            pivot_min,
+        }));
+        self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetPivotMax {
+            pivot_max,
+        }));
+        Ok(())
+    }
+
     fn tick(&mut self) -> Result<(), ModuleError> {
         self.tick_inner().map_err(|_| ModuleError::OperationFailed)
     }

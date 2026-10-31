@@ -136,3 +136,27 @@ fn registry_routes_by_uuid() {
         "lookup names are not registry keys"
     );
 }
+
+#[test]
+fn duplicate_lookup_names_are_detected() {
+    use pinora_firmware_host_tests::core::module::duplicate_lookup_names;
+    let (emitter, _rx) = TransportEmitter::new();
+    let mut registry: ModuleRegistry<'_> = HashMap::new();
+    for name in ["led1", "led2", "led1", "led3", "led2"] {
+        let module = StubModule::new(name, None, emitter.clone());
+        registry.insert(module.id().to_string(), Box::new(module));
+    }
+    assert_eq!(duplicate_lookup_names(&registry), vec!["led1", "led2"]);
+    registry.clear();
+    let module = StubModule::new("only", None, emitter);
+    registry.insert(module.id().to_string(), Box::new(module));
+    assert!(duplicate_lookup_names(&registry).is_empty());
+}
+
+#[test]
+fn modules_have_no_children_by_default() {
+    let (emitter, _rx) = TransportEmitter::new();
+    let mut module = StubModule::new("led1", None, emitter);
+    let id = module.id().to_string();
+    assert!(module.child_mut(&id).is_none());
+}
