@@ -1,0 +1,43 @@
+# Compatibility contracts — frozen for Phase 0
+
+Phase 0 must not change anything in this list. A rename, move or reformat that alters any item here is a behavior change and is out of scope. Each contract has a stable ID (`C-NN`) so phase reports can cite it.
+
+"External?" says whether something outside this repository may depend on the contract. **Unknown** means the sibling projects (`pinora_cli`, `pinora_studio`, `2dLidar`, `UI`) were deliberately not inspected, so the contract is treated as externally consumed.
+
+| ID | Contract | Where defined | External? | Notes |
+|---|---|---|---|---|
+| C-01 | **Wire JSON shape** of every `ProtocolMessage`, `IncomingCommand`, `ModuleCommand`, `ModuleEvent` and payload type: field names, enum variant names, tagging (external, internal `event_type` for `ImuEvent`, bare-string unit variants), `Option` → `null`, empty `parent_id` → `""` | `protocol/src/**` | Unknown | Includes the misspellings `lool_up_id`, `Ckick`, `Idol`, `distant`. Phase 0 locks this with golden-JSON characterization tests |
+| C-02 | Newline-delimited framing; message size limits (8 192 B firmware; 262 144 B Tauri Wi-Fi; 512 B Wi-Fi auth line; 512 B SPP write chunk) | `protocol/src/bluetooth_config.rs`, `wifi.rs`, `wifi_transport.rs` | Unknown | — |
+| C-03 | **Wi-Fi handshake** byte strings: `PINORA-AUTH 1 <token>\n`, `PINORA-AUTH OK\n`, `PINORA-AUTH REJECT\n`; timeouts 3 s read / 2 s write / 50 ms and 100 ms poll | `Firmware_Templates/src/core/transport/wifi.rs`, `UI/src-tauri/src/wifi_transport.rs` | Unknown | — |
+| C-04 | **Bluetooth identity**: device name `Pinora Dev ESP32`, service name `Pinora SPP`, `Security::Encrypt`, `Role::Slave`, IO capability `NONE`, legacy-PIN rejection | `protocol/src/bluetooth_config.rs`, `bluetooth.rs` | Yes (Windows pairings, user docs) | Renaming breaks existing pairings |
+| C-05 | **Reserved command IDs / sources**: `"SSI"` (accepted, no-op), `"log"` (SysLog source ID from `TransportEmiter::log`) | `main.rs:280`, `transport_emiter.rs:67` | Unknown | — |
+| C-06 | **Tauri IPC command names and argument names**: `greet(name)`, `start_port(name, rate)`, `get_available_ports()`, `get_available_bluetooth_ports()`, `start_bluetooth_port(name)`, `send_data(data)`, `stop_port()`, `start_wifi_listener(port)`, `stop_wifi_listener()`, `get_wifi_listener_status()`; return shapes (`ConnectionType` strings, `WifiListenerStatus {listening, connected, port}`) | `UI/src-tauri/src/lib.rs` | Frontend (internal) + Unknown | `greet` stays until a later phase removes it |
+| C-07 | **Tauri event names and payloads**: `espState` (String line), `wifiConnection` and `bluetoothConnection` (`"Connected"` / `"Disconnected"`) | `lib.rs`, `wifi_transport.rs` | Frontend (internal) | — |
+| C-08 | **Public Rust API of `pinora-protocol`**: crate name, module paths (`command`, `registration`, `module_event`, `global_definitions`, `module::*`, `wifi_config`, `bluetooth_config`), re-exports, public type and function names (including `RangPoint`, `MddeRfid`, `Axes::add`, `RemoteButton::from_command`) | `protocol/src/**` | Unknown | Firmware and Tauri depend on it by path; other projects may too |
+| C-09 | **`wifi_config` module interface**: file path `protocol/src/wifi_config.rs` (ignored), constant names `WIFI_SSID`, `WIFI_PASSWORD`, `DESKTOP_IP`, `DESKTOP_PORT`, `DEV_TOKEN`; example file name | `protocol/src/lib.rs:6`, `.gitignore`, `wifi_config.example.rs` | Yes (developer machines) | — |
+| C-10 | **Project layout and metadata consumed by tooling**: top-level directory names `Firmware_Templates`, `UI`, `protocol`, `.espConfig`, `docs`; `pinora.toml` keys and values; `.espConfig/esp_config.json` content (including `id`); `Firmware_Templates/pre-script.rhai` variables; `justfile` recipe names | repository root | **Unknown — likely `pinora_cli` / `pinora_studio`** | Do not rename or move. Record and investigate in the later per-project audits |
+| C-11 | **Package and binary identity**: Cargo package names `Firmware_Templates`, `pinora-protocol`, `ui`; lib name `ui_lib`; npm package `ui`; Tauri `productName` `ui`, `identifier` `com.owner.ui` (determines the app-data directory); window label `main` (referenced by capabilities) | manifests, `tauri.conf.json`, `capabilities/default.json` | Yes (installed apps, scripts) | — |
+| C-12 | **Hardware assignments**: LED GPIO 12/14/27, LEDC channels 0/1/2, LEDC timer0 at 5 kHz / 13-bit; I²C0 SDA 21 / SCL 22 at 100 kHz; UART0 driver 2 048/2 048 buffers; PCA9685 default address and prescale 100; servo, stepper and RFID pins in commented code | `main.rs`, `hardware.rs` | Physical wiring | — |
+| C-13 | **Firmware control algorithms and timing**: debounce 30 ms; stepper period 1.25 ms and half-step tables; LiDAR 30 ms timer and 100-point chunks; RFID 20 ms poll; IMU 200-sample bias; main-loop yield rule (1 ms after ≥ 650 ms); `range_*` math, *including the overflow behavior*; queue capacities (128 everywhere) and reliable/lossy semantics | modules, `main.rs`, transport files | — | Phase 0 must not "fix" PIN-TPL-002 etc. while moving code |
+| C-14 | **Module identity semantics**: lookup names `led1`, `led2`, `led3`; UUID v4 per boot; registration order (HashMap iteration); `register` before `first_emit`; one command per loop iteration | `main.rs`, `modulecore.rs` | Desktop | — |
+| C-15 | **Startup ordering**: transport → system info → I²C → hardware context → modules → register/first_emit → command receiver → loop | `main.rs` | — | Splitting `main.rs` must preserve this exact order (including drop order at exit) |
+| C-16 | **Error semantics**: tick errors ignored, handler errors exit `main`, `?` on constructors aborts boot, `.unwrap()` sites panic | everywhere | — | Documented, not fixed, in Phase 0 |
+| C-17 | **Build entry points**: `rust-toolchain.toml` `esp-1.93`; `.cargo/config.toml` target, linker, runner, `build-std`, env (including `target-dir = "C:/t"`); `sdkconfig.defaults`; the `justfile` `flash` recipe marked "DO NOT MODIFY"; Vite port 1420 / HMR 1421; `@` alias; Tauri `beforeDevCommand` / `beforeBuildCommand` / `frontendDist` | config files | Developer workflow | — |
+| C-18 | **Frontend routes and storage keys**: hash routes `/`, `/logs` (`/lidar` disabled); `localStorage` key `vite-ui-theme` | `App.tsx`, `theme-provider.tsx` | Users' saved theme | — |
+| C-19 | **Tracked lockfiles** must not be regenerated: `Firmware_Templates/Cargo.lock`, `UI/src-tauri/Cargo.lock`, `UI/bun.lock` | — | Reproducibility | Use `--locked` / `--frozen` / `--frozen-lockfile` |
+
+## Safe to change in Phase 0 (internal only)
+
+- Private and `pub(crate)` Rust symbols inside `Firmware_Templates`: for example `manuel_id` (field), `TransportEmiter` (type), the `transport_emiter` module and file, local variables (`tansport`), `buzer_pin`, `write_chuck`, `testrang`.
+- Firmware file and module layout under `Firmware_Templates/src`. The binary crate has no external Rust consumers.
+- Tauri backend internal file layout, as long as the C-06 and C-07 names are preserved exactly.
+- Frontend file layout under `UI/src`, internal component and file names, and the `.TS` → `.ts` extension. Exported store shape, IPC usage, routes and storage keys must stay the same.
+- Comments, doc comments, formatting.
+
+## How to check a Phase 0 change against these contracts
+
+1. Golden-JSON tests (protocol crate) are byte-identical before and after (C-01).
+2. `grep` for every C-06 and C-07 string in both Rust and TypeScript, with counts unchanged.
+3. Firmware `main.rs` startup sequence diff reviewed line by line (C-15).
+4. Manifests, config files, `pinora.toml`, `.espConfig`, `pre-script.rhai` and `justfile` have **no diff** (C-10, C-11, C-17), except where a change is listed and approved in the Phase 0 plan.
+5. Lockfiles have no diff (C-19).
