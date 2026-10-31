@@ -157,12 +157,18 @@ impl<'d> ServoModule<'d> {
 
     pub fn set_min_pivot(&mut self, min_pivot: i32) {
         self.min_pivot = min_pivot.min(self.max_pivot);
-        self.emit(ModuleEvent::Servo(ServoEvent::GetMinPivot { min_pivot }));
+        // Report the stored (clamped) limit, not the request (PIN-TPL-025).
+        self.emit(ModuleEvent::Servo(ServoEvent::GetMinPivot {
+            min_pivot: self.min_pivot,
+        }));
     }
 
     pub fn set_max_pivot(&mut self, max_pivot: i32) {
         self.max_pivot = max_pivot.max(self.min_pivot);
-        self.emit(ModuleEvent::Servo(ServoEvent::GetMaxPivot { max_pivot }));
+        // Report the stored (clamped) limit, not the request (PIN-TPL-025).
+        self.emit(ModuleEvent::Servo(ServoEvent::GetMaxPivot {
+            max_pivot: self.max_pivot,
+        }));
     }
 }
 

@@ -317,13 +317,13 @@ impl<'d> Module for StepperMotor<'d> {
                 StepperMotorCommandPayload::SetPivotMax { pivot_max } => {
                     self.pivot_limits.update_max(*pivot_max);
                     self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetPivotMax {
-                        pivot_max: *pivot_max,
+                        pivot_max: self.pivot_limits.max,
                     }));
                 }
                 StepperMotorCommandPayload::SetPivotMin { pivot_min } => {
                     self.pivot_limits.update_min(*pivot_min);
                     self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetPivotMin {
-                        pivot_min: *pivot_min,
+                        pivot_min: self.pivot_limits.min,
                     }));
                 }
                 StepperMotorCommandPayload::MoveToOrigin {} => {
