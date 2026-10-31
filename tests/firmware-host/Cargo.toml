@@ -1,0 +1,25 @@
+# Host-side tests for hardware-independent firmware code (audit Phase 1A, PIN-TPL-008).
+#
+# The firmware crate targets Xtensa and cannot run `cargo test` on a PC. This crate
+# compiles selected firmware source files unchanged (via #[path], see src/lib.rs) for
+# the host, so their logic can be tested without hardware. It is not part of the
+# firmware build and lives outside Firmware_Templates/ so that directory's
+# .cargo/config.toml and rust-toolchain.toml do not apply.
+[package]
+name = "pinora-firmware-host-tests"
+version = "0.8.0-alpha"
+edition = "2021"
+publish = false
+
+# Standalone: not part of any workspace.
+[workspace]
+
+[dependencies]
+pinora-protocol = { path = "../../protocol" }
+# Pinned to the versions locked in Firmware_Templates/Cargo.lock.
+uuid = { version = "=1.26.1", features = ["v4"] }
+log = "=0.4.34"
+anyhow = "=1.0.104"
+
+[dev-dependencies]
+serde_json = "1"
