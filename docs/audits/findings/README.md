@@ -27,8 +27,8 @@ Baseline: commit `5b5c8ed4` (branch `main`), audited 2026-10-31. Line references
 | PIN-TPL-001 | High | A single failed command stops the firmware main loop | Firmware runtime | Yes | Confirmed / Probable (aftermath) | Resolved | 1B |
 | PIN-TPL-002 | High | LED brightness not range-checked; overflow corrupts output or reboots | Firmware module | Yes | Confirmed (probe) | Resolved | 1B |
 | PIN-TPL-003 | High | Bluetooth accepts any nearby device; no application authorization | Security / transport | Yes | Confirmed (static) | In Progress | 1C (+2B) |
-| PIN-TPL-004 | High | Actuators move uncommanded at construction; unbounded targets | Firmware modules (hardware safety) | No (latent) | Confirmed (static) | Open | 1D |
-| PIN-TPL-005 | High | LiDAR scan never terminates; unbounded memory growth | Firmware module | No (latent) | Confirmed (reasoning) | Open | 1D |
+| PIN-TPL-004 | High | Actuators move uncommanded at construction; unbounded targets | Firmware modules (hardware safety) | No (latent) | Confirmed (static) | Resolved | 1D |
+| PIN-TPL-005 | High | LiDAR scan never terminates; unbounded memory growth | Firmware module | No (latent) | Confirmed (reasoning) | Resolved | 1D |
 | PIN-TPL-006 | High | Malformed device input crashes the desktop log view | Desktop receive boundary | Yes | Confirmed (probe) / Probable (UI) | Resolved | 1C |
 | PIN-TPL-007 | Medium | Rust↔TS contract handwritten, partial, unversioned, inconsistently validated | Communication | Yes | Confirmed | Open | 2A |
 | PIN-TPL-008 | Medium | Firmware module logic not yet host-testable (harness + CI added in 1A) | Testing | Yes | Confirmed | In Progress | 1A |
@@ -71,3 +71,4 @@ Baseline: commit `5b5c8ed4` (branch `main`), audited 2026-10-31. Line references
 | 2026-10-31 | Phase 1A completed: PIN-TPL-008 stays In Progress with narrowed scope (host harness for hardware-free firmware code, `just test`, CI workflow added; module state machines, dispatch, test type-checking and a first CI run remain). No other changes. |
 | 2026-10-31 | Phase 1B completed: PIN-TPL-001, -002 and -025 **Resolved** (each becomes Verified after the hardware check). Totals: 16 Open, 8 In Progress, 3 Resolved. |
 | 2026-10-31 | Phase 1C completed: PIN-TPL-006 **Resolved**; PIN-TPL-003 In Progress (pairing window done, application-level authentication remains for 2B). Totals: 15 Open, 9 In Progress, 4 Resolved. |
+| 2026-10-31 | Phase 1D completed: PIN-TPL-004 and -005 **Resolved**. Phase 1 complete. Totals: 13 Open, 9 In Progress, 6 Resolved. |

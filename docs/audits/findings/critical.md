@@ -23,4 +23,6 @@ These findings must be re-rated **Critical** when the named condition becomes tr
 
 **Phase 1C 2026-10-31:** PIN-TPL-003 is reduced, not cleared: new pairings are limited to 120 s after boot, but a device paired in that window can still drive any registered actuator. The entry stays until application-level authentication (2B).
 
+**Phase 1D 2026-10-31:** PIN-TPL-004 and PIN-TPL-005 resolved (no motion at construction, bounded stepper targets, terminating LiDAR scans), so their entries no longer apply. Only PIN-TPL-003 remains on this list. The roadmap safety gate (1B, 1C, 1D Completed — Verified) is met for hardware-independent checks; keep actuators out of the default image until the hardware checks pass and, preferably, until 2B closes PIN-TPL-003.
+
 Any future Critical finding is recorded here with its full template, and its history is kept after resolution.

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Phase | 1D |
-| Status | **Approved** 2026-10-31 |
+| Status | **Completed — Verified** (see [RESULT.md](RESULT.md)). Approved 2026-10-31 |
 | Decision | The user authorized 1D without choosing, so the **recommended default** applies: stepper coils **de-energize when idle**, with a per-instance `set_hold_when_idle(true)` opt-in for holding torque |
 | Branch | `phase-1d/actuator-safety`, cut from `phase-1c/trust-boundaries` @ `e85b2826` (local, not pushed) |
 | Linked findings | PIN-TPL-004, PIN-TPL-005 |

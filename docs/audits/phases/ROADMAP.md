@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Approved** 2026-10-31 (scope and order). Progress: 1A, 1B and 1C Completed — Verified; 1D next, awaiting authorization |
+| Status | **Approved** 2026-10-31 (scope and order). Progress: Phase 1 (1A–1D) Completed — Verified; 2A next, awaiting authorization |
 | Written | 2026-10-31, after the [post-Phase-0 reassessment](../reports/post-phase-0-reassessment.md) |
 | Code basis | branch `phase-0/structural-reorganization` @ `a2204b33` |
 | Findings covered | all 27 (0 Critical, 6 High, 13 Medium, 8 Low) |

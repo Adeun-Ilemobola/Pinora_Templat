@@ -136,7 +136,7 @@ gap.set_scan_mode(true, DiscoveryMode::Discoverable)
 | Affected files | `Firmware_Templates/src/module/servomodule.rs:51-58` (test sweep in constructor), `:74` (`.unwrap()` on I²C), `:157-169` (pivot setters); `Firmware_Templates/src/module/stepper.rs:111` (starts in `Homing`), `:142-144`, `:304-310` (`MoveToAngle` unbounded), `:311-322` / `:372-377` (pivot limits unvalidated), `:148` (coils stay energized when idle), `:255-267` (`.unwrap()` on GPIO); `Firmware_Templates/src/module/lidar.rs:166-179` (`initialize` sweeps both servos in `first_emit`) |
 | Current location (after Phase 0) | `Firmware_Templates/src/modules/actuators/servo.rs:53-60` (test sweep), `:76` (`.unwrap()`), `:158-166`; `Firmware_Templates/src/modules/actuators/stepper.rs:118` (starts Homing), `:155`, `:262` (`.unwrap()`), `:310-328`, `:378`; `Firmware_Templates/src/modules/composite/lidar.rs:176` (`initialize`) |
 | Confidence | Confirmed (static). No hardware was moved during this audit |
-| Status | Open |
+| Status | **Resolved** in Phase 1D (2026-10-31); Verified after the supervised hardware check in phases/phase-1/phase-1d/RESULT.md (D-V5) |
 | Proposed phase | 1D (roadmap, pending approval) |
 
 **What is wrong.**
@@ -178,7 +178,7 @@ s.set_angle(0)?;
 | Affected files | `Firmware_Templates/src/module/lidar.rs:244-251` (exact-equality termination), `:279-281` (flush only at row end), `:339-341` (ROI arithmetic), `:348-350` (`SetStep` accepts 0) |
 | Current location (after Phase 0) | `Firmware_Templates/src/modules/composite/lidar.rs:254-261`, `:289`, `:349`, `:358` |
 | Confidence | Confirmed by code reasoning. Not executed: the module is not instantiated and has no test harness |
-| Status | Open |
+| Status | **Resolved** in Phase 1D (2026-10-31); Verified after the supervised hardware check in phases/phase-1/phase-1d/RESULT.md (D-V5) |
 | Proposed phase | 1D (roadmap, pending approval) |
 
 **What is wrong.** Rows and scans end only when `curr_point_bottom.x == limit_point.x` (and the same for `y`). The position moves by `step` per tick and is clamped by the servos. If `step` does not divide the ROI span exactly, the position passes the limit, gets clamped at the servo bound instead, and never equals the limit. `SetStep { step: 0 }` means it never moves at all. Every tick in `Scanning` pushes a point into `point_map`, which is flushed only at the end of a row. `Roi` computes `max.x.abs() as u32 * 2 * …`, where `i32::MIN.abs()` panics in debug, and it does not validate `min < max`.

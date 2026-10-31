@@ -2,6 +2,16 @@
 
 Newest entries first. Each entry is tagged **[AUDIT]** (documentation only, no source change) or **[SOURCE]** (template source, build or config changed).
 
+## 2026-10-31 — Phase 1D, Actuator and LiDAR safety **[SOURCE]**
+
+- Approved; no option chosen, so the recommended default applied (coils released when idle, opt-in holding). Branch `phase-1d/actuator-safety` (local, not pushed), cut from the 1C tip.
+- `5aec9215` stepper: pure `stepper_motion.rs` core; starts Idle; targets bounded (±180° travel, pivot `min <= max`); absolute pivot targets (the old relative targets ran away, reproduced); origin and pivot moves complete; coils released when idle; coil errors propagate.
+- `4123676b` LiDAR: pure `lidar_scan.rs` planner; ROI and step validated; clamped stepping guarantees termination (the old exact-equality check did not, reproduced); buffer flushed every 100 points; correct `max_chunk`; `first_emit` no longer moves.
+- `1e1e5a63` servo: construction writes no PWM; explicit `run_self_test()`; no `unwrap()`.
+- `80bf102f` docs and contract notes C-13/C-16.
+- Verification D-V1…D-V4 pass: 72 host tests (3 240 scan combinations), mutation check caught all four reverted fixes, no hardware writes in constructors, firmware warnings 11 → 7, active-image ELF unchanged. Supervised hardware check D-V5 not run.
+- Register: PIN-TPL-004 and -005 **Resolved**; only PIN-TPL-003 remains on the Critical watch-list. **Phase 1 complete.** Totals 13 Open, 9 In Progress, 6 Resolved.
+
 ## 2026-10-31 — Phase 1C, Trust boundaries **[SOURCE]**
 
 - Approved; no option chosen, so recommended defaults applied (120 s pairing window, `espConsole` event). Branch `phase-1c/trust-boundaries` (local, not pushed), cut from the 1B tip.
