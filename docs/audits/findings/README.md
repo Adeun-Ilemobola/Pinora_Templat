@@ -31,7 +31,7 @@ Baseline: commit `5b5c8ed4` (branch `main`), audited 2026-10-31. Line references
 | PIN-TPL-005 | High | LiDAR scan never terminates; unbounded memory growth | Firmware module | No (latent) | Confirmed (reasoning) | Open | 1D |
 | PIN-TPL-006 | High | Malformed device input crashes the desktop log view | Desktop receive boundary | Yes | Confirmed (probe) / Probable (UI) | Open | 1C |
 | PIN-TPL-007 | Medium | Rust↔TS contract handwritten, partial, unversioned, inconsistently validated | Communication | Yes | Confirmed | Open | 2A |
-| PIN-TPL-008 | Medium | No firmware tests or CI (characterization tests added in Phase 0) | Testing | Yes | Confirmed | In Progress | 1A |
+| PIN-TPL-008 | Medium | Firmware module logic not yet host-testable (harness + CI added in 1A) | Testing | Yes | Confirmed | In Progress | 1A |
 | PIN-TPL-009 | Medium | Main loop busy-polls; no timing guarantees | Firmware runtime | Yes | Probable | Open | 2C |
 | PIN-TPL-010 | Medium | Telemetry backpressure: stacked queues, silent drops, no rate limits | Communication | Partly | Confirmed | Open | 2B |
 | PIN-TPL-011 | Medium | Frontend log history unbounded and copied per message | Desktop performance | Yes | Confirmed (static) | Open | 2D |
@@ -68,3 +68,4 @@ Baseline: commit `5b5c8ed4` (branch `main`), audited 2026-10-31. Line references
 | 2026-10-31 | Register created by the initial audit (26 findings, all Open). |
 | 2026-10-31 | Phase 0 completed: PIN-TPL-008, -015, -016, -018, -020, -021, -022, -024 moved to In Progress (structural parts done). No finding Resolved. Source paths moved; see the path map in phases/phase-0/RESULT.md §2 (line numbers in records still refer to baseline `5b5c8ed4`). |
 | 2026-10-31 | Post-Phase-0 reassessment: all 26 findings re-verified at their new locations (each record now has a "Current location" row). PIN-TPL-016 re-rated Medium → Low (record moved to low.md; pointer kept in medium.md). New finding PIN-TPL-027 (Low). PIN-TPL-024 extended (stale `fake-lidar` README statement). No other severity changes. |
+| 2026-10-31 | Phase 1A completed: PIN-TPL-008 stays In Progress with narrowed scope (host harness for hardware-free firmware code, `just test`, CI workflow added; module state machines, dispatch, test type-checking and a first CI run remain). No other changes. |

@@ -8,10 +8,10 @@
 | **Scope** | `C:\Dev\Pinora\Pinora_Templat` only. `2dLidar`, `pinora_cli`, `pinora_studio` and `UI` are **not audited** |
 | **Audit date** | 2026-10-31 |
 | **Baseline** | `main` @ `5b5c8ed4`, clean working tree |
-| **Current operation** | Post-Phase-0 reassessment and remediation roadmap |
-| **Current stage** | Reassessment **complete**; [roadmap](phases/ROADMAP.md) written (10 subphases). Phase 0: Completed — Verified ([result](phases/phase-0/RESULT.md)) |
-| **Approval status** | ⏸ **Awaiting approval:** the roadmap and **Phase 1A — Firmware host-test harness and CI** |
-| **Source changes so far** | Phase 0 structural changes only, on local branch `phase-0/structural-reorganization` (not pushed; `main` unchanged at `5b5c8ed4`). The reassessment changed documentation only (uncommitted) |
+| **Current operation** | Phase 1A, Firmware host-test harness and CI |
+| **Current stage** | Phase 1A **Completed — Verified** ([result](phases/phase-1/phase-1a/RESULT.md)). Roadmap approved ([roadmap](phases/ROADMAP.md)) |
+| **Approval status** | ⏸ **Stopped for review.** Next: **Phase 1B, Firmware command safety** (001, 002, 025), awaiting authorization |
+| **Source changes so far** | Phase 0 (structural) on `phase-0/structural-reorganization`; Phase 1A (tests, scripts, CI only) on `phase-1a/host-test-harness`. Both local, not pushed; `main` unchanged at `5b5c8ed4` |
 | **Last synchronization** | 2026-10-31: mirror verified by SHA-256 over all files (see the mirror's `SYNC-STATUS.md`) |
 
 ## Severity totals
@@ -70,9 +70,10 @@ Full records: [findings/](findings/README.md).
 - **Done:** Phase 0, Structural Reorganization ([plan](phases/phase-0/PLAN.md), [result](phases/phase-0/RESULT.md)). Decisions: D1–D3 yes, D4 no, D5–D6 yes. One local commit per step (P0.1–P0.7) on `phase-0/structural-reorganization`; all checks V1–V10 pass; no contract, manifest, lockfile or config changed.
 - **Your review:** inspect the branch, optionally run the hardware smoke test in RESULT §8, and decide whether to merge it into `main`. Merging and pushing are your decisions.
 - **Done:** post-Phase-0 reassessment ([report](reports/post-phase-0-reassessment.md)). All findings re-verified; no new problems introduced by Phase 0; one new pre-existing finding (027); 016 re-rated Low.
-- **Proposed next step:** [remediation roadmap](phases/ROADMAP.md), 1A → 1B → 1C → 1D → 2A … 3A. **Awaiting approval** of the roadmap and of **Phase 1A** (host-test harness and CI, including a new top-level `tests/firmware-host/` directory and a CI workflow).
+- **Done:** roadmap approved; **Phase 1A** completed ([result](phases/phase-1/phase-1a/RESULT.md)): 28 host tests for hardware-free firmware code, `just test`, CI workflow (not yet run on GitHub).
+- **Proposed next step:** **Phase 1B, Firmware command safety** (non-fatal command errors, LED range check, overflow-safe math, applied-value events). Decision needed: clamp (recommended) or reject out-of-range LED values.
 - **Safety gate:** no servo, stepper or LiDAR module in the default image until 1B, 1C and 1D are Completed — Verified.
-- **Validation gaps:** no hardware or runtime verification yet. Firmware module logic has no host tests (PIN-TPL-008).
+- **Validation gaps:** no hardware or runtime verification yet. Firmware module state machines are not host-testable until 1D/2C. CI has not executed on GitHub.
 
 ## Documents
 
@@ -83,14 +84,14 @@ Full records: [findings/](findings/README.md).
 | Communication flow | [architecture/communication-flow.md](architecture/communication-flow.md) |
 | Frozen contracts | [architecture/compatibility-contracts.md](architecture/compatibility-contracts.md) |
 | Issue register | [findings/README.md](findings/README.md) · [critical](findings/critical.md) · [high](findings/high.md) · [medium](findings/medium.md) · [low](findings/low.md) |
-| Phases | [phases/README.md](phases/README.md) · [Roadmap](phases/ROADMAP.md) · [Phase 0 plan](phases/phase-0/PLAN.md) · [Phase 0 result](phases/phase-0/RESULT.md) |
+| Phases | [phases/README.md](phases/README.md) · [Roadmap](phases/ROADMAP.md) · [Phase 0 plan](phases/phase-0/PLAN.md) · [Phase 0 result](phases/phase-0/RESULT.md) · [Phase 1A plan](phases/phase-1/phase-1a/PLAN.md) · [Phase 1A result](phases/phase-1/phase-1a/RESULT.md) |
 | Report | [reports/initial-audit.md](reports/initial-audit.md) · [reports/post-phase-0-reassessment.md](reports/post-phase-0-reassessment.md) |
 | Evidence | [evidence/validation-baseline.md](evidence/validation-baseline.md) · [evidence/probes.md](evidence/probes.md) |
 | Changelog | [CHANGELOG.md](CHANGELOG.md) |
 
 ## Version control
 
-- `docs/audits/` is committed on the local branch `phase-0/structural-reorganization` (first commit `cb773d3b`); it is not on `main` until you merge.
+- `docs/audits/` is committed on the local branches (`phase-0/structural-reorganization`, then `phase-1a/host-test-harness`, which contains everything so far). It is not on `main` until you merge.
 - The workspace mirror `C:\Dev\Pinora\Audits\` is **not under version control**: `C:\Dev\Pinora` is not a Git repository, and no repository was created.
 - Pre-existing `docs/architecture-audit.md` (an earlier review) was left unchanged.
 

@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Phase | 1A |
-| Status | **Approved** 2026-10-31, together with the [roadmap](../../ROADMAP.md); this includes the new top-level `tests/firmware-host/` directory and the CI workflow |
-| Branch | `phase-1a/host-test-harness`, cut from `phase-0/structural-reorganization` @ `6f22bd2a` (local, not pushed) |
+| Status | **Completed — Verified** (see [RESULT.md](RESULT.md)). Approved 2026-10-31, together with the [roadmap](../../ROADMAP.md); this includes the new top-level `tests/firmware-host/` directory and the CI workflow |
+| Branch | `phase-1a/host-test-harness`, cut from `phase-0/structural-reorganization` @ `a2204b33` (local, not pushed) |
 | Linked findings | PIN-TPL-008 |
 | Behavioral impact | **None.** Tests, scripts and CI configuration only; no firmware, protocol, backend or frontend source changes |
 

@@ -2,6 +2,16 @@
 
 Newest entries first. Each entry is tagged **[AUDIT]** (documentation only, no source change) or **[SOURCE]** (template source, build or config changed).
 
+## 2026-10-31 — Phase 1A, Firmware host-test harness and CI **[SOURCE]**
+
+- Roadmap approved (scope and order) together with Phase 1A. Branch `phase-1a/host-test-harness` (local, not pushed), cut from the Phase 0 tip.
+- `6f22bd2a` reassessment docs committed; `3dc86120` 1A plan.
+- `fbc53466` `tests/firmware-host/`: host crate compiling `math.rs`, `core/module.rs`, `core/transport/emitter.rs`, `discovery_cache.rs` unchanged; 28 characterization tests.
+- `8e611b3e` `just test` recipes and `bun run test` script.
+- `3fef4539` `.github/workflows/ci.yml` (ubuntu Rust job, windows desktop job); type alias in the protocol golden test (test code only).
+- Verification A1–A7 pass: mutation check caught both injected faults; firmware ELF sizes identical to Phase 0; no firmware, protocol, backend or frontend source changes. CI not yet executed on GitHub.
+- Register: PIN-TPL-008 stays In Progress (scope narrowed). No other changes.
+
 ## 2026-10-31 — Post-Phase-0 reassessment and roadmap **[AUDIT]**
 
 - Re-verified all 26 findings in the reorganized tree. Every record gained a "Current location (after Phase 0)" row; baseline line references are kept.

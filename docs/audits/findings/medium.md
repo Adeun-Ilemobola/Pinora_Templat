@@ -39,7 +39,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Affected files | Entire repository; no `#[test]`, `tests/`, `*.test.ts`, or CI configuration exists |
 | Current location (after Phase 0) | Characterization tests now exist in `protocol/tests/` and `UI/tests/`. Missing: firmware host tests, CI, and test scripts in `package.json`/`justfile`; `UI/tests` is outside `tsc`'s `include` |
 | Confidence | Confirmed (`git ls-files` and source search) |
-| Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
+| Status | In Progress (Phase 0: characterization tests; Phase 1A: firmware host harness, `just test`, CI workflow; see phases/phase-1/phase-1a/RESULT.md) |
 | Proposed phase | 1A (roadmap, pending approval) |
 
 **What is wrong.** There are no unit tests, contract tests, integration tests or CI workflow. Firmware logic is entangled with ESP-IDF types, so none of it can run on a host. Examples are `TimerState` calling `esp_timer_get_time` and modules owning `PinDriver`/`LedcDriver` directly.
