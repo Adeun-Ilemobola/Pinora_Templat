@@ -24,8 +24,8 @@ Baseline: commit `5b5c8ed4` (branch `main`), audited 2026-10-31. Line references
 
 | ID | Sev. | Title | Area | Active image? | Confidence | Status | Roadmap phase |
 |---|---|---|---|---|---|---|---|
-| PIN-TPL-001 | High | A single failed command stops the firmware main loop | Firmware runtime | Yes | Confirmed / Probable (aftermath) | Open | 1B |
-| PIN-TPL-002 | High | LED brightness not range-checked; overflow corrupts output or reboots | Firmware module | Yes | Confirmed (probe) | Open | 1B |
+| PIN-TPL-001 | High | A single failed command stops the firmware main loop | Firmware runtime | Yes | Confirmed / Probable (aftermath) | Resolved | 1B |
+| PIN-TPL-002 | High | LED brightness not range-checked; overflow corrupts output or reboots | Firmware module | Yes | Confirmed (probe) | Resolved | 1B |
 | PIN-TPL-003 | High | Bluetooth accepts any nearby device; no application authorization | Security / transport | Yes | Confirmed (static) | Open | 1C (+2B) |
 | PIN-TPL-004 | High | Actuators move uncommanded at construction; unbounded targets | Firmware modules (hardware safety) | No (latent) | Confirmed (static) | Open | 1D |
 | PIN-TPL-005 | High | LiDAR scan never terminates; unbounded memory growth | Firmware module | No (latent) | Confirmed (reasoning) | Open | 1D |
@@ -48,7 +48,7 @@ Baseline: commit `5b5c8ed4` (branch `main`), audited 2026-10-31. Line references
 | PIN-TPL-022 | Low | Lint not enforced (formatting fixed in Phase 0) | Tooling | Yes | Confirmed | In Progress | 3A |
 | PIN-TPL-023 | Low | Tauri scaffold metadata, CSP disabled, `greet`, lost error detail | Desktop packaging | Yes | Confirmed | Open | 3A |
 | PIN-TPL-024 | Low | Documentation and legacy metadata drift | Documentation | Yes | Confirmed | In Progress | 3A |
-| PIN-TPL-025 | Low | Events report requested rather than applied values | Firmware modules | No (latent) | Confirmed | Open | 1B |
+| PIN-TPL-025 | Low | Events report requested rather than applied values | Firmware modules | No (latent) | Confirmed | Resolved | 1B |
 | PIN-TPL-026 | Low | UART0 driver installed bypassing HAL ownership | Firmware | Yes | Confirmed | Open | 3A |
 | PIN-TPL-027 | Low | Module tick/registration order changes every boot (HashMap) | Firmware runtime | Yes | Probable | Open | 2C |
 
@@ -69,3 +69,4 @@ Baseline: commit `5b5c8ed4` (branch `main`), audited 2026-10-31. Line references
 | 2026-10-31 | Phase 0 completed: PIN-TPL-008, -015, -016, -018, -020, -021, -022, -024 moved to In Progress (structural parts done). No finding Resolved. Source paths moved; see the path map in phases/phase-0/RESULT.md §2 (line numbers in records still refer to baseline `5b5c8ed4`). |
 | 2026-10-31 | Post-Phase-0 reassessment: all 26 findings re-verified at their new locations (each record now has a "Current location" row). PIN-TPL-016 re-rated Medium → Low (record moved to low.md; pointer kept in medium.md). New finding PIN-TPL-027 (Low). PIN-TPL-024 extended (stale `fake-lidar` README statement). No other severity changes. |
 | 2026-10-31 | Phase 1A completed: PIN-TPL-008 stays In Progress with narrowed scope (host harness for hardware-free firmware code, `just test`, CI workflow added; module state machines, dispatch, test type-checking and a first CI run remain). No other changes. |
+| 2026-10-31 | Phase 1B completed: PIN-TPL-001, -002 and -025 **Resolved** (each becomes Verified after the hardware check). Totals: 16 Open, 8 In Progress, 3 Resolved. |

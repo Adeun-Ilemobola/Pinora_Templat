@@ -14,9 +14,11 @@ These findings must be re-rated **Critical** when the named condition becomes tr
 |---|---|---|
 | [PIN-TPL-004](high.md) | A servo, stepper or LiDAR module is instantiated | Motion nobody commanded at boot and after every reset; unbounded travel on command |
 | [PIN-TPL-003](high.md) | Any actuator is reachable over Bluetooth | Unauthenticated nearby devices can drive moving hardware |
-| [PIN-TPL-001](high.md) | An actuator is driven by an external controller that holds its last output (e.g. PCA9685) | Command processing stops while the actuator keeps its last output; no stop command can be delivered |
+| [PIN-TPL-001](high.md) | An actuator is driven by an external controller that holds its last output (e.g. PCA9685) | Command processing stops while the actuator keeps its last output; no stop command can be delivered **Cleared in Phase 1B:** command failures no longer stop the loop. |
 | [PIN-TPL-005](high.md) | LiDAR is instantiated | A non-terminating scan ends in heap exhaustion, a reboot, and then the boot-time servo sweep |
 
 **Reassessment 2026-10-31:** no change. All four entries are still latent (the code is not instantiated), and the roadmap adds a safety gate: none of these modules may be enabled until Phases 1B, 1C and 1D are Completed — Verified.
+
+**Phase 1B 2026-10-31:** PIN-TPL-001 resolved, so its entry no longer applies. PIN-TPL-003, -004 and -005 remain on the list until 1C and 1D.
 
 Any future Critical finding is recorded here with its full template, and its history is kept after resolution.

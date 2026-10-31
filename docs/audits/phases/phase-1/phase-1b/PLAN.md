@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Phase | 1B |
-| Status | **Approved** 2026-10-31. Decision: out-of-range LED values are **clamped** to 0–100, with a warning |
+| Status | **Completed — Verified** (see [RESULT.md](RESULT.md)). Approved 2026-10-31. Decision: out-of-range LED values are **clamped** to 0–100, with a warning |
 | Branch | `phase-1b/command-safety`, cut from `phase-1a/host-test-harness` @ `ee600d69` (local, not pushed) |
 | Linked findings | PIN-TPL-001, PIN-TPL-002, PIN-TPL-025 |
 | Behavioral impact | **Yes, intended** (listed below). No wire-format change: only existing message shapes are used, and the golden file must stay byte-identical |

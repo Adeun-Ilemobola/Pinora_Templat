@@ -8,10 +8,10 @@
 | **Scope** | `C:\Dev\Pinora\Pinora_Templat` only. `2dLidar`, `pinora_cli`, `pinora_studio` and `UI` are **not audited** |
 | **Audit date** | 2026-10-31 |
 | **Baseline** | `main` @ `5b5c8ed4`, clean working tree |
-| **Current operation** | Phase 1A, Firmware host-test harness and CI |
-| **Current stage** | Phase 1A **Completed — Verified** ([result](phases/phase-1/phase-1a/RESULT.md)). Roadmap approved ([roadmap](phases/ROADMAP.md)) |
-| **Approval status** | ⏸ **Stopped for review.** Next: **Phase 1B, Firmware command safety** (001, 002, 025), awaiting authorization |
-| **Source changes so far** | Phase 0 (structural) on `phase-0/structural-reorganization`; Phase 1A (tests, scripts, CI only) on `phase-1a/host-test-harness`. Both local, not pushed; `main` unchanged at `5b5c8ed4` |
+| **Current operation** | Phase 1B, Firmware command safety |
+| **Current stage** | Phase 1B **Completed — Verified** (hardware-independent; hardware check pending) ([result](phases/phase-1/phase-1b/RESULT.md)). Roadmap approved ([roadmap](phases/ROADMAP.md)) |
+| **Approval status** | ⏸ **Stopped for review.** Next: **Phase 1C, Trust boundaries** (003 pairing policy, 006 desktop input validation), awaiting authorization |
+| **Source changes so far** | Phase 0 (structural), 1A (tests, scripts, CI), 1B (firmware command safety) on local branches `phase-0/…` → `phase-1a/…` → `phase-1b/command-safety`. Not pushed; `main` unchanged at `5b5c8ed4` |
 | **Last synchronization** | 2026-10-31: mirror verified by SHA-256 over all files (see the mirror's `SYNC-STATUS.md`) |
 
 ## Severity totals
@@ -20,23 +20,23 @@
 |:-:|:-:|:-:|:-:|:-:|
 | **0** | **6** | **13** | **8** | **27** |
 
-19 Open · 8 In Progress · 0 Resolved. The reassessment re-rated PIN-TPL-016 Medium → Low and added PIN-TPL-027 (Low). Functional defects are untouched. Four High findings are on the [Critical escalation watch-list](findings/critical.md): they become Critical as soon as actuator or LiDAR code is enabled.
+16 Open · 8 In Progress · **3 Resolved** (001, 002, 025 in Phase 1B). The reassessment re-rated PIN-TPL-016 Medium → Low and added PIN-TPL-027 (Low). Functional defects are untouched. Four High findings are on the [Critical escalation watch-list](findings/critical.md): they become Critical as soon as actuator or LiDAR code is enabled.
 
 ## Most important risks
 
-1. **Firmware stops obeying after one failed command.** It keeps running but ignores everything until rebooted (PIN-TPL-001).
+1. ~~**Firmware stops obeying after one failed command**~~ (PIN-TPL-001). **Resolved in Phase 1B**: failures are reported and the loop continues.
 2. **Anyone nearby can pair over Bluetooth and send commands** (PIN-TPL-003).
-3. **An out-of-range LED value reboots debug builds or mis-drives the LED** (PIN-TPL-002, shown by probe).
+3. ~~**An out-of-range LED value reboots debug builds or mis-drives the LED**~~ (PIN-TPL-002). **Resolved in Phase 1B**: values are clamped to 100 with a warning.
 4. **Dormant motor code moves hardware on boot and accepts unlimited travel** (PIN-TPL-004). The **LiDAR scan may never finish** and exhausts memory (PIN-TPL-005).
 5. **One malformed line from the board can crash the desktop UI** (PIN-TPL-006, shown by probe).
-6. **No tests and a hand-copied protocol** make every change risky (PIN-TPL-007, PIN-TPL-008).
+6. **A hand-copied protocol** makes changes risky (PIN-TPL-007). Host tests and CI now exist (Phase 1A), but firmware state machines are not yet host-testable (PIN-TPL-008).
 
 ## Issue summary
 
 | ID | Sev | Title | Status |
 |---|---|---|---|
-| PIN-TPL-001 | High | One failed command stops the firmware main loop | Open |
-| PIN-TPL-002 | High | LED brightness unchecked; overflow corrupts output or reboots | Open |
+| PIN-TPL-001 | High | One failed command stops the firmware main loop | Resolved |
+| PIN-TPL-002 | High | LED brightness unchecked; overflow corrupts output or reboots | Resolved |
 | PIN-TPL-003 | High | Bluetooth accepts any nearby device; no app authorization | Open |
 | PIN-TPL-004 | High | Actuators move uncommanded; unbounded targets *(latent)* | Open |
 | PIN-TPL-005 | High | LiDAR scan never terminates; unbounded memory *(latent)* | Open |
@@ -59,7 +59,7 @@
 | PIN-TPL-022 | Low | Formatting and lint not enforced | In Progress |
 | PIN-TPL-023 | Low | Tauri scaffold metadata, CSP off, leftovers | Open |
 | PIN-TPL-024 | Low | Documentation drift | In Progress |
-| PIN-TPL-025 | Low | Events report requested, not applied values | Open |
+| PIN-TPL-025 | Low | Events report requested, not applied values | Resolved |
 | PIN-TPL-026 | Low | UART0 driver bypasses HAL ownership | Open |
 | PIN-TPL-027 | Low | Module tick/registration order changes every boot | Open |
 
@@ -71,7 +71,8 @@ Full records: [findings/](findings/README.md).
 - **Your review:** inspect the branch, optionally run the hardware smoke test in RESULT §8, and decide whether to merge it into `main`. Merging and pushing are your decisions.
 - **Done:** post-Phase-0 reassessment ([report](reports/post-phase-0-reassessment.md)). All findings re-verified; no new problems introduced by Phase 0; one new pre-existing finding (027); 016 re-rated Low.
 - **Done:** roadmap approved; **Phase 1A** completed ([result](phases/phase-1/phase-1a/RESULT.md)): 28 host tests for hardware-free firmware code, `just test`, CI workflow (not yet run on GitHub).
-- **Proposed next step:** **Phase 1B, Firmware command safety** (non-fatal command errors, LED range check, overflow-safe math, applied-value events). Decision needed: clamp (recommended) or reject out-of-range LED values.
+- **Done:** **Phase 1B** ([result](phases/phase-1/phase-1b/RESULT.md)): failing commands no longer stop the firmware; tick errors reported; LED brightness clamped; overflow-safe math; applied-value events. 46 host tests; mutation-checked.
+- **Proposed next step:** **Phase 1C, Trust boundaries**. Decisions needed: Bluetooth pairing-window length (120 s suggested) and whether to add an `espConsole` event for non-protocol lines (recommended).
 - **Safety gate:** no servo, stepper or LiDAR module in the default image until 1B, 1C and 1D are Completed — Verified.
 - **Validation gaps:** no hardware or runtime verification yet. Firmware module state machines are not host-testable until 1D/2C. CI has not executed on GitHub.
 
@@ -84,14 +85,14 @@ Full records: [findings/](findings/README.md).
 | Communication flow | [architecture/communication-flow.md](architecture/communication-flow.md) |
 | Frozen contracts | [architecture/compatibility-contracts.md](architecture/compatibility-contracts.md) |
 | Issue register | [findings/README.md](findings/README.md) · [critical](findings/critical.md) · [high](findings/high.md) · [medium](findings/medium.md) · [low](findings/low.md) |
-| Phases | [phases/README.md](phases/README.md) · [Roadmap](phases/ROADMAP.md) · [Phase 0 plan](phases/phase-0/PLAN.md) · [Phase 0 result](phases/phase-0/RESULT.md) · [Phase 1A plan](phases/phase-1/phase-1a/PLAN.md) · [Phase 1A result](phases/phase-1/phase-1a/RESULT.md) |
+| Phases | [phases/README.md](phases/README.md) · [Roadmap](phases/ROADMAP.md) · [Phase 0 plan](phases/phase-0/PLAN.md) · [Phase 0 result](phases/phase-0/RESULT.md) · [Phase 1A plan](phases/phase-1/phase-1a/PLAN.md) · [Phase 1A result](phases/phase-1/phase-1a/RESULT.md) · [Phase 1B plan](phases/phase-1/phase-1b/PLAN.md) · [Phase 1B result](phases/phase-1/phase-1b/RESULT.md) |
 | Report | [reports/initial-audit.md](reports/initial-audit.md) · [reports/post-phase-0-reassessment.md](reports/post-phase-0-reassessment.md) |
 | Evidence | [evidence/validation-baseline.md](evidence/validation-baseline.md) · [evidence/probes.md](evidence/probes.md) |
 | Changelog | [CHANGELOG.md](CHANGELOG.md) |
 
 ## Version control
 
-- `docs/audits/` is committed on the local branches (`phase-0/structural-reorganization`, then `phase-1a/host-test-harness`, which contains everything so far). It is not on `main` until you merge.
+- `docs/audits/` is committed on the local branches (`phase-0/structural-reorganization`, then `phase-1a/host-test-harness`, then `phase-1b/command-safety`, which contains everything so far). It is not on `main` until you merge.
 - The workspace mirror `C:\Dev\Pinora\Audits\` is **not under version control**: `C:\Dev\Pinora` is not a Git repository, and no repository was created.
 - Pre-existing `docs/architecture-audit.md` (an earlier review) was left unchanged.
 

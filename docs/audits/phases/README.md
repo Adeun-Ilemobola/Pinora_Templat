@@ -11,7 +11,8 @@ Every phase follows the same pattern: approval → work → verification → doc
 | Post-Phase-0 reassessment | Re-audit the reorganized code; build the remediation roadmap | Completed — Verified (documentation; see [report](../reports/post-phase-0-reassessment.md)) | all | Evidence re-located for all 26 findings; 1 new finding | Approved 2026-10-31 | basis `a2204b33` (docs uncommitted) | 2026-10-31 |
 | [Roadmap](ROADMAP.md) | Ordered remediation scope (10 subphases) | **Approved** (scope and order) | all 27 | — | Approved 2026-10-31 | `6f22bd2a` | — |
 | [Phase 1A](phase-1/phase-1a/PLAN.md) ([result](phase-1/phase-1a/RESULT.md)) | Firmware host-test harness and CI | **Completed — Verified** (A1–A7; CI not yet run on GitHub) | 008 | 28 host tests; mutation check; firmware ELF unchanged | Approved 2026-10-31 | `fbc53466`…`3fef4539` on `phase-1a/host-test-harness` (local) | 2026-10-31 |
-| Phase 1B | Firmware command safety | **Awaiting Approval** | 001, 002, 025 | — | — | — | — |
-| Phases 1C, 1D, 2A, 2B, 2C, 2D, 2E, 3A | See [ROADMAP.md](ROADMAP.md) | Proposed | see roadmap | — | — | — | — |
+| [Phase 1B](phase-1/phase-1b/PLAN.md) ([result](phase-1/phase-1b/RESULT.md)) | Firmware command safety | **Completed — Verified** (hardware-independent B-V1…B-V5; hardware check B-V6 pending) | 001, 002, 025 → Resolved | 46 host tests; mutation check; golden unchanged | Approved 2026-10-31 (clamp) | `bc181a67`…`9551123c` on `phase-1b/command-safety` (local) | 2026-10-31 |
+| Phase 1C | Trust boundaries | **Awaiting Approval** | 003 (pairing), 006 | — | — | — | — |
+| Phases 1D, 2A, 2B, 2C, 2D, 2E, 3A | See [ROADMAP.md](ROADMAP.md) | Proposed | see roadmap | — | — | — | — |
 
-Only `phase-1/phase-1a/` exists. Each later subphase directory is created when that subphase is authorized.
+Only `phase-1/phase-1a/` and `phase-1/phase-1b/` exist. Each later subphase directory is created when that subphase is authorized.

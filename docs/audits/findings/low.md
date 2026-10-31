@@ -112,7 +112,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Affected files | `Firmware_Templates/src/module/servomodule.rs:157-169` (`set_min_pivot` / `set_max_pivot` clamp but emit the unclamped input); `Firmware_Templates/src/module/stepper.rs:311-322` (pivot limits emitted without validation). The LED case is covered by PIN-TPL-002 |
 | Current location (after Phase 0) | `Firmware_Templates/src/modules/actuators/servo.rs:158-166`; `Firmware_Templates/src/modules/actuators/stepper.rs:317-328` |
 | Confidence | Confirmed |
-| Status | Open |
+| Status | **Resolved** in Phase 1B (2026-10-31); Verified after the hardware check in phases/phase-1/phase-1b/RESULT.md (B-V6) |
 | Proposed phase | 1B (roadmap, pending approval) |
 
 **What is wrong.** Confirmation events echo the command payload instead of the state the module actually adopted.

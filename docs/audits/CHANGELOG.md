@@ -2,6 +2,17 @@
 
 Newest entries first. Each entry is tagged **[AUDIT]** (documentation only, no source change) or **[SOURCE]** (template source, build or config changed).
 
+## 2026-10-31 — Phase 1B, Firmware command safety **[SOURCE]**
+
+- Approved with decision: clamp out-of-range LED values. Branch `phase-1b/command-safety` (local, not pushed), cut from the 1A tip.
+- `bc181a67` overflow-safe `range_*` (`i128` + saturate) and `pulse_us_to_tick` (`i64`); equivalence-tested against the old formulas.
+- `ce51ed59` LED clamp to 0–100 with a Medium `SysLog`; `Brightness` reports the applied level; pure `led_mapping.rs`.
+- `c0f58fbe` `runtime/dispatch.rs` (handler errors → High `SysLog`, loop continues) and `runtime/tick_errors.rs` (rate-limited Medium `SysLog`); `run() -> !`.
+- `939e532b` servo and stepper limit events report stored values.
+- `9551123c` docs and contract notes C-13/C-16.
+- Verification B-V1…B-V5 pass: 46 host tests (debug and release), golden unchanged, firmware builds (+3 808 B text), mutation check caught all four reverted fixes. Hardware check B-V6 not run.
+- Register: PIN-TPL-001, -002, -025 **Resolved**. Totals 16 Open, 8 In Progress, 3 Resolved. PIN-TPL-001 removed from the Critical watch-list.
+
 ## 2026-10-31 — Phase 1A, Firmware host-test harness and CI **[SOURCE]**
 
 - Roadmap approved (scope and order) together with Phase 1A. Branch `phase-1a/host-test-harness` (local, not pushed), cut from the Phase 0 tip.

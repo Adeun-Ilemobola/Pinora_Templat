@@ -15,7 +15,7 @@ There are no Critical findings (see [critical.md](critical.md) for why). Two of 
 | Affected files | `Firmware_Templates/src/main.rs:272-295` (main loop), `:279` (`?` on handler), `:274` (tick errors discarded); `Firmware_Templates/src/core/modulecore.rs:92` (`handle_command` returns `anyhow::Result`) |
 | Current location (after Phase 0) | `Firmware_Templates/src/runtime/mod.rs:38-67` (tick `:45`, handler `?` `:50`); `Firmware_Templates/src/core/module.rs` (`handle_command` contract) |
 | Confidence | Confirmed (static: the loop exits). Probable: the device state after exit, which was not observed on hardware |
-| Status | Open |
+| Status | **Resolved** in Phase 1B (2026-10-31); Verified after the hardware check in phases/phase-1/phase-1b/RESULT.md (B-V6) |
 | Proposed phase | 1B (roadmap, pending approval) |
 
 **What is wrong.** The main loop calls `module.handle_command(&command.command)?`. When any module's handler returns `Err`, the `?` returns from `main()`. Errors from `module.tick()` go the opposite way: `let _ =` discards them with no log or event.
@@ -56,7 +56,7 @@ if let Ok(command) = command_receiver.try_recv() {
 | Affected files | `Firmware_Templates/src/module/ledmodule.rs:42-46`; `Firmware_Templates/src/utilities/math.rs:1-13` (`range_u32`); `protocol/src/module/ledmodule.rs` (`SetState { state: u32 }`) |
 | Current location (after Phase 0) | `Firmware_Templates/src/modules/actuators/led.rs:46-50`; `Firmware_Templates/src/utilities/math.rs:8-20` |
 | Confidence | Confirmed (probe executed against the real `math.rs` and protocol crate; see [validation baseline](../evidence/validation-baseline.md#dynamic-probes)) |
-| Status | Open |
+| Status | **Resolved** in Phase 1B (2026-10-31); Verified after the hardware check in phases/phase-1/phase-1b/RESULT.md (B-V6) |
 | Proposed phase | 1B (roadmap, pending approval) |
 
 **What is wrong.** `SetState { state }` accepts any `u32`. `set_state` computes `range_u32(state, 0, 100, 0, max_duty)` with no clamp, which is `(state - 0) * 8191 / 100`. It then reports `Brightness { level: state }`, echoing the unvalidated value.
