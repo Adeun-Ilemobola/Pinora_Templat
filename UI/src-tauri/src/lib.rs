@@ -4,13 +4,16 @@
 //! * `commands`: the IPC surface (`invoke` names are a contract, C-06).
 //! * `serial_transport`: USB serial / Bluetooth SPP COM ports.
 //! * `bluetooth_ports`: Windows discovery of outgoing SPP ports.
+//! * `line_classifier`: splits COM lines into protocol messages and console text.
 //! * `wifi_transport`: authenticated TCP listener for the Wi-Fi firmware transport.
 //!
-//! Events emitted to the frontend: `espState` (one raw line), `wifiConnection` and
+//! Events emitted to the frontend: `espState` (one validated protocol line),
+//! `espConsole` (any other COM line, added in Phase 1C), and `wifiConnection` and
 //! `bluetoothConnection` (`"Connected"` / `"Disconnected"`), contract C-07.
 
 mod bluetooth_ports;
 mod commands;
+mod line_classifier;
 mod serial_transport;
 mod wifi_transport;
 

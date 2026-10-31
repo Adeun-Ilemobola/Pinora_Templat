@@ -1,8 +1,8 @@
 //! COM-port transport (USB serial or a paired Bluetooth SPP virtual port).
 //!
-//! One port is open at a time. A reader thread owns a cloned handle and forwards
-//! every complete newline-terminated line to the frontend as an `espState` event,
-//! *without* validating it (PIN-TPL-006/007); the Wi-Fi transport validates instead.
+//! One port is open at a time. A reader thread owns a cloned handle. Each complete
+//! newline-terminated line is classified by [`crate::line_classifier`]: protocol
+//! messages go out as `espState`, everything else as `espConsole` (Phase 1C).
 //! The line buffer is unbounded (PIN-TPL-016).
 
 use serde::Serialize;
@@ -15,6 +15,7 @@ use std::sync::{
 };
 use std::thread::JoinHandle;
 
+use crate::line_classifier::classify;
 use std::io::Read;
 use std::time::Duration;
 
@@ -171,9 +172,10 @@ impl AppState {
 
                 while let Some(index) = line_buff.iter().position(|byte| *byte == b'\n') {
                     let line: Vec<u8> = line_buff.drain(..=index).collect();
-                    let line_str = String::from_utf8_lossy(&line);
-                    if let Err(e) = app.emit("espState", line_str.to_string()) {
-                        log::error!("Failed to emit espState event: {:?}", e);
+                    let classified = classify(&line);
+                    let event = classified.event_name();
+                    if let Err(e) = app.emit(event, classified.into_text()) {
+                        log::error!("Failed to emit {event} event: {:?}", e);
                     }
                 }
             }
