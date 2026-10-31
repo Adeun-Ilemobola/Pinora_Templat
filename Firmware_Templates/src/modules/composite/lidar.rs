@@ -1,15 +1,23 @@
 //! Experimental two-axis scanning rangefinder: two servos (pan/tilt) and a VL53L1X,
-//! owned as children. It scans a raster over the ROI and emits `PointMap` chunks of
-//! up to 100 points.
+//! owned as children. It scans a serpentine raster over the ROI and emits `PointMap`
+//! chunks of up to 100 points.
 //!
-//! Known defects (PIN-TPL-004, PIN-TPL-005): construction and `first_emit` sweep the
-//! servos. A scan ends only when the position *equals* the ROI limit, so a step that
-//! does not divide the span (or `step = 0`) never terminates while `point_map` keeps
-//! growing. Children are routable only through `ChangeMotorAngle` (PIN-TPL-017).
-//! Not instantiated in the current image.
+//! Safety (PIN-TPL-004/-005, Phase 1D):
+//! * Nothing moves during construction or registration. `first_emit` only reports the
+//!   ROI; the corner sweep is the explicit [`Lidar::run_self_test`].
+//! * The ROI must lie within the servo range and the step must be 1–180; invalid
+//!   values are rejected, and the dispatcher reports the error as a `SysLog`.
+//! * Scan positions come from the pure [`super::lidar_scan`] planner, so every scan
+//!   terminates, and the point buffer is flushed every 100 points.
+//!
+//! Children are routable only through `ChangeMotorAngle` (PIN-TPL-017). Not
+//! instantiated in the current image.
 
-use crate::core::hardware::{I2cDriver, RangefinderI2c, TimerState};
+use crate::core::hardware::{RangefinderI2c, TimerState};
 use crate::core::transport::emitter::{EmitterError, TransportEmitter};
+use crate::modules::composite::lidar_scan::{
+    chunk_count, validate_roi, validate_step, ScanAdvance, ScanPlan, POINTS_PER_CHUNK,
+};
 use pinora_protocol::module::lidar::{LidarEvent, RangPoint, ScanState};
 use pinora_protocol::module::servomodule::ServoCapability;
 
@@ -19,16 +27,13 @@ use crate::core::{
 };
 use crate::modules::actuators::servo::ServoModule;
 use crate::modules::sensors::rangefinder::Rangefinder;
-use embedded_hal_compat::ReverseCompat;
 use pinora_protocol::{
     command::ModuleCommand,
     global_definitions::ModuleType,
     module_event::{LogPriority, ModuleEvent, SysLogEvent},
-    registration::ProtocolMessage,
 };
 use pinora_protocol::{LidarCommandPayload, Point};
 use pwm_pca9685::Channel;
-const POINTS_PER_CHUNK: usize = 100;
 
 pub struct Lidar<'d> {
     core: ModuleCore,
@@ -37,15 +42,15 @@ pub struct Lidar<'d> {
     servo_y: ServoModule<'d>,
     rangefinder: Rangefinder<'d>,
 
+    /// ROI end corner (the scan finishes here).
     min_point: Point,
+    /// ROI start corner (the scan begins here).
     max_point: Point,
 
-    limit_point: Point,
     curr_point_bottom: Point,
     step: u32,
-    step_y: u32,
     curr_scan_mode: ScanState,
-    x_d: i32,
+    scan: Option<ScanPlan>,
 
     scan_time: std::time::Instant,
     step_timer: TimerState,
@@ -54,7 +59,6 @@ pub struct Lidar<'d> {
     current_chunk: u32,
     total_chunks: u32,
 }
-// const CHUNK_SIZE: usize = 128;
 
 impl<'d> Lidar<'d> {
     pub fn new(
@@ -107,10 +111,8 @@ impl<'d> Lidar<'d> {
             max_point: Point { x: -90, y: 90 },
             curr_point_bottom: Point { x: 0, y: 0 },
             step: 1,
-            step_y: 2,
             curr_scan_mode: ScanState::Idol,
-            x_d: 1,
-            limit_point: Point { x: -90, y: 90 },
+            scan: None,
             scan_time: std::time::Instant::now(),
             step_timer: TimerState::from_ms(30.0),
             rangefinder,
@@ -150,9 +152,6 @@ impl<'d> Lidar<'d> {
     }
 
     pub fn move_to_point(&mut self) {
-        // const X_DIRECTION: i32 = -1;
-        // const Y_DIRECTION: i32 = 1;
-
         let _ = self
             .servo_x
             .set_angle_silent(self.curr_point_bottom.x.clone());
@@ -173,7 +172,9 @@ impl<'d> Lidar<'d> {
         self.id().to_string()
     }
 
-    pub fn initialize(&mut self) {
+    /// Sweeps both servos to the ROI corners and back to centre. **Moves hardware.**
+    /// Never called automatically (it ran from `first_emit` before Phase 1D).
+    pub fn run_self_test(&mut self) {
         self.curr_point_bottom = self.max_point.clone();
         self.move_to_point();
         self.curr_point_bottom = self.min_point.clone();
@@ -182,10 +183,18 @@ impl<'d> Lidar<'d> {
         self.move_to_point();
         self.curr_point_bottom = Point { x: 0, y: 0 };
         self.move_to_point();
-        self.emit(ModuleEvent::Lidar(LidarEvent::Roi {
-            min: self.min_point.clone(),
-            max: self.max_point.clone(),
+    }
+
+    fn finish_scan(&mut self) {
+        self.flush_point_map();
+        self.scan = None;
+        self.curr_scan_mode = ScanState::Idol;
+
+        self.emit(ModuleEvent::Lidar(LidarEvent::ScanState {
+            state: self.curr_scan_mode.clone(),
+            scan_time: self.scan_time.elapsed().as_secs_f32(),
         }));
+        self.sync_all();
     }
 }
 
@@ -201,13 +210,16 @@ impl<'d> Module for Lidar<'d> {
     fn core(&self) -> &ModuleCore {
         &self.core
     }
+    /// Reports the configured ROI. Does not move the servos.
     fn first_emit(&mut self) -> Result<(), EmitterError> {
-        self.initialize();
+        self.emit(ModuleEvent::Lidar(LidarEvent::Roi {
+            min: self.min_point.clone(),
+            max: self.max_point.clone(),
+        }));
 
         Ok(())
     }
     fn tick(&mut self) -> Result<(), ModuleError> {
-        //self.rangefinder.tick()?;
         if self.curr_scan_mode != ScanState::Scanning {
             return Ok(());
         }
@@ -230,102 +242,43 @@ impl<'d> Module for Lidar<'d> {
             }
         };
 
-        //  let range_top = match self.rangefinder_top.get_range() {
-        //     Some(r) => r,
-        //     None => {
-        //         return Ok(());
-        //     }
-        // };
-
-        // if !self.step_timer.ready() {
-        //     return Ok(());
-        // }
-
-        // Record the position where the servo has already been resting.
-
-        // if self.curr_point_bottom.y > self.max_point.y {
-        //     self.point_map.push(RangPoint {
-        //         x: self.curr_point_bottom.x,
-        //         y: self.curr_point_bottom.y + self.step_y as i32,
-        //         distant: self.rangefinder_top.range_mm,
-        //     });
-        // }
-
+        // Record the position where the servos have been resting.
         self.point_map.push(RangPoint {
             x: self.curr_point_bottom.x,
             y: self.curr_point_bottom.y,
             distant: range_bottom,
         });
-
-        let row_finished = self.curr_point_bottom.x == self.limit_point.x;
-        let scan_finished = row_finished && self.curr_point_bottom.y == self.limit_point.y;
-
-        if scan_finished {
+        // Bounded buffer: flush every full chunk, not only at row ends.
+        if self.point_map.len() >= POINTS_PER_CHUNK {
             self.flush_point_map();
-            self.curr_scan_mode = ScanState::Idol;
+        }
 
-            self.emit(ModuleEvent::Lidar(LidarEvent::ScanState {
-                state: self.curr_scan_mode.clone(),
-                scan_time: self.scan_time.elapsed().as_secs_f32(),
-            }));
-            self.sync_all();
-
+        let Some(scan) = self.scan.as_mut() else {
+            self.finish_scan();
             return Ok(());
-        }
+        };
 
-        if row_finished {
-            self.emit(ModuleEvent::SysLog(SysLogEvent {
-                text: format!(
-                    "ROW FINISHED: pos=({}, {}), limit=({}, {}), direction={}",
-                    self.curr_point_bottom.x,
-                    self.curr_point_bottom.y,
-                    self.limit_point.x,
-                    self.limit_point.y,
-                    self.x_d
-                ),
-                raw_err: None,
-                priority: LogPriority::Low,
-            }));
-            if self.point_map.len() >= POINTS_PER_CHUNK {
-                self.flush_point_map();
+        let (next, text) = match scan.advance() {
+            ScanAdvance::Done => {
+                self.finish_scan();
+                return Ok(());
             }
+            ScanAdvance::NextRow(next) => {
+                let text = format!("NEXT ROW: pos=({}, {})", next.x, next.y);
+                (next, text)
+            }
+            ScanAdvance::NextColumn(next) => {
+                let text = format!("NEXT COLUMN: pos=({}, {})", next.x, next.y);
+                (next, text)
+            }
+        };
+        self.emit(ModuleEvent::SysLog(SysLogEvent {
+            text,
+            raw_err: None,
+            priority: LogPriority::Low,
+        }));
 
-            self.x_d *= -1;
-
-            self.limit_point.x = if self.limit_point.x == self.max_point.x {
-                self.min_point.x
-            } else {
-                self.max_point.x
-            };
-
-            self.curr_point_bottom.y -= self.step as i32;
-            // self.curr_point_bottom.y -= self.step_y as i32;
-            self.emit(ModuleEvent::SysLog(SysLogEvent {
-                text: format!(
-                    "NEXT ROW: pos=({}, {}), limit_x={}, direction={}",
-                    self.curr_point_bottom.x,
-                    self.curr_point_bottom.y,
-                    self.limit_point.x,
-                    self.x_d
-                ),
-                raw_err: None,
-                priority: LogPriority::Low,
-            }));
-        } else {
-            self.curr_point_bottom.x += self.step as i32 * self.x_d;
-            self.emit(ModuleEvent::SysLog(SysLogEvent {
-                text: format!(
-                    "NEXT COLUMN: pos=({}, {}), limit_x={}, direction={}",
-                    self.curr_point_bottom.x,
-                    self.curr_point_bottom.y,
-                    self.limit_point.x,
-                    self.x_d
-                ),
-                raw_err: None,
-                priority: LogPriority::Low,
-            }));
-        }
-
+        self.curr_point_bottom = next;
         self.move_to_point();
         self.step_timer.reset();
 
@@ -344,11 +297,9 @@ impl<'d> Module for Lidar<'d> {
                     }
                 }
                 LidarCommandPayload::Roi { min, max } => {
+                    validate_roi(min, max)?;
                     self.min_point = min.clone();
                     self.max_point = max.clone();
-                    let total_points = (max.x.abs() as u32 * 2) * (min.y.abs() as u32 * 2);
-
-                    self.total_chunks = total_points.div_ceil(POINTS_PER_CHUNK as u32);
 
                     self.emit(ModuleEvent::Lidar(LidarEvent::Roi {
                         min: self.min_point.clone(),
@@ -356,21 +307,19 @@ impl<'d> Module for Lidar<'d> {
                     }));
                 }
                 LidarCommandPayload::SetStep { step } => {
+                    validate_step(*step)?;
                     self.step = *step;
                 }
                 LidarCommandPayload::StartScan {} => {
+                    let plan = ScanPlan::new(&self.max_point, &self.min_point, self.step)?;
                     self.scan_time = std::time::Instant::now();
                     self.point_map.clear();
                     self.current_chunk = 1;
+                    self.total_chunks = chunk_count(plan.total_points());
 
-                    self.curr_point_bottom = self.max_point.clone();
-                    self.limit_point = self.min_point.clone();
+                    self.curr_point_bottom = plan.position();
+                    self.scan = Some(plan);
                     self.step_timer.reset();
-                    self.x_d = if self.limit_point.x > self.curr_point_bottom.x {
-                        1
-                    } else {
-                        -1
-                    };
                     self.move_to_point();
                     self.curr_scan_mode = ScanState::Scanning;
                     self.emit(ModuleEvent::Lidar(LidarEvent::ScanState {
@@ -380,6 +329,7 @@ impl<'d> Module for Lidar<'d> {
                 }
 
                 LidarCommandPayload::StopScan {} => {
+                    self.scan = None;
                     self.curr_scan_mode = ScanState::StopScan;
                     self.emit(ModuleEvent::Lidar(LidarEvent::ScanState {
                         state: self.curr_scan_mode.clone(),

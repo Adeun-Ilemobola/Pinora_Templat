@@ -29,6 +29,11 @@ pub mod modules {
         #[path = "../../../../../Firmware_Templates/src/modules/actuators/stepper_motion.rs"]
         pub mod stepper_motion;
     }
+
+    pub mod composite {
+        #[path = "../../../../../Firmware_Templates/src/modules/composite/lidar_scan.rs"]
+        pub mod lidar_scan;
+    }
 }
 
 pub mod runtime {
