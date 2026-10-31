@@ -66,6 +66,26 @@ check-firmware:
 
 
 # ============================================================
+# Test (host only; no hardware)
+# ============================================================
+
+# Run every host-side test suite.
+test: test-protocol test-firmware-host test-ui
+
+# Golden wire-format tests for the shared protocol.
+test-protocol:
+    cd protocol && cargo test
+
+# Hardware-free firmware code compiled for the host.
+test-firmware-host:
+    cd tests/firmware-host && cargo test --locked
+
+# Frontend characterization tests.
+test-ui:
+    cd UI && bun test
+
+
+# ============================================================
 # Firmware
 # ============================================================
 
