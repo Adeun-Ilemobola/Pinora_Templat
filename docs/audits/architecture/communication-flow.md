@@ -62,7 +62,7 @@ flowchart LR
   ST -->|Wi-Fi| WQ["outbound sync(128)"] --> WW["Wi-Fi worker: ≤1 frame per\n≤50 ms read timeout"]
   ST -->|Serial| P["println! to UART0\n(mixed with ESP-IDF logs)"]
   BW & WW & P --> D["Tauri reader"]
-  D -->|"COM: raw line\nWi-Fi: validated line"| F["emit espState(String)"]
+  D -->|"validated line (Wi-Fi; COM since 1C)"| F["emit espState(String)\nother COM lines: espConsole"]
   F --> FE["useModuleFront listener:\ntrim, must start with '{', JSON.parse"]
   FE --> H["HandleEvent: append to logs (unbounded),\nroute by first key"]
   H -->|Registration| RG["create store (Led/Button only)"]
