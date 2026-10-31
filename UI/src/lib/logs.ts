@@ -19,10 +19,33 @@ export type LogFilters = {
 export const logCategories: LogCategory[] = ["All logs", "Registration events", "System logs", "System telemetry", "Module events"];
 export const logPriorities: LogFilters["priority"][] = ["All priorities", "Low", "Medium", "High", "Critical"];
 
-export function describeLog(message: ProtocolMessage) {
-  const time = receivedAt.get(message);
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
-  if ("Registration" in message) {
+// Returned for shapes the helpers do not recognize. Tauri validates every line before
+// it reaches the frontend (Phase 1C), so this is defense in depth: before, such input
+// threw inside LogViewer's render and crashed the view (PIN-TPL-006).
+function unrecognized(time: number | undefined) {
+  return {
+    category: "Module events" as const,
+    variant: "Unrecognized",
+    source: "Unknown",
+    text: "Unrecognized message",
+    time,
+    priority: undefined
+  };
+}
+
+/** Summarizes a log entry for display. Never throws, whatever the input shape. */
+export function describeLog(message: ProtocolMessage) {
+  const time = isRecord(message) ? receivedAt.get(message) : undefined;
+
+  if (!isRecord(message)) {
+    return unrecognized(time);
+  }
+
+  if ("Registration" in message && isRecord(message.Registration)) {
     const registration = message.Registration;
 
     return {
@@ -35,7 +58,7 @@ export function describeLog(message: ProtocolMessage) {
     };
   }
 
-  if ("System" in message) {
+  if ("System" in message && isRecord(message.System)) {
     return {
       category: "System telemetry",
       variant: "System",
@@ -46,12 +69,13 @@ export function describeLog(message: ProtocolMessage) {
     };
   }
 
-  const {
-    id,
-    event
-  } = message.ModuleEvent;
+  const modulePackage = "ModuleEvent" in message ? message.ModuleEvent : undefined;
+  if (!isRecord(modulePackage) || !isRecord(modulePackage.event)) {
+    return unrecognized(time);
+  }
+  const { id, event } = modulePackage;
 
-  if ("SysLog" in event) {
+  if ("SysLog" in event && isRecord(event.SysLog)) {
     return {
       category: "System logs",
       variant: "SysLog",
@@ -62,7 +86,11 @@ export function describeLog(message: ProtocolMessage) {
     };
   }
 
-  const [kind, payload] = Object.entries(event)[0];
+  const first = Object.entries(event)[0];
+  if (!first) {
+    return unrecognized(time);
+  }
+  const [kind, payload] = first;
   const variant = typeof payload === "object" && payload !== null ? Object.keys(payload).join(", ") : String(payload);
 
   return {

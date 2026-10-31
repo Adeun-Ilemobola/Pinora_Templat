@@ -1,9 +1,9 @@
 // Characterization tests for the log helpers (audit Phase 0, PIN-TPL-008).
 //
 // These record CURRENT behavior so structural refactors can prove nothing changed.
-// Cases marked "current behavior, see PIN-TPL-006" document a known defect: the
-// helpers throw on JSON that is not a recognized ProtocolMessage. When PIN-TPL-006 is
-// fixed, those expectations change deliberately.
+// PIN-TPL-006 (fixed in Phase 1C): the helpers used to throw on JSON that is not a
+// recognized ProtocolMessage, which crashed the Logs view. They now return an
+// "Unrecognized message" entry instead.
 //
 // Run from UI/: `bun test`. Lives outside src/ so `tsc` (which has no bun:test types)
 // does not type-check it.
@@ -91,16 +91,30 @@ describe("describeLog", () => {
     expect(typeof describeLog(msg as any).time).toBe("number");
   });
 
-  // current behavior, see PIN-TPL-006
-  test("throws on unknown top-level object", () => {
-    expect(() => describeLog({ Foo: 1 } as any)).toThrow(TypeError);
-  });
-  test("throws on empty object", () => {
-    expect(() => describeLog({} as any)).toThrow(TypeError);
-  });
-  test("throws on ModuleEvent with empty event", () => {
-    expect(() => describeLog({ ModuleEvent: { id: "x", event: {} } } as any)).toThrow(TypeError);
-  });
+  // PIN-TPL-006: these inputs used to throw a TypeError during render.
+  const unrecognized = {
+    category: "Module events",
+    variant: "Unrecognized",
+    source: "Unknown",
+    text: "Unrecognized message",
+    time: undefined,
+    priority: undefined,
+  };
+  for (const [name, input] of [
+    ["unknown top-level object", { Foo: 1 }],
+    ["empty object", {}],
+    ["ModuleEvent with empty event", { ModuleEvent: { id: "x", event: {} } }],
+    ["ModuleEvent without event", { ModuleEvent: { id: "x" } }],
+    ["ModuleEvent that is null", { ModuleEvent: null }],
+    ["Registration that is null", { Registration: null }],
+    ["System that is a string", { System: "x" }],
+    ["array", [1, 2]],
+    ["null", null],
+  ] as const) {
+    test(`returns an unrecognized entry for ${name}`, () => {
+      expect(describeLog(input as any)).toEqual(unrecognized);
+    });
+  }
 });
 
 describe("matchesLog", () => {
@@ -131,9 +145,12 @@ describe("matchesLog", () => {
     expect(matchesLog(led as any, { ...all, search: "   " })).toBe(true);
   });
 
-  // current behavior, see PIN-TPL-006
-  test("throws on unrecognized JSON", () => {
-    expect(() => matchesLog({ Foo: 1 } as any, all)).toThrow(TypeError);
+  // PIN-TPL-006: used to throw.
+  test("handles unrecognized JSON without throwing", () => {
+    expect(matchesLog({ Foo: 1 } as any, all)).toBe(true);
+    expect(matchesLog({ Foo: 1 } as any, { ...all, category: "Module events" })).toBe(true);
+    expect(matchesLog({ Foo: 1 } as any, { ...all, category: "System logs" })).toBe(false);
+    expect(matchesLog({ Foo: 1 } as any, { ...all, search: "foo" })).toBe(true);
   });
 });
 

@@ -4,8 +4,10 @@
 // Tauri event listeners, the module registry (UUID -> per-module vanilla store),
 // the lookup-name map, the protocol log history and the latest system snapshot.
 //
-// Incoming lines are JSON.parse'd and routed by their top-level key without schema
-// validation (PIN-TPL-006/007). Only Led and Button registrations create stores.
+// Incoming espState lines have been validated as Rust ProtocolMessages by the Tauri
+// backend (all transports since Phase 1C), then are JSON.parse'd and routed by their
+// top-level key; there is no Zod validation here yet (PIN-TPL-007). Non-protocol
+// lines arrive separately on espConsole. Only Led and Button registrations create stores.
 // The log history is unbounded (PIN-TPL-011). IPC command and event names are
 // contracts with the Tauri backend (C-06, C-07).
 import {
@@ -263,6 +265,14 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
         console.error("Failed to handle Pinora message:", message, error);
       }
     });
+    // Non-protocol COM lines (firmware console output, malformed JSON) arrive here
+    // since Phase 1C instead of on espState.
+    const unlistenConsole = await listen<string>("espConsole", (event) => {
+      const line = event.payload.trim();
+      if (line) {
+        console.debug("ESP:", line);
+      }
+    });
     const unlistenWifi = await listen<string>("wifiConnection", (event) => {
       if (get().TransportMode === "Wi-Fi") {
         if (event.payload === "Connected") {
@@ -283,7 +293,15 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
         });
       }
     });
-    set({ UnlistenFnArr: [...get().UnlistenFnArr, unlisten, unlistenWifi, unlistenBluetooth] });
+    set({
+      UnlistenFnArr: [
+        ...get().UnlistenFnArr,
+        unlisten,
+        unlistenConsole,
+        unlistenWifi,
+        unlistenBluetooth,
+      ],
+    });
   },
   HandleEvent: (event: ProtocolMessage) => {
     recordLogReceipt(event);
