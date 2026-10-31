@@ -33,8 +33,8 @@ function LedControls({ led }: { led: StoreApi<LedModule> }) {
   const toggle = useStore(led, (state) => state.toggle);
   const setBrightness = useStore(led, (state) => state.setBrightness);
   const connected = useModuleFront((state) => state.PortStat === "Connected");
-  const [draft, setDraft] = useState(value);
-  useEffect(() => setDraft(value), [value]);
+  const [draft, setDraft] = useState(value ?? 0);
+  useEffect(() => setDraft(value ?? 0), [value]);
   return (
     <ModuleCard type="LED" id={ledId}>
       <div className="space-y-5">
@@ -43,12 +43,14 @@ function LedControls({ led }: { led: StoreApi<LedModule> }) {
           <div>
             <p className="text-xs text-muted-foreground">Reported brightness</p>
             <p className="mt-1 text-2xl font-semibold tabular-nums">
-              {value}
-              <span className="ml-1 text-sm text-muted-foreground">%</span>
+              {value ?? "—"}
+              {value !== null && (
+                <span className="ml-1 text-sm text-muted-foreground">%</span>
+              )}
             </p>
           </div>
-          <Badge variant={value > 0 ? "secondary" : "outline"}>
-            {value > 0 ? "On" : "Off"}
+          <Badge variant={value !== null && value > 0 ? "secondary" : "outline"}>
+            {value === null ? "Unknown" : value > 0 ? "On" : "Off"}
           </Badge>
         </div>
         {/* Commit once per gesture; device events remain the source of reported state. */}

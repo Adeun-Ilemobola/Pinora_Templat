@@ -5,7 +5,8 @@ import { LedEvent } from "./schema";
 type LedInstance = {
   id: string;
   kind: "Led";
-  state: number;
+  /** Reported brightness; `null` until the device reports it (Phase 2A, PIN-TPL-012). */
+  state: number | null;
   look_up_id: string;
   hasParent: boolean;
 };
@@ -25,7 +26,7 @@ export function createLed(
     hasParent,
     id,
     kind: "Led",
-    state: 0,
+    state: null,
     look_up_id,
     toggle: () => {
       const payload = {

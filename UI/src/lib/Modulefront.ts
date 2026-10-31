@@ -5,11 +5,15 @@
 // the lookup-name map, the protocol log history and the latest system snapshot.
 //
 // Incoming espState lines have been validated as Rust ProtocolMessages by the Tauri
-// backend (all transports since Phase 1C), then are JSON.parse'd and routed by their
-// top-level key; there is no Zod validation here yet (PIN-TPL-007). Non-protocol
-// lines arrive separately on espConsole. Only Led and Button registrations create stores.
-// The log history is unbounded (PIN-TPL-011). IPC command and event names are
-// contracts with the Tauri backend (C-06, C-07).
+// backend (all transports since Phase 1C); here they are validated again with the
+// Zod ProtocolMessageSchema (Phase 2A, PIN-TPL-007) and routed by their top-level
+// key. Non-protocol lines arrive separately on espConsole. Only Led and Button
+// registrations create stores. The log history is unbounded (PIN-TPL-011). IPC
+// command and event names are contracts with the Tauri backend (C-06, C-07).
+//
+// Rediscovery (Phase 2A, PIN-TPL-012): state is cleared before a transport starts,
+// and a Rediscover system command is sent once it is connected, so the device
+// re-sends its snapshot, registrations and current state on every transport.
 import {
   createButton,
   type ButtonModule,
@@ -33,12 +37,14 @@ import { ModuleType } from "./protocol/module-type";
 import {
   ProtocolMessage,
   ProtocolMessageKey,
+  ProtocolMessageSchema,
   ProtocolMessageValue,
 } from "./protocol/message";
 import { Registration } from "./protocol/registration";
 import { SystemInfo } from "./protocol/system";
 import { EventPackage } from "./protocol/event";
 import { recordLogReceipt } from "./logs";
+import { requestRediscovery } from "./IncomingCommand";
 
 export { registrationHasParent } from "./registry/registration";
 import { registrationHasParent } from "./registry/registration";
@@ -93,10 +99,29 @@ interface ModuleCoreArchive {
 
   ModuleRegistry: ModuleRegistry;
   LookUpId: Record<string, string>;
+  /** Lookup names registered by more than one module (PIN-TPL-017). */
+  DuplicateLookUpIds: string[];
   logs: ProtocolMessage[];
   systemInfo: SystemInfo | null;
   clearLogs: () => void;
 
+}
+
+/** Everything learned from the device; reset whenever the transport changes. */
+function emptyDeviceState() {
+  return {
+    systemInfo: null,
+    ModuleRegistry: {},
+    LookUpId: {},
+    DuplicateLookUpIds: [] as string[],
+  };
+}
+
+/** Sends Rediscover; a failure is logged, the boot-time registrations still apply. */
+function rediscover() {
+  requestRediscovery().catch((error) =>
+    console.warn("Rediscovery request failed:", error),
+  );
 }
 
 export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
@@ -112,7 +137,9 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
   Connect: async (portName: string, rate: number) => {
     // Implementation for connecting to a port
     await get().Disconnect();
-    set({ TransportMode: "Serial" });
+    // Cleared before the port opens: clearing after it (before Phase 2A) could drop
+    // registrations that arrived in between.
+    set({ TransportMode: "Serial", ...emptyDeviceState(), logs: [] });
     await get().InitializeListeners();
 
     await invoke("start_port", { name: portName, rate: rate })
@@ -122,11 +149,8 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
           PortError: null,
           PortStat: "Connected",
           PortState: { name: portName, rate: rate },
-          systemInfo: null,
-          logs: [],
-          ModuleRegistry: {},
-          LookUpId: {},
         });
+        rediscover();
       })
       .catch((error) => {
         console.error("Connection error:", error);
@@ -139,10 +163,8 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
       TransportMode: "Wi-Fi",
       PortStat: "Listening",
       PortError: null,
-      systemInfo: null,
+      ...emptyDeviceState(),
       logs: [],
-      ModuleRegistry: {},
-      LookUpId: {},
     });
     await get().InitializeListeners();
     try {
@@ -161,10 +183,8 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
       TransportMode: "Bluetooth",
       PortStat: "Disconnected",
       PortError: null,
-      systemInfo: null,
+      ...emptyDeviceState(),
       logs: [],
-      ModuleRegistry: {},
-      LookUpId: {},
     });
     await get().InitializeListeners();
     try {
@@ -173,6 +193,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
         PortStat: "Connected",
         PortState: { name: portName, rate: 115200 },
       });
+      rediscover();
     } catch (error) {
       get().UnlistenFnArr.forEach((unlisten) => unlisten());
       set({
@@ -202,7 +223,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
     }
   },
   Disconnect: async () => {
-    set({ systemInfo: null, ModuleRegistry: {}, LookUpId: {} });
+    set(emptyDeviceState());
     try {
       await invoke("stop_port");
       await invoke("stop_wifi_listener");
@@ -257,9 +278,16 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
         return;
       }
 
+      const parsed = ProtocolMessageSchema.safeParse(message);
+      if (!parsed.success) {
+        // Tauri accepted it, so the Zod schemas lag the Rust protocol crate.
+        console.error("Message does not match the protocol schema:", message, parsed.error.issues);
+        return;
+      }
+
       try {
         console.info("Raw message received:", message);
-        get().HandleEvent(message);
+        get().HandleEvent(parsed.data);
 
       } catch (error) {
         console.error("Failed to handle Pinora message:", message, error);
@@ -277,8 +305,9 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
       if (get().TransportMode === "Wi-Fi") {
         if (event.payload === "Connected") {
           set({ PortStat: "Connected" });
+          rediscover();
         } else {
-          set({ PortStat: "Listening", systemInfo: null, ModuleRegistry: {}, LookUpId: {} });
+          set({ PortStat: "Listening", ...emptyDeviceState() });
         }
       }
     });
@@ -287,9 +316,17 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
         set({
           PortStat: "Error",
           PortError: "Bluetooth SPP connection was lost. Disconnect and reconnect.",
-          systemInfo: null,
-          ModuleRegistry: {},
-          LookUpId: {},
+          ...emptyDeviceState(),
+        });
+      }
+    });
+    // Added in Phase 2A: before, a USB disconnect was not reported (PIN-TPL-012).
+    const unlistenSerial = await listen<string>("serialConnection", (event) => {
+      if (get().TransportMode === "Serial" && event.payload === "Disconnected") {
+        set({
+          PortStat: "Error",
+          PortError: "USB serial connection was lost. Disconnect and reconnect.",
+          ...emptyDeviceState(),
         });
       }
     });
@@ -300,6 +337,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
         unlistenConsole,
         unlistenWifi,
         unlistenBluetooth,
+        unlistenSerial,
       ],
     });
   },
@@ -336,6 +374,20 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
       };
       const factory = factories[event.module_type as keyof typeof factories];
       if (!factory) return;
+      const existing = get().ModuleRegistry[event.id];
+      if (existing && existing.getState().kind === event.module_type) {
+        // Rediscovery re-sends registrations; keep the store (and the mounted view).
+        return;
+      }
+      const owner = get().LookUpId[event.lool_up_id];
+      if (owner && owner !== event.id) {
+        console.warn("Duplicate module lookup name:", event.lool_up_id, owner, event.id);
+        set((state) => ({
+          DuplicateLookUpIds: state.DuplicateLookUpIds.includes(event.lool_up_id)
+            ? state.DuplicateLookUpIds
+            : [...state.DuplicateLookUpIds, event.lool_up_id],
+        }));
+      }
       const moduleStore = factory(
         registrationHasParent(event),
         event.id,
@@ -384,6 +436,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
   },
   ModuleRegistry: {},
   LookUpId: {},
+  DuplicateLookUpIds: [],
   logs: [],
   systemInfo: null,
   clearLogs: () => set({ logs: [] }),
