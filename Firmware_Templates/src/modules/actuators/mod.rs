@@ -1,5 +1,5 @@
 //! Modules that drive outputs. Servo and stepper are not instantiated in the current
-//! image and move hardware during construction (PIN-TPL-004).
+//! image; since Phase 1D neither moves during construction (PIN-TPL-004).
 
 pub mod led;
 pub mod led_mapping;

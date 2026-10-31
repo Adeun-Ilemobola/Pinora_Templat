@@ -1,8 +1,9 @@
 //! Hobby servo on a PCA9685 channel. Angles are pivots around `offset`, clamped to
 //! `[min_pivot, max_pivot]` and then to `[min_angle, max_angle]`.
 //!
-//! Hazard (PIN-TPL-004): `ServoModule::new` moves the servo through a test sweep
-//! during construction, and `set_offset` panics if the I²C write fails.
+//! Safety (PIN-TPL-004, Phase 1D): construction writes no PWM, so the servo stays
+//! unpowered until its first command. The old construction-time sweep is the explicit
+//! [`ServoModule::run_self_test`]. PWM write errors are returned, not panicked on.
 //! Not instantiated in the current image.
 
 use crate::core::hardware::SharedPwm;
@@ -39,27 +40,35 @@ impl<'d> ServoModule<'d> {
         cluster_id: Option<String>,
         sender: TransportEmitter,
     ) -> anyhow::Result<ServoModule<'d>> {
-        let mut s = ServoModule {
+        // No PWM is written here: the servo does not move until it is commanded.
+        let offset = config.offset.clamp(config.min_angle, config.max_angle);
+        let s = ServoModule {
             core: ModuleCore::new(ModuleType::Servo, &lookup_name, cluster_id, sender),
             pwm,
             config: config.clone(),
-            offset: config.offset,
-            angle: config.min_pivot,
+            offset,
+            angle: offset,
             max_pivot: config.max_pivot,
             min_pivot: config.min_pivot,
             channel: channel.clone(),
             pivot: 0,
         };
-        s.set_offset(s.offset)?;
-        s.set_angle(0)?;
+
+        Ok(s)
+    }
+
+    /// Drives the servo to its offset and through a short sweep (pivots 35°, 10°,
+    /// -10°, -35°), then back to centre. **Moves hardware.** Never called
+    /// automatically (it ran inside `new` before Phase 1D).
+    pub fn run_self_test(&mut self) -> anyhow::Result<()> {
+        self.set_offset(self.offset)?;
+        self.set_angle(0)?;
 
         let self_test_angles: [i32; 4] = [35, 10, -10, -35];
         for f in self_test_angles {
-            s.set_angle(f)?;
+            self.set_angle(f)?;
         }
-        s.set_angle(0)?;
-
-        Ok(s)
+        self.set_angle(0)
     }
     pub fn set_offset(&mut self, a: i32) -> anyhow::Result<()> {
         self.offset = a.clamp(self.config.min_angle, self.config.max_angle);
@@ -73,7 +82,12 @@ impl<'d> ServoModule<'d> {
         self.pwm
             .borrow_mut()
             .set_channel_on_off(self.channel, 0, pulse_us_to_tick(pulse))
-            .unwrap();
+            .map_err(|error| {
+                anyhow::anyhow!(
+                    "Servo {:?} PWM write failed: {error:?}",
+                    self.core.lookup_name.clone()
+                )
+            })?;
 
         self.emit(ModuleEvent::Servo(ServoEvent::GetOffset {
             angle: self.offset.clone(),
