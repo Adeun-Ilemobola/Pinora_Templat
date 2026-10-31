@@ -1,3 +1,20 @@
+//! Bluetooth Classic SPP transport (Bluedroid). This is the transport selected by the
+//! current image.
+//!
+//! ESP-IDF callbacks (GAP, SPP) only copy data and push a `Work` item onto a bounded
+//! queue (128). A dedicated worker thread owns all state: the single connection
+//! handle, the partial-line buffer, the outbound frame queue and the replay cache.
+//! The worker enforces:
+//! * one connection at a time (later `ServerOpen`s are disconnected);
+//! * inbound lines capped at `MAX_MESSAGE_BYTES`; a longer line disconnects;
+//! * one SPP write in flight; the next chunk (≤ `SPP_WRITE_CHUNK_BYTES`) waits for
+//!   `WriteDone` and for congestion to clear;
+//! * a callback-queue overflow drops the link to resynchronize framing;
+//! * on connect, the cached system snapshot and registrations are replayed.
+//!
+//! Security (PIN-TPL-003): the device stays discoverable, uses SSP Just Works and
+//! auto-confirms pairing. There is no application-level authorization.
+
 use std::{
     collections::VecDeque,
     sync::{
@@ -54,6 +71,7 @@ pub struct Bluetooth {
 impl Bluetooth {
     pub fn new(mut modem: Modem<'static>, nvs: EspDefaultNvsPartition) -> anyhow::Result<Self> {
         // Release BLE-only memory; keep NVS-backed state for Classic pairing.
+        // SAFETY: the reborrowed modem is used only for this call, before BtDriver takes ownership.
         reduce_bt_memory(unsafe { modem.reborrow() })?;
         let driver = Arc::new(BtDriver::<BtClassic>::new(modem, Some(nvs))?);
         let gap = Arc::new(EspGap::new(driver.clone())?);
@@ -86,6 +104,7 @@ impl Bluetooth {
             GapEvent::PairingUserConfirmationRequest { bd_addr, .. } => {
                 // The development board has no input or display: SSP Just Works.
                 if let Err(error) = esp!(unsafe {
+                    // SAFETY: `bd_addr` is a valid 6-byte address from the event; ESP-IDF only reads it.
                     esp_bt_gap_ssp_confirm_reply(&bd_addr as *const _ as *mut _, true)
                 }) {
                     log::warn!("Bluetooth SSP confirmation failed: {error}");
@@ -119,6 +138,7 @@ impl Bluetooth {
                         callback_overflow.store(true, Ordering::Relaxed);
                         None
                     } else {
+                        // SAFETY: `data` is non-null (checked above) and valid for `length` bytes for the duration of this callback; it is copied before returning.
                         let bytes = unsafe { std::slice::from_raw_parts(data, length as usize) };
                         Some(Work::Data(handle, bytes.to_vec()))
                     }
@@ -141,6 +161,7 @@ impl Bluetooth {
 
         let iocap = ESP_BT_IO_CAP_NONE as u8;
         esp!(unsafe {
+            // SAFETY: `iocap` is a live u8 and the length passed is 1; ESP-IDF only reads it.
             esp_bt_gap_set_security_param(
                 esp_bt_sp_param_t_ESP_BT_SP_IOCAP_MODE,
                 &iocap as *const _ as *mut _,

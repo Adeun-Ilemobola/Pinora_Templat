@@ -1,3 +1,13 @@
+// useModuleFront: the desktop's central store.
+//
+// It owns the transport connection lifecycle (Serial, Bluetooth SPP, Wi-Fi), the
+// Tauri event listeners, the module registry (UUID -> per-module vanilla store),
+// the lookup-name map, the protocol log history and the latest system snapshot.
+//
+// Incoming lines are JSON.parse'd and routed by their top-level key without schema
+// validation (PIN-TPL-006/007). Only Led and Button registrations create stores.
+// The log history is unbounded (PIN-TPL-011). IPC command and event names are
+// contracts with the Tauri backend (C-06, C-07).
 import {
   createButton,
   type ButtonModule,

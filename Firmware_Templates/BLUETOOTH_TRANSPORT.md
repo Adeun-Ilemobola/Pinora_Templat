@@ -24,7 +24,7 @@ The virtual COM port's baud setting is ignored by Windows SPP. Pinora opens it a
 
 ## Message flow and limits
 
-SPP callback data is copied into a bounded worker queue. The worker collects partial reads until newline, accepts multiple JSON lines in one callback, rejects commands beyond 8 KiB, deserializes the existing Rust `IncomingCommand`, and sends it to the same main-loop UUID/module command handler used by Serial and Wi-Fi. Module output follows the existing `TransportEmiter` path and serializes the same `ProtocolMessage` envelopes. SPP writes are chunked and wait for completion and congestion clearance. On queue overflow, the firmware disconnects to resynchronize framing.
+SPP callback data is copied into a bounded worker queue. The worker collects partial reads until newline, accepts multiple JSON lines in one callback, rejects commands beyond 8 KiB, deserializes the existing Rust `IncomingCommand`, and sends it to the same main-loop UUID/module command handler used by Serial and Wi-Fi. Module output follows the existing `TransportEmitter` path and serializes the same `ProtocolMessage` envelopes. SPP writes are chunked and wait for completion and congestion clearance. On queue overflow, the firmware disconnects to resynchronize framing.
 
 The worker caches the latest system message and registrations for replay after reconnection. Runtime module events and LED brightness state are not replayed; a fresh command/event is needed to observe current brightness. Callback queues, outgoing frames, and incoming commands are bounded, but the desktop COM line buffer and frontend log history are not. No application-level acknowledgement, sequencing, automatic transport failover, or simultaneous multi-transport routing exists.
 

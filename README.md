@@ -98,13 +98,14 @@ All may change substantially before a stable release. See the [evidence-based re
 |---|---|
 | [UI/src](UI/src) | React entry point, pages, components, Zustand stores, handwritten protocol schemas |
 | [UI/src-tauri](UI/src-tauri) | Native serial bridge, Tauri metadata, permissions and packaging |
-| [Firmware_Templates/src](Firmware_Templates/src) | ESP32 boot wiring, core helpers, hardware modules and utilities |
+| [Firmware_Templates/src](Firmware_Templates/src) | ESP32 firmware: `main.rs` (startup order), `board/` (wiring, pin map), `runtime/` (main loop), `core/` (module contract, hardware helpers, transports), `modules/{actuators,sensors,composite}`, `utilities/` |
 | [protocol/src](protocol/src) | Rust commands, events, registration, identity and payload types |
 | [pinora.toml](pinora.toml) | Product/template metadata and directory names; not a runtime hardware loader |
 | [justfile](justfile) | Convenience development, build, check, flash and clean recipes |
 | [.espConfig/esp_config.json](.espConfig/esp_config.json) | Legacy template metadata with relative paths and stale commands; not a current setup guide |
 | [Firmware_Templates/pre-script.rhai](Firmware_Templates/pre-script.rhai) | Template-variable script; no complete generator invocation is wired here |
 | [docs/architecture-audit.md](docs/architecture-audit.md) | Architecture debt, version inventory and validation notes |
+| [docs/audits](docs/audits/README.md) | Current audit and modernization record: issue register (`PIN-TPL-NNN`), frozen compatibility contracts, phase plans and results |
 
 `node_modules`, `dist`, `target`, and `.embuild` are generated dependencies/output, not architecture components. Firmware and Tauri Cargo lockfiles and the Bun lockfile are tracked; the standalone protocol lockfile is ignored.
 
@@ -120,15 +121,15 @@ All may change substantially before a stable release. See the [evidence-based re
 
 [UI/src/App.tsx](UI/src/App.tsx) uses React Router hash routes for `/` and `/lidar`, with [AppLayout](UI/src/components/AppLayout.tsx) providing a sidebar and theme controls. Vite serves port 1420; `@` resolves to `UI/src`. React 19, TypeScript, Zustand 5, Zod 4, Tailwind 4, and reusable Base UI/shadcn-style components are declared in [package.json](UI/package.json).
 
-[useModuleFront](UI/src/lib/Modulefront.TS) owns connection status and mode, listener cleanup functions, a UUID-to-store registry, a lookup-name-to-UUID map, protocol logs, and the latest system snapshot. Registration creates vanilla Zustand stores for LED and Button; other kinds are ignored. Duplicate IDs replace stores and duplicate lookup names overwrite the lookup entry. Parent IDs become a `hasParent` flag, not a routable UI hierarchy.
+[useModuleFront](UI/src/lib/Modulefront.ts) owns connection status and mode, listener cleanup functions, a UUID-to-store registry, a lookup-name-to-UUID map, protocol logs, and the latest system snapshot. Registration creates vanilla Zustand stores for LED and Button; other kinds are ignored. Duplicate IDs replace stores and duplicate lookup names overwrite the lookup entry. Parent IDs become a `hasParent` flag, not a routable UI hierarchy.
 
-[Module implementations](UI/src/lib/Modules) colocate schemas, state/actions, and React views. Firmware events drive reported LED values; sliders may hold local drafts. Button stores count `Ckick` events. Dashboard discovers LED and Button stores while connected. [LogViewer](UI/src/components/LogViewer.tsx) virtualizes rendering, while the underlying log array remains unbounded. SysLog messages can be displayed there even when module-store dispatch rejects their source.
+[Module implementations](UI/src/lib/Modules) live in one directory per family, split into `schema.ts`, `store.ts` and `view.tsx`, re-exported by `index.ts`. Firmware events drive reported LED values; sliders may hold local drafts. Button stores count `Ckick` events. Dashboard discovers LED and Button stores while connected. [LogViewer](UI/src/components/LogViewer.tsx) virtualizes rendering, while the underlying log array remains unbounded. SysLog messages can be displayed there even when module-store dispatch rejects their source.
 
 The LiDAR route inserts `fake-lidar` into the real global registry. Its control actions are no-ops and its event handler only logs; the canvas is a coordinate/pivot playground, not a live scan renderer. Browser-only Vite preview does not provide native serial IPC; console forwarding also calls the Tauri logging plugin.
 
 ## Firmware architecture
 
-[main.rs](Firmware_Templates/src/main.rs) initializes ESP-IDF patches/logging and UART0, selects `TransportType::Bluetooth` for the current image, creates the SPP server and emitter, sends system information, constructs shared hardware, creates modules, registers them and starts transport command ingress. Changing the source selection to Wi-Fi or Serial builds those existing paths; no runtime switching or automatic failover exists. Hardware wiring is authored directly here.
+[main.rs](Firmware_Templates/src/main.rs) initializes ESP-IDF patches/logging and UART0, selects `TransportType::Bluetooth` for the current image, creates the SPP server and emitter, sends system information, constructs shared hardware, creates modules, registers them and starts transport command ingress. Changing the source selection to Wi-Fi or Serial builds those existing paths; no runtime switching or automatic failover exists. Hardware wiring for the active image lives in [board/mod.rs](Firmware_Templates/src/board/mod.rs) (with a pin map); commented wiring for inactive families is in [board/disabled_wiring.rs](Firmware_Templates/src/board/disabled_wiring.rs). The main loop is in [runtime/mod.rs](Firmware_Templates/src/runtime/mod.rs).
 
 Current startup wiring:
 
@@ -138,11 +139,11 @@ Current startup wiring:
 | `servo` | Constructor and insertion are commented out; no active servo registration or command route |
 | Shared I2C | I2C0, SDA GPIO21, SCL GPIO22, 100 kHz |
 
-[HardwareContext](Firmware_Templates/src/core/hardware.rs) currently creates the LED timer and retains the I2C bus. The PCA9685 initialization call is commented out, as is servo startup. Servo construction still contains test motion if that path is re-enabled.
+[HardwareContext](Firmware_Templates/src/core/hardware/context.rs) currently creates the LED timer and retains the I2C bus. The PCA9685 initialization call is commented out, as is servo startup. Servo construction still contains test motion if that path is re-enabled.
 
 The main thread owns `HashMap<String, Box<dyn Module>>` and peripheral lifetimes. I2C/PWM sharing uses `Rc<RefCell<...>>` and `RcDevice` on that thread. Each iteration ticks all modules, processes at most one command, and yields 1 ms after roughly 650 ms between yields. This is cooperative polling, not a fixed-rate scheduler. Tick errors are discarded; handler errors propagate out of `main`.
 
-[TransportEmiter](Firmware_Templates/src/core/transport/transport_emiter.rs) has a 128-message `sync_channel` and a transport sender worker. Registration/system messages block until enqueue succeeds; runtime events/logs use `try_send` and can be dropped. Wi-Fi and Bluetooth each add bounded work queues and cache system/registration messages for reconnect replay. Reliable enqueue is not acknowledgement, persistence, or guaranteed delivery. System heap/flash/partition fields are formatted strings captured once at startup; `maximum_app_slot` is the running partition size, not a scan of all slots.
+[TransportEmitter](Firmware_Templates/src/core/transport/emitter.rs) has a 128-message `sync_channel` and a transport sender worker. Registration/system messages block until enqueue succeeds; runtime events/logs use `try_send` and can be dropped. Wi-Fi and Bluetooth each add bounded work queues and cache system/registration messages for reconnect replay. Reliable enqueue is not acknowledgement, persistence, or guaranteed delivery. System heap/flash/partition fields are formatted strings captured once at startup; `maximum_app_slot` is the running partition size, not a scan of all slots.
 
 Important dependencies include ESP-IDF service/HAL/sys, Serde, UUID, embedded-hal bus sharing, PCA9685, VL53L1X ULD and MFRC522. A dependency alone does not imply active hardware support. See [module coverage](#module-system).
 
@@ -171,11 +172,11 @@ Current LED examples (each transported as one JSON line):
 
 `lool_up_id`, `manuel_id`, `RangPoint`, `distant`, and `Idol` are existing spellings, not documentation typos to silently normalize. Runtime UUIDs are regenerated at boot; lookup names are caller-provided labels. No wire-version negotiation or compatibility handshake is implemented. Alpha protocol compatibility is not guaranteed. Aligning the protocol crate's package version does not add a schema version or change message layouts.
 
-The desktop duplicates protocol definitions manually in [UI/src/lib/protocol](UI/src/lib/protocol) and module files. Receive handling uses `JSON.parse` and casts rather than Zod `.parse`. Aggregate TS schemas cover active LED/Button plus SysLog, but omit other Rust families. Older Servo/LiDAR module files remain outside current registration routing; LiDAR start/stop/test are modeled as strings while Rust uses empty struct variants. Tauri's Wi-Fi path validates inbound messages with Rust protocol types, while serial remains raw. This is documented debt, not a stable extension contract.
+The desktop duplicates protocol definitions manually in [UI/src/lib/protocol](UI/src/lib/protocol) and module files. Receive handling uses `JSON.parse` and casts rather than Zod `.parse`. Aggregate TS schemas cover active LED/Button plus SysLog, but omit other Rust families. Older Servo/LiDAR module files remain outside current registration routing; LiDAR start/stop/test are modeled as empty objects, matching the Rust empty struct variants. Tauri's Wi-Fi path validates inbound messages with Rust protocol types, while serial remains raw. This is documented debt, not a stable extension contract.
 
 ## Module system
 
-[ModuleCore and Module](Firmware_Templates/src/core/modulecore.rs) provide UUID identity, module kind, manual lookup name, optional parent identity, registration, event/log emission, `tick`, and `handle_command`. The main registry routes only top-level IDs. LiDAR owns two servo children and a rangefinder and registers them, but registration does not insert those children into the main dispatch map. LiDAR-specific commands can address its motors through the parent handler.
+[ModuleCore and Module](Firmware_Templates/src/core/module.rs) provide UUID identity, module kind, manual lookup name, optional parent identity, registration, event/log emission, `tick`, and `handle_command`. The main registry routes only top-level IDs. LiDAR owns two servo children and a rangefinder and registers them, but registration does not insert those children into the main dispatch map. LiDAR-specific commands can address its motors through the parent handler.
 
 | Family | Firmware status | Current desktop coverage |
 |---|---|---|
@@ -238,7 +239,7 @@ Host protocol build check, from `protocol`:
 cargo +stable check
 ```
 
-The standalone protocol lockfile is ignored, so a fresh checkout resolves it locally on the first check. Do not regenerate the firmware lockfile to address that. This repository no longer carries first-party automated test scripts.
+The standalone protocol lockfile is ignored, so a fresh checkout resolves it locally on the first check. Do not regenerate the firmware lockfile to address that. Characterization tests (behavior-recording, not correctness tests) exist for the wire format (`cd protocol; cargo +stable test`) and the desktop log helpers (`cd UI; bun test`); there is no CI workflow.
 
 Firmware, from `Firmware_Templates`, with the existing ESP 1.93 environment loaded:
 
@@ -276,7 +277,7 @@ No runtime consumer of `pinora.toml` or `.espConfig/esp_config.json` was found i
 
 ## Current limitations
 
-The [architecture review](docs/architecture-audit.md#architecture-quality-review) details partial reconnect replay, incomplete frontend runtime validation, startup event timing, serial error reporting, bounded transport queues and unbounded frontend logs, inconsistent error propagation, mixed payload tags, and partial LiDAR behavior. There is no first-party automated test suite or current CI workflow in this tree. The maintainer's Bluetooth report does not certify all commands, modules, or reconnection paths.
+The [architecture review](docs/architecture-audit.md#architecture-quality-review) details partial reconnect replay, incomplete frontend runtime validation, startup event timing, serial error reporting, bounded transport queues and unbounded frontend logs, inconsistent error propagation, mixed payload tags, and partial LiDAR behavior. Characterization tests (behavior-recording, not correctness tests) exist for the wire format (`cd protocol; cargo +stable test`) and the desktop log helpers (`cd UI; bun test`); there is no CI workflow. The maintainer's Bluetooth report does not certify all commands, modules, or reconnection paths.
 
 ## Roadmap / near-term direction
 

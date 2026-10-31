@@ -1,3 +1,10 @@
+//! Linear range-mapping and clamping helpers.
+//!
+//! `range_u32` and `range_i32` compute `(value - in_min) * (out_max - out_min)` in the
+//! input type, so they can overflow (panic in debug builds, wrap in release) for
+//! inputs outside the input range or for large spans (PIN-TPL-002). `range_i16`
+//! widens to `i32` first.
+
 pub fn range_u32(
     value: u32,
     input_min: u32,

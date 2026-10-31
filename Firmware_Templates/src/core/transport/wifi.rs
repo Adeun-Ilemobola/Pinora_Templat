@@ -1,3 +1,13 @@
+//! Wi-Fi transport. The ESP32 joins the configured network and connects as a TCP
+//! client to the desktop listener, authenticating with the shared development token
+//! before exchanging newline-delimited JSON (contract C-03).
+//!
+//! Known limits (PIN-TPL-010, PIN-TPL-013): `Wifi::new` blocks boot until the
+//! station is up, and startup fails if it cannot connect. There is no Wi-Fi
+//! reassociation, only TCP reconnects. The worker sends at most one frame per read
+//! timeout (≤ 50 ms), about 20 messages/s while the desktop is idle. The token and
+//! credentials are compiled in and sent without encryption.
+
 use std::{
     io::{self, Read, Write},
     net::{SocketAddr, TcpStream},

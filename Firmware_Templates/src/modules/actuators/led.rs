@@ -1,3 +1,10 @@
+//! PWM LED on one LEDC channel. `SetState { state }` maps 0–100 % onto the 13-bit
+//! duty range; `Toggle` switches between 0 and 100.
+//!
+//! Known defect (PIN-TPL-002): `state` is not range-checked. Values above 100 saturate
+//! the duty, values above 524 352 overflow (panic in debug builds, wrapped duty in
+//! release builds), and the reported `Brightness` echoes the unchecked input.
+
 use crate::core::hardware::{ledc, LedTimer, OutputPin};
 use crate::core::module::{Module, ModuleCore, ModuleError};
 use crate::core::transport::emitter::{EmitterError, TransportEmitter};

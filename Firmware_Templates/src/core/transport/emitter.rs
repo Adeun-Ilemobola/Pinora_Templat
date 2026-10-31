@@ -1,3 +1,13 @@
+//! The queue every module emits into (capacity 128), drained by the sender thread in
+//! `manager`.
+//!
+//! * `emit_reliable` (registration, system snapshot) blocks until there is room, so
+//!   discovery messages are never dropped here. Do not call it from `tick()`.
+//! * `try_emit` (runtime events, logs) drops the message with a warning when the
+//!   queue is full, so module ticks never block on telemetry.
+//!
+//! Enqueueing is not delivery: there is no acknowledgement or retry.
+
 use std::{
     fmt,
     sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError},

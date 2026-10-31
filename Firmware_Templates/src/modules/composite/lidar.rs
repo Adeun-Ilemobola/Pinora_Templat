@@ -1,3 +1,13 @@
+//! Experimental two-axis scanning rangefinder: two servos (pan/tilt) and a VL53L1X,
+//! owned as children. It scans a raster over the ROI and emits `PointMap` chunks of
+//! up to 100 points.
+//!
+//! Known defects (PIN-TPL-004, PIN-TPL-005): construction and `first_emit` sweep the
+//! servos. A scan ends only when the position *equals* the ROI limit, so a step that
+//! does not divide the span (or `step = 0`) never terminates while `point_map` keeps
+//! growing. Children are routable only through `ChangeMotorAngle` (PIN-TPL-017).
+//! Not instantiated in the current image.
+
 use crate::core::hardware::{I2cDriver, RangefinderI2c, TimerState};
 use crate::core::transport::emitter::{EmitterError, TransportEmitter};
 use pinora_protocol::module::lidar::{LidarEvent, RangPoint, ScanState};

@@ -1,3 +1,10 @@
+//! Hobby servo on a PCA9685 channel. Angles are pivots around `offset`, clamped to
+//! `[min_pivot, max_pivot]` and then to `[min_angle, max_angle]`.
+//!
+//! Hazard (PIN-TPL-004): `ServoModule::new` moves the servo through a test sweep
+//! during construction, and `set_offset` panics if the I²C write fails.
+//! Not instantiated in the current image.
+
 use crate::core::hardware::SharedPwm;
 use crate::core::module::{Module, ModuleCore, ModuleError};
 use crate::core::transport::emitter::{EmitterError, TransportEmitter};

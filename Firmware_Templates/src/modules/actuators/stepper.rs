@@ -1,3 +1,11 @@
+//! Unipolar stepper (28BYJ-48 style, 4096 half-steps per revolution), driven directly
+//! on four GPIOs or through a 74HC595 shift register.
+//!
+//! Hazards (PIN-TPL-004): the motor starts in `Homing` and sweeps ±90° three times as
+//! soon as it is ticked, with no limit switch. `MoveToAngle` and the pivot limits are
+//! not bounded. Coils stay energized when idle. GPIO errors in shift-register mode
+//! panic. Not instantiated in the current image.
+
 use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
