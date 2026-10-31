@@ -3,5 +3,4 @@
 
 pub mod hardware;
 pub mod module;
-//pub  mod emitter;
 pub mod transport;
