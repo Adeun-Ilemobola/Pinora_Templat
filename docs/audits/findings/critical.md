@@ -17,4 +17,6 @@ These findings must be re-rated **Critical** when the named condition becomes tr
 | [PIN-TPL-001](high.md) | An actuator is driven by an external controller that holds its last output (e.g. PCA9685) | Command processing stops while the actuator keeps its last output; no stop command can be delivered |
 | [PIN-TPL-005](high.md) | LiDAR is instantiated | A non-terminating scan ends in heap exhaustion, a reboot, and then the boot-time servo sweep |
 
+**Reassessment 2026-10-31:** no change. All four entries are still latent (the code is not instantiated), and the roadmap adds a safety gate: none of these modules may be enabled until Phases 1B, 1C and 1D are Completed — Verified.
+
 Any future Critical finding is recorded here with its full template, and its history is kept after resolution.

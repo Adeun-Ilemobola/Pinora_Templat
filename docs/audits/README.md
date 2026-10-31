@@ -8,19 +8,19 @@
 | **Scope** | `C:\Dev\Pinora\Pinora_Templat` only. `2dLidar`, `pinora_cli`, `pinora_studio` and `UI` are **not audited** |
 | **Audit date** | 2026-10-31 |
 | **Baseline** | `main` @ `5b5c8ed4`, clean working tree |
-| **Current operation** | Phase 0, Structural Reorganization |
-| **Current stage** | Phase 0 **Completed — Verified** (hardware-independent V1–V10; hardware smoke test not done). See [RESULT](phases/phase-0/RESULT.md) |
-| **Approval status** | ⏸ **Stopped for review.** Next: the post-Phase-0 reassessment and roadmap, which needs its own approval |
-| **Source changes so far** | Phase 0 structural changes on local branch `phase-0/structural-reorganization` (not pushed; `main` unchanged at `5b5c8ed4`) |
+| **Current operation** | Post-Phase-0 reassessment and remediation roadmap |
+| **Current stage** | Reassessment **complete**; [roadmap](phases/ROADMAP.md) written (10 subphases). Phase 0: Completed — Verified ([result](phases/phase-0/RESULT.md)) |
+| **Approval status** | ⏸ **Awaiting approval:** the roadmap and **Phase 1A — Firmware host-test harness and CI** |
+| **Source changes so far** | Phase 0 structural changes only, on local branch `phase-0/structural-reorganization` (not pushed; `main` unchanged at `5b5c8ed4`). The reassessment changed documentation only (uncommitted) |
 | **Last synchronization** | 2026-10-31: mirror verified by SHA-256 over all files (see the mirror's `SYNC-STATUS.md`) |
 
 ## Severity totals
 
 | Critical | High | Medium | Low | Total |
 |:-:|:-:|:-:|:-:|:-:|
-| **0** | **6** | **14** | **6** | **26** |
+| **0** | **6** | **13** | **8** | **27** |
 
-18 Open · 8 In Progress (structural parts done in Phase 0) · 0 Resolved. Functional defects are untouched. Four High findings are on the [Critical escalation watch-list](findings/critical.md): they become Critical as soon as actuator or LiDAR code is enabled.
+19 Open · 8 In Progress · 0 Resolved. The reassessment re-rated PIN-TPL-016 Medium → Low and added PIN-TPL-027 (Low). Functional defects are untouched. Four High findings are on the [Critical escalation watch-list](findings/critical.md): they become Critical as soon as actuator or LiDAR code is enabled.
 
 ## Most important risks
 
@@ -50,7 +50,7 @@
 | PIN-TPL-013 | Med | Wi-Fi dev-grade auth; fragile boot dependency | Open |
 | PIN-TPL-014 | Med | Tauri commands block the UI thread | Open |
 | PIN-TPL-015 | Med | Fresh clone does not build; machine-specific config | In Progress |
-| PIN-TPL-016 | Med | Duplicated logic and dead code | In Progress |
+| PIN-TPL-016 | Low | Duplicated framing (dead code removed; re-rated from Medium) | In Progress |
 | PIN-TPL-017 | Med | Module identity and hierarchy incomplete | Open |
 | PIN-TPL-018 | Med | Hard-coded pins; LED on strapping pin GPIO12 | In Progress |
 | PIN-TPL-019 | Med | Defects in inactive RFID, IR and rangefinder modules | Open |
@@ -61,6 +61,7 @@
 | PIN-TPL-024 | Low | Documentation drift | In Progress |
 | PIN-TPL-025 | Low | Events report requested, not applied values | Open |
 | PIN-TPL-026 | Low | UART0 driver bypasses HAL ownership | Open |
+| PIN-TPL-027 | Low | Module tick/registration order changes every boot | Open |
 
 Full records: [findings/](findings/README.md).
 
@@ -68,7 +69,9 @@ Full records: [findings/](findings/README.md).
 
 - **Done:** Phase 0, Structural Reorganization ([plan](phases/phase-0/PLAN.md), [result](phases/phase-0/RESULT.md)). Decisions: D1–D3 yes, D4 no, D5–D6 yes. One local commit per step (P0.1–P0.7) on `phase-0/structural-reorganization`; all checks V1–V10 pass; no contract, manifest, lockfile or config changed.
 - **Your review:** inspect the branch, optionally run the hardware smoke test in RESULT §8, and decide whether to merge it into `main`. Merging and pushing are your decisions.
-- **Proposed next step:** post-Phase-0 reassessment and remediation roadmap (Phase 1A, 1B, …). **Not started**; needs your approval.
+- **Done:** post-Phase-0 reassessment ([report](reports/post-phase-0-reassessment.md)). All findings re-verified; no new problems introduced by Phase 0; one new pre-existing finding (027); 016 re-rated Low.
+- **Proposed next step:** [remediation roadmap](phases/ROADMAP.md), 1A → 1B → 1C → 1D → 2A … 3A. **Awaiting approval** of the roadmap and of **Phase 1A** (host-test harness and CI, including a new top-level `tests/firmware-host/` directory and a CI workflow).
+- **Safety gate:** no servo, stepper or LiDAR module in the default image until 1B, 1C and 1D are Completed — Verified.
 - **Validation gaps:** no hardware or runtime verification yet. Firmware module logic has no host tests (PIN-TPL-008).
 
 ## Documents
@@ -80,8 +83,8 @@ Full records: [findings/](findings/README.md).
 | Communication flow | [architecture/communication-flow.md](architecture/communication-flow.md) |
 | Frozen contracts | [architecture/compatibility-contracts.md](architecture/compatibility-contracts.md) |
 | Issue register | [findings/README.md](findings/README.md) · [critical](findings/critical.md) · [high](findings/high.md) · [medium](findings/medium.md) · [low](findings/low.md) |
-| Phases | [phases/README.md](phases/README.md) · [Phase 0 plan](phases/phase-0/PLAN.md) · [Phase 0 result](phases/phase-0/RESULT.md) |
-| Report | [reports/initial-audit.md](reports/initial-audit.md) |
+| Phases | [phases/README.md](phases/README.md) · [Roadmap](phases/ROADMAP.md) · [Phase 0 plan](phases/phase-0/PLAN.md) · [Phase 0 result](phases/phase-0/RESULT.md) |
+| Report | [reports/initial-audit.md](reports/initial-audit.md) · [reports/post-phase-0-reassessment.md](reports/post-phase-0-reassessment.md) |
 | Evidence | [evidence/validation-baseline.md](evidence/validation-baseline.md) · [evidence/probes.md](evidence/probes.md) |
 | Changelog | [CHANGELOG.md](CHANGELOG.md) |
 

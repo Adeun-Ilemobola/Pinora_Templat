@@ -10,9 +10,10 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 |---|---|
 | Severity | Low |
 | Affected files | Wire-visible (**must not change without a protocol version**): `lool_up_id` (`protocol/src/registration.rs:11`), `Ckick` (`protocol/src/module/buttonmodule.rs:5`), `Idol` (`protocol/src/module/lidar.rs:18`), `distant` (`protocol/src/module/lidar.rs:7`). Internal only (safe in Phase 0): `manuel_id` (field, `Firmware_Templates/src/core/modulecore.rs`), `TransportEmiter` / `transport_emiter.rs`, local `tansport` (`main.rs:69`), `buzer_pin`, `write_chuck` (`module/rfid.rs`), `testrang`, `UI/src/lib/ModuleGeter.ts`. Protocol-crate public type names `RangPoint`, `MddeRfid` do not appear on the wire but are public crate API, so they are frozen in Phase 0 (see contract C-08 in [compatibility contracts](../architecture/compatibility-contracts.md)) |
+| Current location (after Phase 0) | Wire names unchanged in `protocol/src/**` (frozen). Internal misspellings were fixed in Phase 0 |
 | Confidence | Confirmed (wire visibility checked by serialization probe) |
 | Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
-| Proposed phase | 0 (internal names) / 2A (wire names, versioned) |
+| Proposed phase | 2A (roadmap, pending approval) |
 
 **What is wrong.** Spelling errors appear across identifiers. Some are serialized JSON keys or enum tags. Others are only Rust or TypeScript symbols.
 
@@ -34,9 +35,10 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 |---|---|
 | Severity | Low |
 | Affected files | All three Rust packages: `cargo fmt --check` reports 78 diff hunks in `Firmware_Templates`, 21 in `protocol` and 6 in `UI/src-tauri`. Clippy: one warning in `protocol` (`Axes::add` shadows `std::ops::Add::add`) and two in `UI/src-tauri` (unused `ConnectionState` fields, unused `ConnectionType::Disconnected`). No ESLint or Prettier configuration in `UI` |
+| Current location (after Phase 0) | rustfmt clean. Remaining: clippy (protocol 1, Tauri 2), firmware compiler warnings (11), no TypeScript lint/format config, no enforcement |
 | Confidence | Confirmed (see [validation baseline](../evidence/validation-baseline.md)) |
 | Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
-| Proposed phase | 0 |
+| Proposed phase | 3A (roadmap, pending approval) |
 
 **What is wrong.** Code style is inconsistent (indentation, spacing, import grouping). Lints are not run.
 
@@ -58,9 +60,10 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 |---|---|
 | Severity | Low |
 | Affected files | `UI/src-tauri/tauri.conf.json:3`, `:5`, `:21` (`productName: "ui"`, `identifier: "com.owner.ui"`, `csp: null`), window title `"ui"`; `UI/src-tauri/Cargo.toml` (`description = "A Tauri App"`, `authors = ["you"]`); `UI/src-tauri/src/lib.rs:46` (`greet` command), `:27-31` (unused `ConnectionState` fields), `:312-342` (`start_port` maps every error to `ConnectionType::Error`, losing the message) |
+| Current location (after Phase 0) | `UI/src-tauri/tauri.conf.json:3`, `:5`, `:21`; `UI/src-tauri/src/commands.rs:17` (`greet`), `:171`; `UI/src-tauri/src/serial_transport.rs:29-33` (unused `ConnectionState` fields) |
 | Confidence | Confirmed |
 | Status | Open |
-| Proposed phase | 3B |
+| Proposed phase | 3A (roadmap, pending approval) |
 
 **What is wrong.** Scaffold metadata was never customized. The Content Security Policy is disabled. One sample command is still exposed over IPC. `start_port` hides error detail, unlike `start_bluetooth_port`.
 
@@ -82,9 +85,10 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 |---|---|
 | Severity | Low |
 | Affected files | `README.md:174` (says TypeScript LiDAR start/stop/test are strings; `UI/src/lib/Modules/lidar.tsx:75-77` now uses objects); `.espConfig/esp_config.json:6-7` (`source ~/export-esp.sh && cargo build`, `cargo flash … /dev/ttyUSB0`, project name `template`); `Firmware_Templates/pre-script.rhai` (lists ten chip targets; only classic ESP32 is configured); `README.md`, `docs/architecture-audit.md`, `Firmware_Templates/BLUETOOTH_TRANSPORT.md` refer to verification by a named external agent (“Codex”) whose records are not in the repository |
+| Current location (after Phase 0) | `README.md` (states the LiDAR route inserts a `fake-lidar` module; no such code exists); `.espConfig/esp_config.json`; `Firmware_Templates/pre-script.rhai`; external-agent references in `README.md`, `docs/architecture-audit.md`, `Firmware_Templates/BLUETOOTH_TRANSPORT.md` |
 | Confidence | Confirmed |
 | Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
-| Proposed phase | 0 (documentation only; `.espConfig` and `pre-script.rhai` content left unchanged; see contract C-10) |
+| Proposed phase | 3A (roadmap, pending approval) |
 
 **What is wrong.** Some statements are out of date, and legacy generator metadata contains commands that would not work on this project.
 
@@ -106,9 +110,10 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 |---|---|
 | Severity | Low |
 | Affected files | `Firmware_Templates/src/module/servomodule.rs:157-169` (`set_min_pivot` / `set_max_pivot` clamp but emit the unclamped input); `Firmware_Templates/src/module/stepper.rs:311-322` (pivot limits emitted without validation). The LED case is covered by PIN-TPL-002 |
+| Current location (after Phase 0) | `Firmware_Templates/src/modules/actuators/servo.rs:158-166`; `Firmware_Templates/src/modules/actuators/stepper.rs:317-328` |
 | Confidence | Confirmed |
 | Status | Open |
-| Proposed phase | 1A (with PIN-TPL-004) |
+| Proposed phase | 1B (roadmap, pending approval) |
 
 **What is wrong.** Confirmation events echo the command payload instead of the state the module actually adopted.
 
@@ -130,9 +135,10 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 |---|---|
 | Severity | Low |
 | Affected files | `Firmware_Templates/src/main.rs:30-56`, `:64` |
+| Current location (after Phase 0) | `Firmware_Templates/src/core/hardware/console.rs:9-37` (invariant now documented in the doc comment) |
 | Confidence | Confirmed (static) |
 | Status | Open (ownership invariant documented in code during Phase 0) |
-| Proposed phase | 3B |
+| Proposed phase | 3A (roadmap, pending approval) |
 
 **What is wrong.** `configure_console_uart` calls `uart_driver_install` and `uart_vfs_dev_use_driver` on UART0 through `unsafe` `sys` calls, while `Peripherals::take()` still hands out `p.uart0` as if it were free.
 
@@ -145,3 +151,58 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 **Risk of changing it.** Changes to console stdin buffering could affect the Serial transport.
 
 **How we will verify the fix.** Build, plus Serial transport smoke test when authorized.
+
+---
+
+## PIN-TPL-016 — Duplicated logic and dead code obscure the real architecture
+
+| Field | Value |
+|---|---|
+| Severity | **Low** (was Medium until the 2026-10-31 reassessment) |
+| Affected files | `Firmware_Templates/src/core/emitter.rs` (not compiled: `core/mod.rs:3` comments it out); `TransportType` defined three times (`core/emitter.rs:9`, `core/transport/transport_core.rs:21`, `UI/src-tauri/src/lib.rs:40-44`); `remember()` duplicated (`wifi.rs:225`, `bluetooth.rs:330`); newline framing implemented four times (`wifi.rs:182-209`, `bluetooth.rs:238-262`, `UI/src-tauri/src/lib.rs:156-164`, `UI/src-tauri/src/wifi_transport.rs:223-244`); ~130 lines of commented-out wiring (`Firmware_Templates/src/main.rs:96-207`); `UI/src/lib/ModuleGeter.ts` (no importers); `transport_core.rs:121-125` (returns a receiver whose sender is dropped when no transport supplies one) |
+| Current location (after Phase 0) | `TransportType` in `Firmware_Templates/src/core/transport/manager.rs:27` and `UI/src-tauri/src/serial_transport.rs:45`; framing in `Firmware_Templates/src/core/transport/wifi.rs`, `Firmware_Templates/src/core/transport/bluetooth.rs`, `UI/src-tauri/src/serial_transport.rs:170-178`, `UI/src-tauri/src/wifi_transport.rs:223-244`; dead-receiver fallback `Firmware_Templates/src/core/transport/manager.rs:126-130`. Dead files, duplicate `remember()` and commented wiring are resolved |
+| Confidence | Confirmed |
+| Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
+| Proposed phase | 2B (roadmap, pending approval) |
+
+**What is wrong.** Several concepts exist in parallel copies, and dead files look live. Framing differs subtly: firmware Wi-Fi caps lines at 8 KiB, Tauri Wi-Fi at 256 KiB, and the Tauri COM reader is uncapped.
+
+**Why this is a problem.** Readers cannot tell which implementation is authoritative. Fixes land in one copy only.
+
+**How it could affect Pinora.** Higher maintenance cost and divergent behavior between transports.
+
+**Recommended solution.** Phase 0: remove the uncompiled `core/emitter.rs` and the unused `ModuleGeter.ts` (each requires explicit approval as a deletion). Extract the identical `remember()` into a shared discovery-cache helper. Move commented-out wiring into a documented examples file. Phase 2: unify line framing with one tested helper per language, which changes limits and is therefore behavioral.
+
+**Risk of changing it.** Low for the removals: the compiler proves those files are not referenced. Framing unification changes limits.
+
+**How we will verify the fix.** `cargo check`, `tsc` and Vite build succeed. A grep confirms no remaining references.
+
+
+**Reassessment note (2026-10-31).** Phase 0 removed the dead files, merged the duplicate `remember()` and moved the commented wiring. What remains is the duplicated newline framing with different size limits, plus the dead-receiver fallback. The framing limits are already covered by PIN-TPL-010 and PIN-TPL-007. The two remaining `TransportType` enums live in different crates and mean different things (firmware transport selection vs desktop COM-port kind), so they are not true duplication. The remaining impact is maintainability only, hence Low.
+
+---
+
+## PIN-TPL-027 — Module tick, registration and replay order changes on every boot
+
+| Field | Value |
+|---|---|
+| Severity | Low |
+| Affected files | `Firmware_Templates/src/core/module.rs:37` (`ModuleRegistry = HashMap<String, …>`); `Firmware_Templates/src/runtime/mod.rs:20-24` (`register_all` iterates the map), `:44-46` (tick loop iterates the map) |
+| Current location (after Phase 0) | Same as Affected files (found during the post-Phase-0 reassessment) |
+| Confidence | Probable. `std::collections::HashMap` uses a randomly seeded `RandomState`, and on ESP-IDF the seed comes from the hardware RNG. Module UUIDs are also random. Not observed on hardware |
+| Status | Open |
+| Proposed phase | 2C (roadmap, pending approval) |
+
+**What is wrong.** The registry is a `HashMap` keyed by random UUIDs, using randomized hashing. Iteration order, which drives `register()`/`first_emit()` order and the per-iteration `tick()` order, is therefore effectively different on every boot.
+
+**Why this is a problem.** Bus access order between modules (for example several I²C devices), the order of registration messages, and therefore the order of replayed registrations all vary from boot to boot. Timing-dependent bugs become hard to reproduce. Construction order in `board/mod.rs` gives the impression that order is controlled, but it is not.
+
+**How it could affect Pinora.** Today, with three LEDs, there is no visible effect. With several sensors on a shared bus, or with modules that depend on each other's tick order, behavior could differ between boots.
+
+**Evidence.** `pub type ModuleRegistry<'a> = HashMap<String, ModuleHandle<'a>>;`, and `for (_id, module) in modules.iter_mut()` in `register_all` and the main loop.
+
+**Recommended solution.** Keep modules in a `Vec` in construction order, with a separate `HashMap<String, usize>` index for command lookup, or use an insertion-ordered map. Document that construction order is tick order.
+
+**Risk of changing it.** Behavior change: tick and registration order become fixed. This is low risk but must not happen in a structure-only phase.
+
+**How we will verify the fix.** Host test: registration and tick order equal construction order across repeated runs.

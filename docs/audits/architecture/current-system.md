@@ -1,6 +1,6 @@
-# Current system — as implemented at commit `5b5c8ed4`
+# Current system — as implemented (baseline `5b5c8ed4`, layout after Phase 0)
 
-> **Historical baseline.** Phase 0 later moved files without changing behavior. For the current paths, see the path map in [phases/phase-0/RESULT.md](../phases/phase-0/RESULT.md) §2. This document will be refreshed by the post-Phase-0 reassessment.
+> **Updated by the post-Phase-0 reassessment (2026-10-31).** Sections 3.1, 3.3 and 3.4 describe the reorganized layout on branch `phase-0/structural-reorganization`. Behavior is unchanged from baseline `5b5c8ed4`.
 
 This document describes the code as it actually exists. It is not based on older READMEs or plans. Where the repository-root `README.md` or `docs/architecture-audit.md` disagree with the code, the code wins, and the disagreement is recorded as PIN-TPL-024.
 
@@ -51,36 +51,36 @@ flowchart LR
     UART["stdin reader / println\n(source option)"]
     SPP & WIFI & UART -->|"mpsc IncomingCommand"| Loop["main loop\nHashMap<UUID, Box<dyn Module>>"]
     Loop -->|"tick() / handle_command()"| Mods["Modules: 3× LED (active)"]
-    Mods -->|"TransportEmiter (sync_channel 128)"| Sender["transport sender thread"]
+    Mods -->|"TransportEmitter (sync_channel 128)"| Sender["transport sender thread"]
     Sender --> SPP & WIFI & UART
   end
 ```
 
-### 3.1 Firmware (`Firmware_Templates/src`)
+### 3.1 Firmware (`Firmware_Templates/src`, after Phase 0)
 
 | File | Role | Status |
 |---|---|---|
-| `main.rs` | Boot: ESP-IDF patches and logger, `Peripherals::take`, UART0 console driver (raw `sys`), selects `TransportType::Bluetooth`, emits system info, builds I²C bus and `HardwareContext`, constructs 3 LEDs, registers modules, runs the main loop | Active; ~130 lines of commented-out wiring for other modules |
-| `core/modulecore.rs` | `ModuleCore` (UUID v4, type, lookup name, parent ID, emitter) and the `Module` trait (`tick`, `handle_command`, `register`, `first_emit`, `emit`, `log`) | Active |
-| `core/hardware.rs` | GPIO wrappers (`OutputPinCore`, `InputPinCore`), `now_us`, `TimerState` (deadline polling), shared-bus type aliases, `HardwareContext` (LEDC timer 5 kHz / 13-bit; I²C bus; PCA9685 creation commented out), `print_esp_system_info` | Active |
-| `core/transport/transport_core.rs` | `TransportCore`: constructs the selected transport, spawns the sender thread (emitter → transport), returns the command `Receiver`; Serial stdin reader | Active |
-| `core/transport/transport_emiter.rs` | `TransportEmiter`: `emit_reliable` (blocking `send`) for system/registration, `try_emit` (drop on full) for runtime events | Active |
-| `core/transport/bluetooth.rs` | Bluedroid Classic SPP server: GAP/SPP callbacks → bounded work queue → worker thread (framing, parsing, chunked writes, congestion, reconnect replay cache) | **Active (selected)** |
-| `core/transport/wifi.rs` | Station connect (blocking at boot), TCP client with token handshake, reconnect loop, replay cache | Compiled, not selected |
-| `core/emitter.rs` | Earlier println-based emitter | **Dead**: not in the module tree (`core/mod.rs:3` commented out) |
-| `module/ledmodule.rs` | LEDC PWM LED: `SetState{0..100}`, `Toggle`; emits `Brightness` | **Active ×3** |
-| `module/buttonmodule.rs` | Debounced GPIO input; emits `Ckick` on each committed edge | Compiled, not instantiated |
-| `module/servomodule.rs` | PCA9685 servo with offset/pivot limits | Compiled, not instantiated |
-| `module/stepper.rs` | 4-wire or 74HC595 half-step stepper with homing and pivot modes | Compiled, not instantiated |
-| `module/lidar.rs` | Composite: 2 servos + VL53L1X; raster scan producing chunked point maps | Experimental, not instantiated |
-| `module/range_finder.rs` | VL53L1X ranging and configuration | Compiled, not instantiated |
-| `module/imu/*` | MPU-6500/9250/9255 identification, bias calibration, gyro/accel events | Compiled, not instantiated |
-| `module/rfid.rs` | MFRC522 read/write with RGB LED and buzzer | Compiled, not instantiated |
-| `module/remote_receiver.rs` | NEC IR decode by GPIO polling | Compiled, not instantiated |
-| `module/joystick.rs` | 2-axis ADC + button | Compiled, not instantiated |
+| `main.rs` | Startup order only: ESP-IDF patches and logger, `Peripherals::take`, console UART, selects `TransportType::Bluetooth`, emits system info, I²C bus and `HardwareContext`, calls `board::install_active_modules`, `runtime::register_all`, `runtime::run` | Active |
+| `board/mod.rs` | Active wiring (3 LEDs on GPIO 12/14/27, LEDC ch 0–2) and the documented pin map | Active |
+| `board/disabled_wiring.rs` | Commented reference wiring for every inactive family, with hazard notes | Comments only |
+| `runtime/mod.rs` | `register_all` (register + `first_emit`) and the main loop: tick all, dispatch ≤1 command, yield rule | Active |
+| `core/module.rs` | `ModuleCore` (UUID v4, type, lookup name, parent ID, emitter), the `Module` trait, `ModuleHandle`/`ModuleRegistry` aliases | Active |
+| `core/hardware/{pins,timing,context,system_info,console}.rs` | GPIO wrappers; `now_us`/`TimerState`; shared-bus aliases and `HardwareContext` (LEDC timer 5 kHz / 13-bit, I²C bus, PCA9685 creation commented out); startup `System` snapshot; UART0 console driver (raw `sys`) | Active |
+| `core/transport/manager.rs` | `TransportCore`: constructs the selected transport, runs the sender thread, returns the command `Receiver` | Active |
+| `core/transport/emitter.rs` | `TransportEmitter`: `emit_reliable` (blocking) for system/registration, `try_emit` (drop on full) for runtime events | Active |
+| `core/transport/discovery_cache.rs` | Shared reconnect replay cache (`remember`) | Active |
+| `core/transport/bluetooth.rs` | Bluedroid Classic SPP server: callbacks → bounded queue → worker (framing, parsing, chunked writes, congestion, replay) | **Active (selected)** |
+| `core/transport/wifi.rs` | Station connect (blocking at boot), TCP client with token handshake, reconnect loop | Compiled, not selected |
+| `core/transport/serial.rs` | stdout JSON writer and stdin command reader | Compiled, not selected |
+| `modules/actuators/led.rs` | LEDC PWM LED: `SetState{0..100}`, `Toggle`; emits `Brightness` | **Active ×3** |
+| `modules/actuators/{servo,stepper}.rs` | PCA9685 servo; 4-wire / 74HC595 stepper | Compiled, not instantiated |
+| `modules/sensors/{button,rangefinder,rfid,remote_receiver,joystick}.rs`, `modules/sensors/imu/{types,mpu}.rs` | Input modules | Compiled, not instantiated |
+| `modules/composite/lidar.rs` | 2 servos + VL53L1X; raster scan producing chunked point maps | Experimental, not instantiated |
 | `utilities/math.rs` | `range_*` linear mappings, `constrain_*`, `pulse_us_to_tick` (PCA9685 ≈ 60 Hz) | Active (LED uses `range_u32`) |
 
-**State ownership.** The main thread owns `Peripherals`, every driver, and the `HashMap<String, Box<dyn Module>>`. Shared buses use `Rc<RefCell<…>>` and `embedded_hal_bus::i2c::RcDevice`. They are single-threaded by construction, which is correct because modules never leave the main thread. Cross-thread data moves only through `mpsc` channels. The single `Arc<Mutex<Option<Core>>>` in `TransportCore` is locked by the sender thread and once at startup.
+The baseline layout (before Phase 0) is recorded in [phases/phase-0/RESULT.md §2](../phases/phase-0/RESULT.md) and in Git at `5b5c8ed4`.
+
+**State ownership.** The main thread owns `Peripherals`, every driver, and the `ModuleRegistry` (`HashMap<String, Box<dyn Module>>`, iteration order randomized per boot: PIN-TPL-027). Shared buses use `Rc<RefCell<…>>` and `embedded_hal_bus::i2c::RcDevice`. They are single-threaded by construction, which is correct because modules never leave the main thread. Cross-thread data moves only through `mpsc` channels. The single `Arc<Mutex<Option<Core>>>` in `TransportCore` is locked by the sender thread and once at startup.
 
 **Threads.** There is the main task, the transport sender thread (`std::thread::spawn`, default pthread stack 4 KiB per `sdkconfig.defaults`), the Bluetooth or Wi-Fi worker (8 KiB stack), and the Serial stdin reader when Serial is selected. ESP-IDF's Bluedroid and Wi-Fi tasks invoke callbacks that only copy and enqueue.
 
@@ -98,7 +98,10 @@ Serde types shared by firmware and the Tauri backend. They are the authoritative
 
 | File | Role |
 |---|---|
-| `lib.rs` | `AppState` (one COM port + reader thread). Commands: `greet`, `start_port`, `get_available_ports`, `get_available_bluetooth_ports` (serialport ∩ Windows PnP `BTHENUM` via PowerShell CIM), `start_bluetooth_port`, `send_data` (COM first, else Wi-Fi), `stop_port`, `start_wifi_listener`, `stop_wifi_listener`, `get_wifi_listener_status`. Emits `espState` (raw line) and `bluetoothConnection` |
+| `lib.rs` | Plugin setup, managed state, handler list |
+| `serial_transport.rs` | `AppState` (one COM port + reader thread, emits `espState` and `bluetoothConnection`) |
+| `bluetooth_ports.rs` | Windows PnP `BTHENUM` query via PowerShell CIM |
+| `commands.rs` | The 10 IPC commands: `greet`, `start_port`, `get_available_ports`, `get_available_bluetooth_ports` (serialport ∩ Windows PnP `BTHENUM` via PowerShell CIM), `start_bluetooth_port`, `send_data` (COM first, else Wi-Fi), `stop_port`, `start_wifi_listener`, `stop_wifi_listener`, `get_wifi_listener_status` |
 | `wifi_transport.rs` | `WifiTransport`: non-blocking accept loop on `0.0.0.0:<port>`, `PINORA-AUTH 1 <token>` handshake, validates every inbound line as `ProtocolMessage` and every outbound command as `IncomingCommand`. Emits `espState` and `wifiConnection` |
 | `main.rs` | Calls `ui_lib::run()` |
 
@@ -109,12 +112,11 @@ All commands are synchronous (PIN-TPL-014). Capabilities: `core:default`, `opene
 | Area | Files | Role |
 |---|---|---|
 | Entry | `main.tsx`, `App.tsx` | Console → Tauri log forwarding; hash router with `/` (Dashboard) and `/logs`; `/lidar` route commented out |
-| Central store | `lib/Modulefront.TS` | `useModuleFront`: transport mode and status, listeners, connect/disconnect flows, `ModuleRegistry` (UUID → vanilla store), `LookUpId` (name → UUID), `logs` (unbounded), `systemInfo` |
+| Central store | `lib/Modulefront.ts` (+ `lib/registry/registration.ts`) | `useModuleFront`: transport mode and status, listeners, connect/disconnect flows, `ModuleRegistry` (UUID → vanilla store), `LookUpId` (name → UUID), `logs` (unbounded), `systemInfo` |
 | Commands | `lib/IncomingCommand.ts` | `JSON.stringify({id, command})` → `invoke("send_data")` |
 | Protocol schemas | `lib/protocol/*.ts` + module files | Handwritten Zod; aggregate covers LED/Button/SysLog only; **not used for receive validation** |
-| Module UIs | `lib/Modules/*.tsx` | LED and Button are registered. Servo, Stepper, LiDAR, Rangefinder, RFID, IMU and RemoteReceiver are compiled but not registered |
+| Module UIs | `lib/Modules/<family>/{schema.ts, store.ts, view.tsx, index.ts}` (LiDAR also `geometry.ts`) | LED and Button are registered. Servo, Stepper, LiDAR, Rangefinder, RFID, IMU and RemoteReceiver are compiled but not registered |
 | Views | `page/Dashboard.tsx`, `page/LogsPage.tsx`, `page/LidarPage.tsx` (unrouted), `components/*` | Transport card, ESP32 stats card, module cards, virtualized log viewer |
-| Dead | `lib/ModuleGeter.ts` | No importers |
 | UI kit | `components/ui/*` | shadcn/Base UI primitives (generated-style code; not audited for design) |
 
 ## 4. Functionality classification
@@ -125,8 +127,8 @@ All commands are synchronous (PIN-TPL-014). Capabilities: `core:default`, `opene
 | **Implemented, unverified** | Bluetooth SPP transport end-to-end (maintainer-reported working). 3× LED control and brightness events. Desktop Serial/Bluetooth/Wi-Fi connection flows. Reconnect replay of registrations (Bluetooth/Wi-Fi). Windows Bluetooth COM discovery. Log viewer. Firmware build with `esp-1.93`, previously reported passing and not re-run here |
 | **Implemented but inactive** | Wi-Fi and Serial firmware transports; Button, Servo, Stepper, Rangefinder, IMU, RFID, RemoteReceiver, Joystick modules |
 | **Experimental** | LiDAR composite module (firmware) and LiDAR page/playground (frontend, unrouted) |
-| **Deprecated / legacy** | `Firmware_Templates/src/core/emitter.rs` (uncompiled), `.espConfig/esp_config.json` (stale commands), `UI/src/lib/ModuleGeter.ts` (unused), `greet` command, `TransportType::None` in the dead emitter |
-| **Incomplete scaffolding** | `SSI` rediscovery branch (empty), `first_emit` hook (unused by LED), `init_wifi`/`init_bluetooth` stubs in the dead emitter, `LedCluster` module type (enum only), `RangefinderEvent::InvalidMeasurement` and `LidarEvent::Target` (never emitted), `StepperMotorEvent::GetOrigin` (never emitted), PCA9685 creation (commented out) |
+| **Deprecated / legacy** | `.espConfig/esp_config.json` (stale commands), `greet` command. (The dead `core/emitter.rs` and `ModuleGeter.ts` were deleted in Phase 0.) |
+| **Incomplete scaffolding** | `SSI` rediscovery branch (empty), `first_emit` hook (unused by LED), `LedCluster` module type (enum only), `RangefinderEvent::InvalidMeasurement` and `LidarEvent::Target` (never emitted), `StepperMotorEvent::GetOrigin` (never emitted), PCA9685 creation (commented out) |
 | **Documentation-only / planned** | Project generation (no generator in this repo; `pre-script.rhai` variables only); multi-chip support (`pre-script.rhai` lists 10 targets; only `esp32` configured); LiDAR scan visualization; broader module UI coverage |
 
 ## 5. Generated and build-output paths (not architecture)

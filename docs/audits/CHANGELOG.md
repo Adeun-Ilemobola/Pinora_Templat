@@ -2,6 +2,14 @@
 
 Newest entries first. Each entry is tagged **[AUDIT]** (documentation only, no source change) or **[SOURCE]** (template source, build or config changed).
 
+## 2026-10-31 — Post-Phase-0 reassessment and roadmap **[AUDIT]**
+
+- Re-verified all 26 findings in the reorganized tree. Every record gained a "Current location (after Phase 0)" row; baseline line references are kept.
+- No new problems introduced by Phase 0. New pre-existing finding **PIN-TPL-027** (Low: randomized module order). **PIN-TPL-016** re-rated Medium → Low (record moved to `low.md`, pointer left in `medium.md`). PIN-TPL-024 extended (`fake-lidar` README statement).
+- Totals: 0 Critical, 6 High, 13 Medium, 8 Low (27); 19 Open, 8 In Progress.
+- Added `reports/post-phase-0-reassessment.md` and `phases/ROADMAP.md` (1A–1D, 2A–2E, 3A, with full subphase records). Refreshed `architecture/current-system.md` and `module-boundaries.md` for the new layout.
+- **Source changes: none.** The documentation changes are not committed.
+
 ## 2026-10-31 — Phase 0, Structural Reorganization **[SOURCE]**
 
 - Approved with decisions D1–D3 yes, D4 no, D5–D6 yes. Work is on local branch `phase-0/structural-reorganization` (not pushed; `main` unchanged).

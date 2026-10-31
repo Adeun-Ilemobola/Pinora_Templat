@@ -54,7 +54,7 @@ Unknown IDs are logged on the firmware console only. The desktop is not told. `"
 
 ```mermaid
 flowchart LR
-  M["Module.emit / log\n(try_emit)"] --> E["TransportEmiter\nsync_channel(128)"]
+  M["Module.emit / log\n(try_emit)"] --> E["TransportEmitter\nsync_channel(128)"]
   R["register / system_info\n(emit_reliable, blocking)"] --> E
   E --> ST["sender thread\nTransportCore::send"]
   ST -->|Bluetooth| BQ["work queue sync(128)\nreliable: send / runtime: try_send"]

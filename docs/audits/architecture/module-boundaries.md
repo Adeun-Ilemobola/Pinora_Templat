@@ -4,12 +4,12 @@ How a Pinora "module" is defined, registered, addressed and rendered today, and 
 
 ## 1. The firmware module contract
 
-`Firmware_Templates/src/core/modulecore.rs`
+`Firmware_Templates/src/core/module.rs`
 
 ```rust
 pub struct ModuleCore { pub id: String /* UUID v4, new each boot */, pub module_type: ModuleType,
-                        pub manuel_id: String /* lookup name */, pub parent_id: String /* "" if none */,
-                        emitter: TransportEmiter }
+                        pub lookup_name: String /* sent as lool_up_id */, pub parent_id: String /* "" if none */,
+                        emitter: TransportEmitter }
 
 pub trait Module {
     fn core(&self) -> &ModuleCore;
@@ -52,7 +52,7 @@ Modules and buses are deliberately non-`Send` (`Rc`), which keeps all hardware a
 | Concept | Firmware | Wire | Desktop |
 |---|---|---|---|
 | Identity | `ModuleCore.id` (UUID v4 generated at construction) | `Registration.id`, `EventPackage.id`, `IncomingCommand.id` | `ModuleRegistry[id]` |
-| Human name | `manuel_id` (caller string, e.g. `"led1"`) | `Registration.lool_up_id` | `LookUpId[name] = id` (last writer wins) |
+| Human name | `lookup_name` (caller string, e.g. `"led1"`) | `Registration.lool_up_id` | `LookUpId[name] = id` (last writer wins) |
 | Type | `ModuleType` enum | `Registration.module_type` | factory map `{Led, Button}`; others ignored |
 | Parent | `parent_id: String` (`""` when none) | `Registration.parent_id` | `hasParent: boolean` only |
 
@@ -74,10 +74,10 @@ For each family, a file in `UI/src/lib/Modules/` contains:
 ## 6. What it takes to add a module today
 
 1. Add the Rust payload types to `protocol/src/module/<x>.rs` and to the `ModuleCommand`/`ModuleEvent`/`ModuleType` enums.
-2. Implement `Module` in `Firmware_Templates/src/module/<x>.rs` and declare it in `module/mod.rs`.
-3. Construct and insert it in `main.rs`, choosing pins by hand.
-4. Write the Zod schemas, store and view in `UI/src/lib/Modules/<x>.tsx`.
-5. Add the factory to `RegistrationEvent` and the dispatch branch to `ModuleEvent` in `Modulefront.TS`.
+2. Implement `Module` in `Firmware_Templates/src/modules/<group>/<x>.rs` and declare it in that group's `mod.rs`.
+3. Construct and insert it in `board/mod.rs` (and pass its peripherals from `main.rs`), choosing pins by hand.
+4. Write the Zod schema, store and view in `UI/src/lib/Modules/<x>/{schema.ts,store.ts,view.tsx}` and re-export them from `index.ts`.
+5. Add the factory to `RegistrationEvent` and the dispatch branch to `ModuleEvent` in `Modulefront.ts`.
 6. Add the case to `Dashboard.tsx`'s kind filter and switch.
 7. Optionally add the family to the aggregate schemas in `UI/src/lib/protocol/*.ts`.
 

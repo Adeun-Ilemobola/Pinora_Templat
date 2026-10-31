@@ -10,9 +10,10 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 |---|---|
 | Severity | Medium |
 | Affected files | `protocol/src/**` (authoritative Rust types); `UI/src/lib/protocol/*.ts`; module schemas inside `UI/src/lib/Modules/*.tsx`; `UI/src-tauri/src/lib.rs:249-275` (`send_data` writes unvalidated strings to COM); `UI/src-tauri/src/wifi_transport.rs:92-96`, `:233` (Wi-Fi validates both directions) |
+| Current location (after Phase 0) | `protocol/src/**`; `UI/src/lib/protocol/*.ts`; `UI/src/lib/Modules/*/schema.ts`; `UI/src-tauri/src/commands.rs:95` (COM write, unvalidated); `UI/src-tauri/src/wifi_transport.rs:92-96`, `:233` |
 | Confidence | Confirmed |
 | Status | Open |
-| Proposed phase | 2A (contract tests begin in Phase 0 as characterization tests) |
+| Proposed phase | 2A (roadmap, pending approval) |
 
 **What is wrong.** The wire format is defined once in Rust and again by hand in Zod. The TypeScript aggregate schemas cover only `Led`, `Button` and `SysLog` events and `Led` commands. Ten Rust event families and six command families exist. The receive path never calls the Zod schemas; it uses `JSON.parse` and `as` casts. Tagging is mixed: most enums are externally tagged, `ImuEvent` is internally tagged (`event_type`), and `RangefinderCommandPayload::StartRanging` serializes as a bare string, `{"Rangefinder":"StartRanging"}`, while sibling commands are objects. There is no protocol version or capability handshake. Validation depends on the transport: Wi-Fi validates in Tauri, while USB/SPP do not validate on the desktop at all.
 
@@ -36,9 +37,10 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 |---|---|
 | Severity | Medium (a prerequisite for safely fixing every other finding) |
 | Affected files | Entire repository; no `#[test]`, `tests/`, `*.test.ts`, or CI configuration exists |
+| Current location (after Phase 0) | Characterization tests now exist in `protocol/tests/` and `UI/tests/`. Missing: firmware host tests, CI, and test scripts in `package.json`/`justfile`; `UI/tests` is outside `tsc`'s `include` |
 | Confidence | Confirmed (`git ls-files` and source search) |
 | Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
-| Proposed phase | 0 (characterization tests only), then 1C |
+| Proposed phase | 1A (roadmap, pending approval) |
 
 **What is wrong.** There are no unit tests, contract tests, integration tests or CI workflow. Firmware logic is entangled with ESP-IDF types, so none of it can run on a host. Examples are `TimerState` calling `esp_timer_get_time` and modules owning `PinDriver`/`LedcDriver` directly.
 
@@ -60,9 +62,10 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 |---|---|
 | Severity | Medium |
 | Affected files | `Firmware_Templates/src/main.rs:272-295` (`:291` yields 1 ms only every ≥650 ms); `Firmware_Templates/src/core/hardware.rs:103-145` (`now_us`, `TimerState`); `Firmware_Templates/src/module/remote_receiver.rs:121-140` (IR decode by polling) |
+| Current location (after Phase 0) | `Firmware_Templates/src/runtime/mod.rs:42-66` (yield rule `:62`); `Firmware_Templates/src/core/hardware/timing.rs`; `Firmware_Templates/src/modules/sensors/remote_receiver.rs:121-140` |
 | Confidence | Probable. The loop structure is confirmed. Idle-task starvation and IR timing failure are inferred, not measured |
 | Status | Open |
-| Proposed phase | 2B |
+| Proposed phase | 2C (roadmap, pending approval) |
 
 **What is wrong.** The loop spins continuously. It ticks every module, then processes at most one command. It sleeps 1 ms only once at least 650 ms have elapsed. Every timed behavior is driven by `TimerState` deadlines checked from that loop: stepper steps every 1.25 ms, RFID every 20 ms, LiDAR every 30 ms. The NEC IR decoder samples a GPIO level each iteration and needs sub-350 µs resolution.
 
@@ -84,9 +87,10 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 |---|---|
 | Severity | Medium |
 | Affected files | `Firmware_Templates/src/core/transport/transport_emiter.rs:34`, `:45-62`; `Firmware_Templates/src/core/transport/transport_core.rs:61-100`; `Firmware_Templates/src/core/transport/bluetooth.rs:155-169`, `:315-328`; `Firmware_Templates/src/core/transport/wifi.rs:69-81`, `:173-182`; `Firmware_Templates/src/module/imu/mpu_impl.rs:198-220`; `Firmware_Templates/src/module/range_finder.rs:177-195`; `Firmware_Templates/src/module/lidar.rs:267-317` |
+| Current location (after Phase 0) | `Firmware_Templates/src/core/transport/emitter.rs:38`, `:49-66`; `Firmware_Templates/src/core/transport/manager.rs`; `Firmware_Templates/src/core/transport/bluetooth.rs`; `Firmware_Templates/src/core/transport/wifi.rs:174-234` (`:139` timeout); `Firmware_Templates/src/modules/sensors/imu/mpu.rs:198-220`; `Firmware_Templates/src/modules/sensors/rangefinder.rs:175-195`; `Firmware_Templates/src/modules/composite/lidar.rs:209-333` |
 | Confidence | Confirmed (structure). Wi-Fi throughput ceiling derived from code: ≤ 1 outbound frame per ≥ 50 ms read timeout when the desktop is silent |
 | Status | Open |
-| Proposed phase | 2B |
+| Proposed phase | 2B (roadmap, pending approval) |
 
 **What is wrong.**
 - Messages pass through three bounded stages of 128: `TransportEmiter` → transport queue → Bluetooth `pending`. Runtime events use `try_send` at each stage. Drops are logged per message with `log::warn!`, and that logging itself writes to the 115 200-baud UART.
@@ -112,9 +116,10 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 |---|---|
 | Severity | Medium |
 | Affected files | `UI/src/lib/Modulefront.TS:294` (`logs: [...state.logs, event]`), `:263` (`console.info` per message); `UI/src/main.tsx:8-39` (every console call forwarded over Tauri IPC); `UI/src/components/LogViewer.tsx:113-126` (re-filters full history on each update); `UI/src/lib/logs.ts:88` (`JSON.stringify` per entry when searching) |
+| Current location (after Phase 0) | `UI/src/lib/Modulefront.ts:259`, `:290`; `UI/src/main.tsx:8-39`; `UI/src/components/LogViewer.tsx:113-126`; `UI/src/lib/logs.ts:88` |
 | Confidence | Confirmed (static). The slowdown was not benchmarked |
 | Status | Open |
-| Proposed phase | 2C |
+| Proposed phase | 2D (roadmap, pending approval) |
 
 **What is wrong.** Each incoming message copies the full `logs` array, which is O(n) per message and O(n²) over a session. It also triggers a full re-filter in `LogViewer`, which with a search term stringifies every entry. Every message is additionally logged with `console.info`, which `main.tsx` forwards through the Tauri log plugin, adding a second IPC round-trip per message. The forwarding promise is not awaited or caught.
 
@@ -136,9 +141,10 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 |---|---|
 | Severity | Medium |
 | Affected files | `UI/src-tauri/src/lib.rs:144-150` (USB read error emits no event; only Bluetooth does); `Firmware_Templates/src/main.rs:280` (`"SSI"` rediscovery branch empty); `Firmware_Templates/src/core/transport/transport_core.rs:101-125` (Serial path: no registration cache or replay); `UI/src/lib/Modulefront.TS:116-137` (registry cleared *after* `start_port` resolves); `Firmware_Templates/src/core/modulecore.rs:57-59` (`first_emit` default is empty; LED does not report state) |
+| Current location (after Phase 0) | `UI/src-tauri/src/serial_transport.rs:155-163`; `Firmware_Templates/src/runtime/mod.rs:51` (`"SSI"` no-op); `Firmware_Templates/src/core/transport/serial.rs` (no replay); `UI/src/lib/Modulefront.ts:110-133`; `Firmware_Templates/src/core/module.rs` (`first_emit` default) |
 | Confidence | Confirmed (static) |
 | Status | Open |
-| Proposed phase | 2A |
+| Proposed phase | 2A (roadmap, pending approval) |
 
 **What is wrong.**
 1. When a USB Serial read fails, for example because the cable is unplugged, the reader thread logs and exits. The UI keeps showing "Connected" because only the Bluetooth path emits a disconnect event.
@@ -164,9 +170,10 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 |---|---|
 | Severity | Medium (Wi-Fi is not the selected transport in the current image) |
 | Affected files | `Firmware_Templates/src/core/transport/wifi.rs:50-52` (blocking connect at boot), `:88-110` (plaintext token); `Firmware_Templates/src/main.rs:69` (`?` on transport creation); `UI/src-tauri/src/wifi_transport.rs:50` (bind `0.0.0.0`), `:134-164` (per-byte reads with 3 s timeout), `:166-216` (single-threaded accept); `protocol/src/lib.rs:6` (secrets module compiled into both binaries) |
+| Current location (after Phase 0) | `Firmware_Templates/src/core/transport/wifi.rs:40-77` (blocking connect `:61-63`), `:99-121`; `Firmware_Templates/src/main.rs` (`TransportCore::new(...)?`); `UI/src-tauri/src/wifi_transport.rs:50`, `:134-164`, `:166-216` |
 | Confidence | Confirmed (static). Embedding of secrets in the Bluetooth-selected firmware image is Probable, because the Wi-Fi code is compiled even when not selected |
 | Status | Open |
-| Proposed phase | 2A |
+| Proposed phase | 2B (roadmap, pending approval) |
 
 **What is wrong.**
 - The shared token is sent in cleartext and compared with a non-constant-time comparison. It is static per build and compiled into both binaries. The SSID and password are compiled into the firmware.
@@ -191,9 +198,10 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 |---|---|
 | Severity | Medium |
 | Affected files | `UI/src-tauri/src/lib.rs:190-227` (spawns PowerShell CIM query), `:117` (100 ms sleep while holding the state mutex), `:77` (`join` on reader thread), `:229-246`, `:312-342` (synchronous commands) |
+| Current location (after Phase 0) | `UI/src-tauri/src/bluetooth_ports.rs:8-27`; `UI/src-tauri/src/serial_transport.rs:121`; all commands in `UI/src-tauri/src/commands.rs` are synchronous |
 | Confidence | Probable: Tauri 2 runs non-`async` commands on the main thread. UI stall not measured |
 | Status | Open |
-| Proposed phase | 2C |
+| Proposed phase | 2D (roadmap, pending approval) |
 
 **What is wrong.** All commands are synchronous `fn`s. `get_available_bluetooth_ports` launches `powershell.exe` and waits for a CIM query, typically hundreds of milliseconds to seconds. `start_bluetooth_port` runs it again before connecting. `start_port` sleeps 100 ms while holding `Mutex<AppState>`, which `send_data` also needs.
 
@@ -215,9 +223,10 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 |---|---|
 | Severity | Medium |
 | Affected files | `protocol/src/lib.rs:6` + `.gitignore` (`/protocol/src/wifi_config.rs` required but untracked); `Firmware_Templates/.cargo/config.toml:4` (`target-dir = "C:/t"`); `Firmware_Templates/Cargo.toml:17-20` (Git patches without `rev`); `.gitignore` (`/protocol/Cargo.lock` ignored); `UI/src/lib/Modulefront.TS` (upper-case `.TS` extension); `justfile` (`clean-ui` uses PowerShell syntax; `[windows]` shell only); `Firmware_Templates/Cargo.toml:29`, `:32` (`rand`, `embassy-time` declared but unused by source) |
+| Current location (after Phase 0) | `protocol/src/lib.rs:22`; `Firmware_Templates/.cargo/config.toml:4`; `Firmware_Templates/Cargo.toml:17-20`, `:29`, `:32`; `.gitignore`. The `.TS` extension is fixed |
 | Confidence | Confirmed, except the `.TS` case-sensitivity break, which is Probable: `tsc` on Windows resolved it as `Modulefront.ts`, and Linux or case-sensitive macOS would not |
 | Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
-| Proposed phase | 0 (file-name case and unused dependency removal only, if approved) / 2C |
+| Proposed phase | 2E (roadmap, pending approval) |
 
 **What is wrong.** A fresh clone fails every Rust build until the developer creates an untracked secrets file. The firmware target directory is a hard-coded Windows drive path. `cargo update` would pull the moving `master` of three ESP-IDF crates. The standalone protocol lockfile is not tracked. One TypeScript source file has an upper-case extension, so it resolves only on case-insensitive file systems.
 
@@ -233,27 +242,9 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 
 ---
 
-## PIN-TPL-016 — Duplicated logic and dead code obscure the real architecture
+## PIN-TPL-016 — moved to Low
 
-| Field | Value |
-|---|---|
-| Severity | Medium |
-| Affected files | `Firmware_Templates/src/core/emitter.rs` (not compiled: `core/mod.rs:3` comments it out); `TransportType` defined three times (`core/emitter.rs:9`, `core/transport/transport_core.rs:21`, `UI/src-tauri/src/lib.rs:40-44`); `remember()` duplicated (`wifi.rs:225`, `bluetooth.rs:330`); newline framing implemented four times (`wifi.rs:182-209`, `bluetooth.rs:238-262`, `UI/src-tauri/src/lib.rs:156-164`, `UI/src-tauri/src/wifi_transport.rs:223-244`); ~130 lines of commented-out wiring (`Firmware_Templates/src/main.rs:96-207`); `UI/src/lib/ModuleGeter.ts` (no importers); `transport_core.rs:121-125` (returns a receiver whose sender is dropped when no transport supplies one) |
-| Confidence | Confirmed |
-| Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
-| Proposed phase | 0 |
-
-**What is wrong.** Several concepts exist in parallel copies, and dead files look live. Framing differs subtly: firmware Wi-Fi caps lines at 8 KiB, Tauri Wi-Fi at 256 KiB, and the Tauri COM reader is uncapped.
-
-**Why this is a problem.** Readers cannot tell which implementation is authoritative. Fixes land in one copy only.
-
-**How it could affect Pinora.** Higher maintenance cost and divergent behavior between transports.
-
-**Recommended solution.** Phase 0: remove the uncompiled `core/emitter.rs` and the unused `ModuleGeter.ts` (each requires explicit approval as a deletion). Extract the identical `remember()` into a shared discovery-cache helper. Move commented-out wiring into a documented examples file. Phase 2: unify line framing with one tested helper per language, which changes limits and is therefore behavioral.
-
-**Risk of changing it.** Low for the removals: the compiler proves those files are not referenced. Framing unification changes limits.
-
-**How we will verify the fix.** `cargo check`, `tsc` and Vite build succeed. A grep confirms no remaining references.
+Re-rated **Medium → Low** in the post-Phase-0 reassessment (2026-10-31). The full record now lives in [low.md](low.md). Kept here as a pointer so the history is not lost.
 
 ---
 
@@ -263,9 +254,10 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 |---|---|
 | Severity | Medium |
 | Affected files | `Firmware_Templates/src/main.rs:277-287` (top-level UUID routing only); `Firmware_Templates/src/module/lidar.rs:183-189` (children registered), `:327-336` (child addressing via `ChangeMotorAngle { id }`); `Firmware_Templates/src/core/modulecore.rs:27` (`parent_id` → empty string); `Firmware_Templates/src/core/transport/transport_emiter.rs:67` (SysLog source `"log"`); `UI/src/lib/Modulefront.TS:332` (lookup-name map overwritten on duplicates) |
+| Current location (after Phase 0) | `Firmware_Templates/src/runtime/mod.rs:49-58`; `Firmware_Templates/src/modules/composite/lidar.rs:193`, `:337`; `Firmware_Templates/src/core/transport/emitter.rs:72`; `UI/src/lib/Modulefront.ts:328` |
 | Confidence | Confirmed |
 | Status | Open |
-| Proposed phase | 2A |
+| Proposed phase | 2A (roadmap, pending approval) |
 
 **What is wrong.** Composite modules (LiDAR, joystick) register their children, but commands addressed to a child UUID are rejected as "No top-level module". The only child control is a LiDAR-specific command carrying the child ID. Lookup names are not checked for uniqueness on either side. `None` parent IDs are serialized as `""`. Emitter-level logs use the pseudo-ID `"log"`, which the frontend reports as "Module store not found".
 
@@ -287,9 +279,10 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 |---|---|
 | Severity | Medium |
 | Affected files | `Firmware_Templates/src/main.rs:209-254` (LEDs on GPIO 12/14/27); commented alternates reuse the same pins: `:130` joystick button GPIO12, `:172-174` RFID RGB on GPIO12/14/27 |
+| Current location (after Phase 0) | `Firmware_Templates/src/board/mod.rs` (pin map and LED wiring); `Firmware_Templates/src/board/disabled_wiring.rs` |
 | Confidence | Probable. GPIO12 (MTDI) selects flash voltage at reset on classic ESP32 modules unless eFuses override it. The actual board, eFuse state and LED wiring were not inspected |
 | Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
-| Proposed phase | 2C (documentation in Phase 0) |
+| Proposed phase | 2E (roadmap, pending approval) |
 
 **What is wrong.** Wiring is authored inline in `main()` with no board description or conflict check. `led1` drives GPIO12, a strapping pin: if external circuitry holds it high at reset, the module selects 1.8 V flash and fails to boot on 3.3 V-flash modules. Commented module wiring reuses GPIO 12, 14 and 27, so uncommenting it collides with the LEDs. `Peripherals::take()` would make that a compile error in most cases, but not when the pins come from different code paths.
 
@@ -311,9 +304,10 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 |---|---|
 | Severity | Medium |
 | Affected files | `Firmware_Templates/src/module/rfid.rs:226-262` vs `:264-279` (read collects up to 47 blocks; send requires exactly 16 bytes), `:381` (`WritePayload` appends without bound), `:82-85` (chip-version check disabled); `Firmware_Templates/src/module/remote_receiver.rs:127` (`.unwrap()` on GPIO read), `:121-140` (polling decode, see PIN-TPL-009); `Firmware_Templates/src/module/range_finder.rs:177-195` (Critical SysLog every failed tick, plus nested error logs) |
+| Current location (after Phase 0) | `Firmware_Templates/src/modules/sensors/rfid.rs:222-275`, `:377`, `:78-81`; `Firmware_Templates/src/modules/sensors/remote_receiver.rs:127`; `Firmware_Templates/src/modules/sensors/rangefinder.rs:175-195` |
 | Confidence | Confirmed (static); not executed |
 | Status | Open |
-| Proposed phase | 3A |
+| Proposed phase | 2C (roadmap, pending approval) |
 
 **What is wrong.** RFID `read_card` concatenates every readable block, up to 752 bytes. `send_card_data` then insists on exactly 16 bytes, so any card with more than one readable block never produces a `GetCard` event. Repeated `WritePayload` commands grow `temp_write_data` without limit. The MFRC522 version check is commented out, so a missing reader appears initialized. The rangefinder emits two Critical SysLogs per failed tick at loop rate, which floods the egress queues (PIN-TPL-010).
 
@@ -335,9 +329,10 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 |---|---|
 | Severity | Medium |
 | Affected files | `UI/src/lib/Modulefront.TS` (385 lines: transport lifecycle, IPC listeners, registry, lookup map, logs, system info); `UI/src/lib/Modules/lidar.tsx` (948 lines), `stepper.tsx` (552), `rangefinder.tsx` (382), each combining Zod schema, Zustand store, IPC commands and React views; `UI/tsconfig.json:27` (`noImplicitAny: false`); `UI/src/lib/IncomingCommand.ts:4` (`command: any`); `UI/src/lib/Modules/Led.tsx:49` (`handleEvent: (event: any)`) |
+| Current location (after Phase 0) | `UI/src/lib/Modulefront.ts` (381 lines); `UI/src/lib/Modules/lidar/view.tsx` (616), `stepper/view.tsx` (339); `UI/tsconfig.json:27`; `UI/src/lib/IncomingCommand.ts:7`; `UI/src/lib/Modules/Led/store.ts` (`handleEvent: (event: any)`) |
 | Confidence | Confirmed |
 | Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
-| Proposed phase | 0 (file organization) / 2C (store redesign) |
+| Proposed phase | 2D (roadmap, pending approval) |
 
 **What is wrong.** One Zustand store owns unrelated concerns, and its actions call `invoke` directly. Module files mix protocol schemas, state, side effects and UI. `strict` is on, but `noImplicitAny` is off and outgoing commands are typed `any`, so the command schemas in `protocol/command.ts` are never enforced on send. Seven module UIs (servo, stepper, LiDAR, rangefinder, RFID, IMU, remote receiver) are compiled but never registered.
 

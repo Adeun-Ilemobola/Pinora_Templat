@@ -13,9 +13,10 @@ There are no Critical findings (see [critical.md](critical.md) for why). Two of 
 |---|---|
 | Severity | High |
 | Affected files | `Firmware_Templates/src/main.rs:272-295` (main loop), `:279` (`?` on handler), `:274` (tick errors discarded); `Firmware_Templates/src/core/modulecore.rs:92` (`handle_command` returns `anyhow::Result`) |
+| Current location (after Phase 0) | `Firmware_Templates/src/runtime/mod.rs:38-67` (tick `:45`, handler `?` `:50`); `Firmware_Templates/src/core/module.rs` (`handle_command` contract) |
 | Confidence | Confirmed (static: the loop exits). Probable: the device state after exit, which was not observed on hardware |
 | Status | Open |
-| Proposed phase | 1A |
+| Proposed phase | 1B (roadmap, pending approval) |
 
 **What is wrong.** The main loop calls `module.handle_command(&command.command)?`. When any module's handler returns `Err`, the `?` returns from `main()`. Errors from `module.tick()` go the opposite way: `let _ =` discards them with no log or event.
 
@@ -53,9 +54,10 @@ if let Ok(command) = command_receiver.try_recv() {
 |---|---|
 | Severity | High |
 | Affected files | `Firmware_Templates/src/module/ledmodule.rs:42-46`; `Firmware_Templates/src/utilities/math.rs:1-13` (`range_u32`); `protocol/src/module/ledmodule.rs` (`SetState { state: u32 }`) |
+| Current location (after Phase 0) | `Firmware_Templates/src/modules/actuators/led.rs:46-50`; `Firmware_Templates/src/utilities/math.rs:8-20` |
 | Confidence | Confirmed (probe executed against the real `math.rs` and protocol crate; see [validation baseline](../evidence/validation-baseline.md#dynamic-probes)) |
 | Status | Open |
-| Proposed phase | 1A |
+| Proposed phase | 1B (roadmap, pending approval) |
 
 **What is wrong.** `SetState { state }` accepts any `u32`. `set_state` computes `range_u32(state, 0, 100, 0, max_duty)` with no clamp, which is `(state - 0) * 8191 / 100`. It then reports `Brightness { level: state }`, echoing the unvalidated value.
 
@@ -90,9 +92,10 @@ release: range_u32(524353) = 81        range_u32(4000000000) = 19894661
 |---|---|
 | Severity | High |
 | Affected files | `Firmware_Templates/src/core/transport/bluetooth.rs:85-92` (auto-confirm SSP), `:128-136` (IO capability `NONE`), `:138` (server start), `:208` (discoverable, never reverted) |
+| Current location (after Phase 0) | `Firmware_Templates/src/core/transport/bluetooth.rs:104-110` (auto-confirm), `:162-171` (IO capability), `:173` (server), `:243` (discoverable) |
 | Confidence | Confirmed (static). Exploitation not attempted; no radio testing was performed |
 | Status | Open |
-| Proposed phase | 1B |
+| Proposed phase | 1C (+2B) (roadmap, pending approval) |
 
 **What is wrong.** The firmware advertises itself as discoverable for its whole uptime and declares no input/output capability, so Secure Simple Pairing uses Just Works. It then answers every `PairingUserConfirmationRequest` with `true`. The SPP link is encrypted, but encryption comes from that unauthenticated pairing. After connection, any well-formed `IncomingCommand` is executed: there is no token, allow-list or bonding check. Wi-Fi by contrast requires a shared token, though a weak one (PIN-TPL-013).
 
@@ -131,9 +134,10 @@ gap.set_scan_mode(true, DiscoveryMode::Discoverable)
 |---|---|
 | Severity | High (rises to Critical when servo or stepper modules are instantiated) |
 | Affected files | `Firmware_Templates/src/module/servomodule.rs:51-58` (test sweep in constructor), `:74` (`.unwrap()` on I²C), `:157-169` (pivot setters); `Firmware_Templates/src/module/stepper.rs:111` (starts in `Homing`), `:142-144`, `:304-310` (`MoveToAngle` unbounded), `:311-322` / `:372-377` (pivot limits unvalidated), `:148` (coils stay energized when idle), `:255-267` (`.unwrap()` on GPIO); `Firmware_Templates/src/module/lidar.rs:166-179` (`initialize` sweeps both servos in `first_emit`) |
+| Current location (after Phase 0) | `Firmware_Templates/src/modules/actuators/servo.rs:53-60` (test sweep), `:76` (`.unwrap()`), `:158-166`; `Firmware_Templates/src/modules/actuators/stepper.rs:118` (starts Homing), `:155`, `:262` (`.unwrap()`), `:310-328`, `:378`; `Firmware_Templates/src/modules/composite/lidar.rs:176` (`initialize`) |
 | Confidence | Confirmed (static). No hardware was moved during this audit |
 | Status | Open |
-| Proposed phase | 1A |
+| Proposed phase | 1D (roadmap, pending approval) |
 
 **What is wrong.**
 - `ServoModule::new` immediately drives the servo to the offset, then to 35°, 10°, −10°, −35° and back to 0°, with no delay and no command. Every servo constructed, including the two inside LiDAR, jerks at boot. LiDAR's `first_emit` then sweeps both servos to the ROI corners.
@@ -172,9 +176,10 @@ s.set_angle(0)?;
 |---|---|
 | Severity | High |
 | Affected files | `Firmware_Templates/src/module/lidar.rs:244-251` (exact-equality termination), `:279-281` (flush only at row end), `:339-341` (ROI arithmetic), `:348-350` (`SetStep` accepts 0) |
+| Current location (after Phase 0) | `Firmware_Templates/src/modules/composite/lidar.rs:254-261`, `:289`, `:349`, `:358` |
 | Confidence | Confirmed by code reasoning. Not executed: the module is not instantiated and has no test harness |
 | Status | Open |
-| Proposed phase | 1A |
+| Proposed phase | 1D (roadmap, pending approval) |
 
 **What is wrong.** Rows and scans end only when `curr_point_bottom.x == limit_point.x` (and the same for `y`). The position moves by `step` per tick and is clamped by the servos. If `step` does not divide the ROI span exactly, the position passes the limit, gets clamped at the servo bound instead, and never equals the limit. `SetStep { step: 0 }` means it never moves at all. Every tick in `Scanning` pushes a point into `point_map`, which is flushed only at the end of a row. `Roi` computes `max.x.abs() as u32 * 2 * …`, where `i32::MIN.abs()` panics in debug, and it does not validate `min < max`.
 
@@ -206,9 +211,10 @@ Worked example: ROI x from 90 to −50 with step 3. That is 140/3 steps, which i
 |---|---|
 | Severity | High |
 | Affected files | `UI/src/lib/Modulefront.TS:256-264` (`JSON.parse` then unvalidated `HandleEvent`), `:294` (appends any object to `logs`); `UI/src/lib/logs.ts:52`, `:65` (assumes shape); `UI/src/components/LogViewer.tsx:46`, `:117` (calls `describeLog`/`matchesLog` during render); `UI/src-tauri/src/lib.rs:156-164` (COM reader forwards raw lines) |
+| Current location (after Phase 0) | `UI/src/lib/Modulefront.ts:234-264` (listener, `JSON.parse` `:252`), `:290`; `UI/src/lib/logs.ts:52`, `:65`; `UI/src/components/LogViewer.tsx:46`, `:117`; `UI/src-tauri/src/serial_transport.rs:170-178` |
 | Confidence | Confirmed: probe executed (`describeLog` and `matchesLog` throw `TypeError`). The end-to-end UI effect is Probable: no error boundary or `errorElement` exists, so React Router's default error screen replaces the app |
 | Status | Open |
-| Proposed phase | 1B |
+| Proposed phase | 1C (roadmap, pending approval) |
 
 **What is wrong.** On USB Serial and Bluetooth, the Tauri COM reader forwards every newline-terminated line to React as `espState`. Only Wi-Fi validates with the Rust protocol types. The frontend accepts any line that starts with `{` and parses as JSON. It appends the object to `logs` before any shape check. `describeLog` assumes every non-Registration, non-System object has a `ModuleEvent` with exactly one key. Any other JSON object throws a `TypeError` inside `LogViewer`'s render, including firmware console noise, a future protocol variant, or `{"ModuleEvent":{"id":"x","event":{}}}`.
 
