@@ -1,0 +1,106 @@
+# Host-side checks for the Pinora template (audit Phase 1A, PIN-TPL-008).
+#
+# Hardware-independent only: no flashing, no device access. The ESP32 firmware
+# cross-build (esp-1.93 + ESP-IDF) is not run here because of the toolchain size;
+# its hardware-free logic is covered by tests/firmware-host instead.
+#
+# Lint warnings do not fail the build yet (pre-existing, tracked as PIN-TPL-022 and
+# planned for Phase 3A).
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: Rust (protocol, firmware host tests, formatting)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The protocol crate declares `wifi_config` unconditionally; CI uses the
+      # placeholder values from the tracked example (PIN-TPL-015).
+      - name: Provide placeholder Wi-Fi config
+        run: cp protocol/src/wifi_config.example.rs protocol/src/wifi_config.rs
+
+      - name: Install stable Rust
+        run: rustup toolchain install stable --profile minimal --component rustfmt,clippy
+
+      # `+stable` overrides Firmware_Templates/rust-toolchain.toml (esp-1.93), which
+      # is not needed for formatting.
+      - name: Formatting
+        run: |
+          for dir in protocol Firmware_Templates UI/src-tauri tests/firmware-host; do
+            echo "::group::cargo fmt --check ($dir)"
+            (cd "$dir" && cargo +stable fmt --check)
+            echo "::endgroup::"
+          done
+
+      - name: Protocol golden wire-format tests
+        working-directory: protocol
+        run: cargo +stable test
+
+      - name: Protocol clippy
+        working-directory: protocol
+        run: cargo +stable clippy --all-targets
+
+      - name: Firmware host tests (debug)
+        working-directory: tests/firmware-host
+        run: cargo +stable test --locked
+
+      - name: Firmware host tests (release overflow semantics)
+        working-directory: tests/firmware-host
+        run: cargo +stable test --locked --release
+
+      - name: Firmware host clippy
+        working-directory: tests/firmware-host
+        run: cargo +stable clippy --locked --all-targets
+
+  desktop:
+    name: Desktop (frontend build and tests, Tauri backend)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Provide placeholder Wi-Fi config
+        run: Copy-Item protocol/src/wifi_config.example.rs protocol/src/wifi_config.rs
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+
+      - name: Install frontend dependencies
+        working-directory: UI
+        run: bun install --frozen-lockfile
+
+      # Type check + production build. Also creates UI/dist, which the Tauri crate
+      # requires at compile time (frontendDist).
+      - name: Frontend build (tsc + vite)
+        working-directory: UI
+        run: bun run build
+
+      - name: Frontend characterization tests
+        working-directory: UI
+        run: bun test
+
+      - name: Install stable Rust
+        run: rustup toolchain install stable --profile minimal --component clippy
+
+      - name: Tauri backend clippy
+        working-directory: UI/src-tauri
+        run: cargo +stable clippy --locked

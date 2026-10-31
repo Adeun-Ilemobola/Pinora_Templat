@@ -24,11 +24,14 @@ fn golden_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/golden/wire_format.txt")
 }
 
+/// Parses golden JSON and compares it with the original value.
+type RoundTrip = Box<dyn Fn(&str) -> Result<(), String>>;
+
 /// Collects `name -> json` lines and round-trip checks.
 #[derive(Default)]
 struct Cases {
     actual: BTreeMap<String, String>,
-    round_trips: Vec<Box<dyn Fn(&str) -> Result<(), String>>>,
+    round_trips: Vec<RoundTrip>,
     names: Vec<String>,
 }
 
