@@ -19,11 +19,11 @@ impl fmt::Display for EmitterError {
     }
 }
 #[derive(Debug, Clone)]
-pub struct TransportEmiter {
+pub struct TransportEmitter {
     tx: SyncSender<ProtocolMessage>,
 }
 
-impl TransportEmiter {
+impl TransportEmitter {
     pub fn new() -> (Self, Receiver<ProtocolMessage>) {
         let (tx, rx) = sync_channel::<ProtocolMessage>(128);
         (Self { tx }, rx)

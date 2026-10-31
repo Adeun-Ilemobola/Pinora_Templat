@@ -1,6 +1,6 @@
 use crate::core::hardware::SharedPwm;
-use crate::core::modulecore::{Module, ModuleCore, ModuleError};
-use crate::core::transport::transport_emiter::{EmitterError, TransportEmiter};
+use crate::core::module::{Module, ModuleCore, ModuleError};
+use crate::core::transport::emitter::{EmitterError, TransportEmitter};
 use crate::utilities::math::{pulse_us_to_tick, range_i32};
 
 use pinora_protocol::{
@@ -26,14 +26,14 @@ pub struct ServoModule<'d> {
 impl<'d> ServoModule<'d> {
     pub fn new(
         pwm: SharedPwm<'d>,
-        manuel_id: String,
+        lookup_name: String,
         channel: Channel,
         config: ServoCapability,
         cluster_id: Option<String>,
-        sender: TransportEmiter,
+        sender: TransportEmitter,
     ) -> anyhow::Result<ServoModule<'d>> {
         let mut s = ServoModule {
-            core: ModuleCore::new(ModuleType::Servo, &manuel_id, cluster_id, sender),
+            core: ModuleCore::new(ModuleType::Servo, &lookup_name, cluster_id, sender),
             pwm,
             config: config.clone(),
             offset: config.offset,
@@ -46,8 +46,8 @@ impl<'d> ServoModule<'d> {
         s.set_offset(s.offset)?;
         s.set_angle(0)?;
 
-        let testrang: [i32; 4] = [35, 10, -10, -35];
-        for f in testrang {
+        let self_test_angles: [i32; 4] = [35, 10, -10, -35];
+        for f in self_test_angles {
             s.set_angle(f)?;
         }
         s.set_angle(0)?;
@@ -97,7 +97,7 @@ impl<'d> ServoModule<'d> {
             .map_err(|error| {
                 anyhow::anyhow!(
                     " Servo Module pwm id: [{:?}]  initialization failed: {error:?}",
-                    self.core.manuel_id.clone()
+                    self.core.lookup_name.clone()
                 )
             })?;
 
@@ -129,7 +129,7 @@ impl<'d> ServoModule<'d> {
             .map_err(|error| {
                 anyhow::anyhow!(
                     " Servo Module pwm id: [{:?}]  initialization failed: {error:?}",
-                    self.core.manuel_id.clone()
+                    self.core.lookup_name.clone()
                 )
             })?;
 

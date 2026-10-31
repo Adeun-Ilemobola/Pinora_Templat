@@ -6,6 +6,7 @@ use std::{
     time::Duration,
 };
 
+use crate::core::transport::discovery_cache::remember;
 use esp_idf_svc::{
     eventloop::EspSystemEventLoop,
     hal::modem::Modem,
@@ -219,26 +220,6 @@ fn serve_connection(
                 return;
             }
         }
-    }
-}
-
-fn remember(
-    message: &ProtocolMessage,
-    system: &mut Option<ProtocolMessage>,
-    registrations: &mut Vec<ProtocolMessage>,
-) {
-    match message {
-        ProtocolMessage::System(_) => *system = Some(message.clone()),
-        ProtocolMessage::Registration(registration) => {
-            if let Some(saved) = registrations.iter_mut().find(|saved| {
-                matches!(saved, ProtocolMessage::Registration(item) if item.id == registration.id)
-            }) {
-                *saved = message.clone();
-            } else {
-                registrations.push(message.clone());
-            }
-        }
-        ProtocolMessage::ModuleEvent(_) => {}
     }
 }
 

@@ -4,8 +4,8 @@ use esp_idf_svc::hal::gpio::Level;
 
 use crate::core::{
     hardware::InputPinCore,
-    modulecore::{Module, ModuleCore, ModuleError},
-    transport::transport_emiter::{EmitterError, TransportEmiter},
+    module::{Module, ModuleCore, ModuleError},
+    transport::emitter::{EmitterError, TransportEmitter},
 };
 use pinora_protocol::{
     command::ModuleCommand, global_definitions::ModuleType, ModuleEvent::RemoteReceiver,
@@ -27,7 +27,7 @@ impl<'d> RemoteReceiverButton<'d> {
     pub fn new(
         pin: InputPinCore<'d>,
         core_id: String,
-        sender: TransportEmiter,
+        sender: TransportEmitter,
     ) -> Result<RemoteReceiverButton<'d>, ()> {
         let r = RemoteReceiverButton {
             core: ModuleCore::new(ModuleType::RemoteReceiver, &core_id, None, sender),

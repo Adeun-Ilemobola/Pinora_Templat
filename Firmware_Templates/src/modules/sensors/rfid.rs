@@ -1,7 +1,7 @@
 use crate::core::{
     hardware::{OutputPinCore, TimerState},
-    modulecore::{Module, ModuleCore, ModuleError},
-    transport::transport_emiter::{EmitterError, TransportEmiter},
+    module::{Module, ModuleCore, ModuleError},
+    transport::emitter::{EmitterError, TransportEmitter},
 };
 use pinora_protocol::{
     command::ModuleCommand,
@@ -47,13 +47,13 @@ pub struct Rfid<'d> {
     pub temp_write_data: Vec<u8>,
     write_state: WriteState,
     write_state_msg: String,
-    pub write_chuck: u32,
+    pub write_chunk: u32,
     pub next_acc: TimerState,
     pub mode: MddeRfid,
 
     mf: RfidReader<'d>,
     rgb_pins: RGB<'d>,
-    buzer_pin: OutputPinCore<'d>,
+    buzzer_pin: OutputPinCore<'d>,
     pub rgb_mode: RGBMode,
 }
 
@@ -61,10 +61,10 @@ impl<'d> Rfid<'d> {
     pub fn new(
         spi: SpiSingleDeviceDriver<'d>,
         rgb_pins: RGB<'d>,
-        buzer_pin: OutputPinCore<'d>,
+        buzzer_pin: OutputPinCore<'d>,
         core_id: &str,
         parent_id: Option<String>,
-        sender: TransportEmiter,
+        sender: TransportEmitter,
     ) -> anyhow::Result<Self> {
         let interface = SpiInterface::new(spi).with_delay(rfid_spi_delay as RfidDelay);
 
@@ -90,8 +90,8 @@ impl<'d> Rfid<'d> {
             mf: reader,
             rgb_pins,
             rgb_mode: RGBMode::Off,
-            buzer_pin,
-            write_chuck: 1,
+            buzzer_pin,
+            write_chunk: 1,
             write_state: WriteState::Good,
             write_state_msg: "All Good".to_string(),
         };
@@ -123,8 +123,8 @@ impl<'d> Rfid<'d> {
                                 return Err(());
                             }
                         };
-                        // let _ =self.buzer_pin.set_state(true);
-                        // let _ =self.buzer_pin.set_state(false);
+                        // let _ =self.buzzer_pin.set_state(true);
+                        // let _ =self.buzzer_pin.set_state(false);
                         self.update_rgb(RGBMode::Blue);
 
                         self.read_card(&uid)?;
@@ -163,8 +163,8 @@ impl<'d> Rfid<'d> {
                             }
                         };
                         self.update_rgb(RGBMode::Blue);
-                        // let _ =self.buzer_pin.set_state(true);
-                        // let _ =self.buzer_pin.set_state(false);
+                        // let _ =self.buzzer_pin.set_state(true);
+                        // let _ =self.buzzer_pin.set_state(false);
                         // println!("Card UID: {:02X?}", uid.as_bytes());
                         if self.temp_write_data.is_empty() {
                             self.mode = MddeRfid::Read;

@@ -1,6 +1,6 @@
 use std::{rc::Rc, sync::mpsc::SyncSender};
 
-use crate::core::transport::transport_emiter::{EmitterError, TransportEmiter};
+use crate::core::transport::emitter::{EmitterError, TransportEmitter};
 use esp_idf_svc::hal::adc::{
     attenuation,
     oneshot::{config::AdcChannelConfig, AdcChannelDriver, AdcDriver},
@@ -9,8 +9,8 @@ use esp_idf_svc::hal::adc::{
 use esp_idf_svc::hal::gpio::ADCPin;
 
 use crate::core::hardware::InputPin;
-use crate::core::modulecore::{Module, ModuleCore, ModuleError};
-use crate::module::buttonmodule::Buttonmodule;
+use crate::core::module::{Module, ModuleCore, ModuleError};
+use crate::modules::sensors::button::ButtonModule;
 use crate::utilities::math::range_i16;
 use pinora_protocol::{
     command::ModuleCommand, global_definitions::ModuleType, registration::ProtocolMessage,
@@ -23,7 +23,7 @@ where
     Y: AdcChannel<AdcUnit = U>,
 {
     core: ModuleCore,
-    button: Buttonmodule<'d>,
+    button: ButtonModule<'d>,
     x_channel: AdcChannelDriver<'d, X, Rc<AdcDriver<'d, U>>>,
     y_channel: AdcChannelDriver<'d, Y, Rc<AdcDriver<'d, U>>>,
     x_value_raw: u16,
@@ -48,7 +48,7 @@ where
         adc: ADC,
         ax: AX,
         ay: AY,
-        sender: TransportEmiter,
+        sender: TransportEmitter,
     ) -> anyhow::Result<Self>
     where
         MB: InputPin + 'd,
@@ -64,7 +64,7 @@ where
 
         Ok(Self {
             core: ModuleCore::new(ModuleType::JoyStick, "JoyStick", None, sender.clone()),
-            button: Buttonmodule::new(mb, "mb".to_string(), sender.clone())?,
+            button: ButtonModule::new(mb, "mb".to_string(), sender.clone())?,
             x_channel: AdcChannelDriver::new(adc.clone(), ax, &config)?,
             y_channel: AdcChannelDriver::new(adc, ay, &config)?,
             x_value_raw: 0,

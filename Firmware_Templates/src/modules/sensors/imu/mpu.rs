@@ -1,10 +1,10 @@
 use crate::{
     core::{
         hardware::SharedI2cDevice,
-        modulecore::{Module, ModuleCore, ModuleError},
-        transport::transport_emiter::{EmitterError, TransportEmiter},
+        module::{Module, ModuleCore, ModuleError},
+        transport::emitter::{EmitterError, TransportEmitter},
     },
-    module::imu::imu_type::{
+    modules::sensors::imu::types::{
         Axes, ImuError, ImuEvent, ImuModel, Mpu, MpuDevice, MpuDeviceErr, MpuDeviceMode, RawAxes,
         ACCEL_SENSITIVITY, ACCEL_XOUT_H, GYRO_SENSITIVITY, GYRO_XOUT_H,
     },
@@ -53,7 +53,7 @@ impl<'d> MpuDevice<'d> {
     pub fn new(
         i2c: SharedI2cDevice<'d>,
         device_address: u8,
-        sender: TransportEmiter,
+        sender: TransportEmitter,
         core_id: &str,
         parent_id: Option<String>,
     ) -> Result<MpuDevice<'d>, MpuDeviceErr> {

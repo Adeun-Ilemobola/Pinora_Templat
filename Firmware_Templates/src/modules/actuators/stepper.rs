@@ -4,10 +4,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::core::{
     hardware::{OutputPinCore, TimerState},
-    modulecore::{Module, ModuleCore, ModuleError},
+    module::{Module, ModuleCore, ModuleError},
 };
 
-use crate::core::transport::transport_emiter::{EmitterError, TransportEmiter};
+use crate::core::transport::emitter::{EmitterError, TransportEmitter};
 
 use pinora_protocol::{
     command::ModuleCommand, global_definitions::ModuleType, module_event::ModuleEvent,
@@ -97,12 +97,12 @@ impl<'d> StepperMotor<'d> {
     pub fn new(
         // pins_bus: StepperPins<'d>,
         motion_mode: StepperPinMode<'d>,
-        manuel_id: String,
+        lookup_name: String,
         cluster_id: Option<String>,
-        sender: TransportEmiter,
+        sender: TransportEmitter,
     ) -> anyhow::Result<StepperMotor<'d>> {
         let motor = StepperMotor {
-            core: ModuleCore::new(ModuleType::StepperMotor, &manuel_id, cluster_id, sender),
+            core: ModuleCore::new(ModuleType::StepperMotor, &lookup_name, cluster_id, sender),
             // pins: pins_bus,
             step_timer: TimerState::from_ms(1.25),
             target_step: 0.0,

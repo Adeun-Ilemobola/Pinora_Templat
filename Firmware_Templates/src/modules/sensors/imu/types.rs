@@ -1,4 +1,4 @@
-use crate::core::{hardware::SharedI2cDevice, modulecore::ModuleCore};
+use crate::core::{hardware::SharedI2cDevice, module::ModuleCore};
 use core::fmt;
 use serde::Serialize;
 

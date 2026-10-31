@@ -9,6 +9,7 @@ use std::{
     time::Duration,
 };
 
+use crate::core::transport::discovery_cache::remember;
 use esp_idf_svc::{
     bt::{
         gap::{DiscoveryMode, EspGap, GapEvent},
@@ -337,25 +338,5 @@ fn enqueue(message: &ProtocolMessage, pending: &mut VecDeque<Vec<u8>>) {
         }
         Ok(_) => log::warn!("Bluetooth protocol message exceeds size limit"),
         Err(error) => log::warn!("Bluetooth serialization failed: {error}"),
-    }
-}
-
-fn remember(
-    message: &ProtocolMessage,
-    system: &mut Option<ProtocolMessage>,
-    registrations: &mut Vec<ProtocolMessage>,
-) {
-    match message {
-        ProtocolMessage::System(_) => *system = Some(message.clone()),
-        ProtocolMessage::Registration(registration) => {
-            if let Some(saved) = registrations.iter_mut().find(|saved| {
-                matches!(saved, ProtocolMessage::Registration(item) if item.id == registration.id)
-            }) {
-                *saved = message.clone();
-            } else {
-                registrations.push(message.clone());
-            }
-        }
-        ProtocolMessage::ModuleEvent(_) => {}
     }
 }

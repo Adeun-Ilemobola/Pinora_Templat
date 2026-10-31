@@ -1,6 +1,6 @@
 use crate::core::hardware::{InputPin, InputPinCore, Pull};
-use crate::core::modulecore::{Module, ModuleCore, ModuleError};
-use crate::core::transport::transport_emiter::TransportEmiter;
+use crate::core::module::{Module, ModuleCore, ModuleError};
+use crate::core::transport::emitter::TransportEmitter;
 use esp_idf_svc::hal::gpio::Level;
 use pinora_protocol::{
     command::ModuleCommand, global_definitions::ModuleType, module_event::ModuleEvent,
@@ -9,7 +9,7 @@ use pinora_protocol::{
 pub use pinora_protocol::module::buttonmodule::ButtonEvent;
 
 static BUTTON_MODULE_MAX_TIME: u64 = 30; // Maximum time in milliseconds to consider a button press valid
-pub struct Buttonmodule<'d> {
+pub struct ButtonModule<'d> {
     core: ModuleCore,
     state: Level,      // debounced/committed level
     prev_state: Level, // previous committed level, for edge detection
@@ -18,17 +18,17 @@ pub struct Buttonmodule<'d> {
     last_change_time: std::time::Instant,
 }
 
-impl<'d> Buttonmodule<'d> {
+impl<'d> ButtonModule<'d> {
     pub fn new<T>(
         pin: T,
-        lool_up_id: String,
-        sender: TransportEmiter,
-    ) -> anyhow::Result<Buttonmodule<'d>>
+        lookup_name: String,
+        sender: TransportEmitter,
+    ) -> anyhow::Result<ButtonModule<'d>>
     where
         T: InputPin + 'd,
     {
-        let buttonmodule = Buttonmodule {
-            core: ModuleCore::new(ModuleType::Button, &lool_up_id, None, sender),
+        let buttonmodule = ButtonModule {
+            core: ModuleCore::new(ModuleType::Button, &lookup_name, None, sender),
             state: Level::High,
             pin_driver: InputPinCore::new(pin, Pull::Up)?,
             last_state: Level::High,
@@ -63,7 +63,7 @@ impl<'d> Buttonmodule<'d> {
         Ok(false)
     }
 }
-impl<'d> Module for Buttonmodule<'d> {
+impl<'d> Module for ButtonModule<'d> {
     fn tick(&mut self) -> Result<(), ModuleError> {
         self.poll()
             .map(|_| ())

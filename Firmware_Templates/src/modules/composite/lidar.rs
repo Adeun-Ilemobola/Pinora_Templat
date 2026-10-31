@@ -1,14 +1,14 @@
 use crate::core::hardware::{I2cDriver, RangefinderI2c, TimerState};
-use crate::core::transport::transport_emiter::{EmitterError, TransportEmiter};
+use crate::core::transport::emitter::{EmitterError, TransportEmitter};
 use pinora_protocol::module::lidar::{LidarEvent, RangPoint, ScanState};
 use pinora_protocol::module::servomodule::ServoCapability;
 
 use crate::core::{
     hardware::SharedPwm,
-    modulecore::{Module, ModuleCore, ModuleError},
+    module::{Module, ModuleCore, ModuleError},
 };
-use crate::module::range_finder::Rangefinder;
-use crate::module::servomodule::ServoModule;
+use crate::modules::actuators::servo::ServoModule;
+use crate::modules::sensors::rangefinder::Rangefinder;
 use embedded_hal_compat::ReverseCompat;
 use pinora_protocol::{
     command::ModuleCommand,
@@ -49,11 +49,11 @@ pub struct Lidar<'d> {
 impl<'d> Lidar<'d> {
     pub fn new(
         pwm: SharedPwm<'d>,
-        manuel_id: String,
+        lookup_name: String,
         rangefinder_i2c: RangefinderI2c<'d>,
-        sender: TransportEmiter,
+        sender: TransportEmitter,
     ) -> anyhow::Result<Lidar<'d>> {
-        let mc = ModuleCore::new(ModuleType::Lidar, &manuel_id, None, sender.clone());
+        let mc = ModuleCore::new(ModuleType::Lidar, &lookup_name, None, sender.clone());
         let config = ServoCapability {
             max_angle: 180,
             min_angle: 0,

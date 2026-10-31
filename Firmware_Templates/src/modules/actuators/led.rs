@@ -1,34 +1,34 @@
 use crate::core::hardware::{ledc, LedTimer, OutputPin};
-use crate::core::modulecore::{Module, ModuleCore, ModuleError};
-use crate::core::transport::transport_emiter::{EmitterError, TransportEmiter};
+use crate::core::module::{Module, ModuleCore, ModuleError};
+use crate::core::transport::emitter::{EmitterError, TransportEmitter};
 use crate::utilities::math::range_u32;
 use pinora_protocol::{
     command::ModuleCommand, global_definitions::ModuleType, module_event::ModuleEvent,
 };
 
 pub use pinora_protocol::module::ledmodule::{LedCommandPayload, LedEvent};
-pub struct Ledmodule<'d> {
+pub struct LedModule<'d> {
     core: ModuleCore,
     state: u32,
     pwm: ledc::LedcDriver<'d>,
 }
-impl<'d> Ledmodule<'d> {
+impl<'d> LedModule<'d> {
     pub fn new<T, C>(
         pin: T,
         channel: C,
-        manuel_id: String,
+        lookup_name: String,
         timer: &LedTimer<'d>,
         cluster_id: Option<String>,
-        sender: TransportEmiter,
-    ) -> anyhow::Result<Ledmodule<'d>>
+        sender: TransportEmitter,
+    ) -> anyhow::Result<LedModule<'d>>
     where
         T: OutputPin + 'd,
         C: ledc::LedcChannel<SpeedMode = ledc::LowSpeed> + 'd,
     {
         let pwm = ledc::LedcDriver::new(channel, timer, pin)?;
 
-        let ledmodule = Ledmodule {
-            core: ModuleCore::new(ModuleType::Led, &manuel_id, cluster_id, sender),
+        let ledmodule = LedModule {
+            core: ModuleCore::new(ModuleType::Led, &lookup_name, cluster_id, sender),
             state: 0,
             pwm,
         };
@@ -59,7 +59,7 @@ impl<'d> Ledmodule<'d> {
     }
 }
 
-impl<'d> Module for Ledmodule<'d> {
+impl<'d> Module for LedModule<'d> {
     fn tick(&mut self) -> Result<(), ModuleError> {
         Ok(())
     }
