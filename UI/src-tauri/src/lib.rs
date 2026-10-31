@@ -8,8 +8,9 @@
 //! * `wifi_transport`: authenticated TCP listener for the Wi-Fi firmware transport.
 //!
 //! Events emitted to the frontend: `espState` (one validated protocol line),
-//! `espConsole` (any other COM line, added in Phase 1C), and `wifiConnection` and
-//! `bluetoothConnection` (`"Connected"` / `"Disconnected"`), contract C-07.
+//! `espConsole` (any other COM line, added in Phase 1C), and `wifiConnection`,
+//! `bluetoothConnection` and `serialConnection` (added in Phase 2A; `"Disconnected"`
+//! only) with `"Connected"` / `"Disconnected"`, contract C-07.
 
 mod bluetooth_ports;
 mod commands;

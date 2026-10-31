@@ -48,6 +48,18 @@ pub(crate) enum TransportType {
     Bluetooth,
 }
 
+impl TransportType {
+    /// The event that reports this transport's connection loss (contract C-07).
+    /// `serialConnection` was added in Phase 2A (PIN-TPL-012); before that a USB
+    /// disconnect was not reported at all.
+    pub(crate) fn connection_event(self) -> &'static str {
+        match self {
+            TransportType::Serial => "serialConnection",
+            TransportType::Bluetooth => "bluetoothConnection",
+        }
+    }
+}
+
 /// Managed Tauri state for the COM-port connection.
 #[derive(Default)]
 pub(crate) struct AppState {
@@ -154,12 +166,10 @@ impl AppState {
                         Vec::new()
                     }
                     Err(error) => {
-                        // Only Bluetooth reports the loss to the UI (PIN-TPL-012).
+                        // A read error after a deliberate shutdown is not reported.
                         log::warn!("Port read failed: {error}");
-                        if matches!(transport, TransportType::Bluetooth)
-                            && running.load(Ordering::Relaxed)
-                        {
-                            let _ = app.emit("bluetoothConnection", "Disconnected");
+                        if running.load(Ordering::Relaxed) {
+                            let _ = app.emit(transport.connection_event(), "Disconnected");
                         }
                         break;
                     }
@@ -188,5 +198,19 @@ impl AppState {
             transport_type: Some(transport),
             error: None,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TransportType;
+
+    #[test]
+    fn each_transport_reports_its_own_disconnect_event() {
+        assert_eq!(TransportType::Serial.connection_event(), "serialConnection");
+        assert_eq!(
+            TransportType::Bluetooth.connection_event(),
+            "bluetoothConnection"
+        );
     }
 }
