@@ -12,7 +12,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Affected files | Wire-visible (**must not change without a protocol version**): `lool_up_id` (`protocol/src/registration.rs:11`), `Ckick` (`protocol/src/module/buttonmodule.rs:5`), `Idol` (`protocol/src/module/lidar.rs:18`), `distant` (`protocol/src/module/lidar.rs:7`). Internal only (safe in Phase 0): `manuel_id` (field, `Firmware_Templates/src/core/modulecore.rs`), `TransportEmiter` / `transport_emiter.rs`, local `tansport` (`main.rs:69`), `buzer_pin`, `write_chuck` (`module/rfid.rs`), `testrang`, `UI/src/lib/ModuleGeter.ts`. Protocol-crate public type names `RangPoint`, `MddeRfid` do not appear on the wire but are public crate API, so they are frozen in Phase 0 (see contract C-08 in [compatibility contracts](../architecture/compatibility-contracts.md)) |
 | Current location (after Phase 0) | Wire names unchanged in `protocol/src/**` (frozen). Internal misspellings were fixed in Phase 0 |
 | Confidence | Confirmed (wire visibility checked by serialization probe) |
-| Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
+| Status | In Progress (Phase 0 fixed the internal names). Phase 2A accepts the corrected wire spellings `lookup_id`, `Click`, `Idle`, `distance` as input aliases; output names are unchanged until a future major protocol version. See phases/phase-2/phase-2a/RESULT.md |
 | Proposed phase | 2A (roadmap, pending approval) |
 
 **What is wrong.** Spelling errors appear across identifiers. Some are serialized JSON keys or enum tags. Others are only Rust or TypeScript symbols.

@@ -16,7 +16,8 @@ pub trait Module {
     fn tick(&mut self) -> Result<(), ModuleError>;                         // called every loop iteration
     fn handle_command(&mut self, command: &ModuleCommand) -> anyhow::Result<()>;
     fn register(&self) -> Result<(), EmitterError>   { self.emit_registration() } // reliable
-    fn first_emit(&mut self) -> Result<(), EmitterError> { Ok(()) }        // once after register
+    fn first_emit(&mut self) -> Result<(), EmitterError> { Ok(()) }        // after register; 2A: current-state replay, also on Rediscover
+    fn child_mut(&mut self, id: &str) -> Option<&mut dyn Module> { None } // 2A: composites expose children for routing
     fn emit(&self, event: ModuleEvent)   { /* try_emit EventPackage{id, event} */ }  // lossy
     fn log(&self, data: SysLogEvent)     { /* emit(SysLog) */ }
 }
@@ -27,7 +28,7 @@ pub trait Module {
 2. Insertion into `HashMap<String, Box<dyn Module>>` keyed by UUID.
 3. `register()` then `first_emit()` for each module, in HashMap order.
 4. `tick()` forever.
-5. `handle_command()` when a command's `id` matches.
+5. `handle_command()` when a command's `id` matches. **2A:** if no top-level id matches, the first composite whose `child_mut` returns the id handles it; `Rediscover` on `"SSI"` repeats step 3 with a fresh system snapshot.
 
 There is no shutdown, suspend, reset or safe-state hook. Modules are dropped only if `main` returns.
 
@@ -56,7 +57,7 @@ Modules and buses are deliberately non-`Send` (`Rc`), which keeps all hardware a
 | Type | `ModuleType` enum | `Registration.module_type` | factory map `{Led, Button}`; others ignored |
 | Parent | `parent_id: String` (`""` when none) | `Registration.parent_id` | `hasParent: boolean` only |
 
-Identity is **not stable across reboots**. The desktop must rediscover after every reset, and it relies on replay or on the reset itself (PIN-TPL-012).
+Identity is **not stable across reboots**. The desktop must rediscover after every reset, and it relies on replay or on the reset itself (PIN-TPL-012). **2A:** the desktop sends `Rediscover` after every connect. Duplicate lookup names are reported by the firmware (Medium SysLog) and the desktop.
 
 ## 4. Composite modules
 

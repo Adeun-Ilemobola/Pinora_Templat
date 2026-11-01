@@ -12,7 +12,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Affected files | `protocol/src/**` (authoritative Rust types); `UI/src/lib/protocol/*.ts`; module schemas inside `UI/src/lib/Modules/*.tsx`; `UI/src-tauri/src/lib.rs:249-275` (`send_data` writes unvalidated strings to COM); `UI/src-tauri/src/wifi_transport.rs:92-96`, `:233` (Wi-Fi validates both directions) |
 | Current location (after Phase 0) | `protocol/src/**`; `UI/src/lib/protocol/*.ts`; `UI/src/lib/Modules/*/schema.ts`; `UI/src-tauri/src/commands.rs:95` (COM write, unvalidated); `UI/src-tauri/src/wifi_transport.rs:92-96`, `:233` |
 | Confidence | Confirmed |
-| Status | Open |
+| Status | **Resolved** in Phase 2A (2026-11-01): the handwritten Zod schemas cover every family, are used on receive and send, and are enforced against the Rust golden fixture (`UI/tests/protocol-fixtures.test.ts`); `SystemInfo.protocol_version` added (v1). TypeScript code generation deferred (new dependencies). See phases/phase-2/phase-2a/RESULT.md |
 | Proposed phase | 2A (roadmap, pending approval) |
 
 **What is wrong.** The wire format is defined once in Rust and again by hand in Zod. The TypeScript aggregate schemas cover only `Led`, `Button` and `SysLog` events and `Led` commands. Ten Rust event families and six command families exist. The receive path never calls the Zod schemas; it uses `JSON.parse` and `as` casts. Tagging is mixed: most enums are externally tagged, `ImuEvent` is internally tagged (`event_type`), and `RangefinderCommandPayload::StartRanging` serializes as a bare string, `{"Rangefinder":"StartRanging"}`, while sibling commands are objects. There is no protocol version or capability handshake. Validation depends on the transport: Wi-Fi validates in Tauri, while USB/SPP do not validate on the desktop at all.
@@ -143,7 +143,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Affected files | `UI/src-tauri/src/lib.rs:144-150` (USB read error emits no event; only Bluetooth does); `Firmware_Templates/src/main.rs:280` (`"SSI"` rediscovery branch empty); `Firmware_Templates/src/core/transport/transport_core.rs:101-125` (Serial path: no registration cache or replay); `UI/src/lib/Modulefront.TS:116-137` (registry cleared *after* `start_port` resolves); `Firmware_Templates/src/core/modulecore.rs:57-59` (`first_emit` default is empty; LED does not report state) |
 | Current location (after Phase 0) | `UI/src-tauri/src/serial_transport.rs:155-163`; `Firmware_Templates/src/runtime/mod.rs:51` (`"SSI"` no-op); `Firmware_Templates/src/core/transport/serial.rs` (no replay); `UI/src/lib/Modulefront.ts:110-133`; `Firmware_Templates/src/core/module.rs` (`first_emit` default) |
 | Confidence | Confirmed (static) |
-| Status | Open |
+| Status | **Resolved** in Phase 2A (2026-11-01): `serialConnection` event, `Rediscover` system command with current-state replay on every transport, state cleared before connecting, LED "unknown until reported". Verified after the hardware check in phases/phase-2/phase-2a/RESULT.md (A-V6) |
 | Proposed phase | 2A (roadmap, pending approval) |
 
 **What is wrong.**
@@ -256,7 +256,7 @@ Re-rated **Medium → Low** in the post-Phase-0 reassessment (2026-10-31). The f
 | Affected files | `Firmware_Templates/src/main.rs:277-287` (top-level UUID routing only); `Firmware_Templates/src/module/lidar.rs:183-189` (children registered), `:327-336` (child addressing via `ChangeMotorAngle { id }`); `Firmware_Templates/src/core/modulecore.rs:27` (`parent_id` → empty string); `Firmware_Templates/src/core/transport/transport_emiter.rs:67` (SysLog source `"log"`); `UI/src/lib/Modulefront.TS:332` (lookup-name map overwritten on duplicates) |
 | Current location (after Phase 0) | `Firmware_Templates/src/runtime/mod.rs:49-58`; `Firmware_Templates/src/modules/composite/lidar.rs:193`, `:337`; `Firmware_Templates/src/core/transport/emitter.rs:72`; `UI/src/lib/Modulefront.ts:328` |
 | Confidence | Confirmed |
-| Status | Open |
+| Status | In Progress: Phase 2A added child routing (`Module::child_mut`), duplicate lookup-name reporting on both sides and documented reserved ids (C-05). `parent_id: ""` → `null` (wire-breaking) and the `"log"` pseudo-id handling remain. See phases/phase-2/phase-2a/RESULT.md |
 | Proposed phase | 2A (roadmap, pending approval) |
 
 **What is wrong.** Composite modules (LiDAR, joystick) register their children, but commands addressed to a child UUID are rejected as "No top-level module". The only child control is a LiDAR-specific command carrying the child ID. Lookup names are not checked for uniqueness on either side. `None` parent IDs are serialized as `""`. Emitter-level logs use the pseudo-ID `"log"`, which the frontend reports as "Module store not found".
@@ -331,7 +331,7 @@ Re-rated **Medium → Low** in the post-Phase-0 reassessment (2026-10-31). The f
 | Affected files | `UI/src/lib/Modulefront.TS` (385 lines: transport lifecycle, IPC listeners, registry, lookup map, logs, system info); `UI/src/lib/Modules/lidar.tsx` (948 lines), `stepper.tsx` (552), `rangefinder.tsx` (382), each combining Zod schema, Zustand store, IPC commands and React views; `UI/tsconfig.json:27` (`noImplicitAny: false`); `UI/src/lib/IncomingCommand.ts:4` (`command: any`); `UI/src/lib/Modules/Led.tsx:49` (`handleEvent: (event: any)`) |
 | Current location (after Phase 0) | `UI/src/lib/Modulefront.ts` (381 lines); `UI/src/lib/Modules/lidar/view.tsx` (616), `stepper/view.tsx` (339); `UI/tsconfig.json:27`; `UI/src/lib/IncomingCommand.ts:7`; `UI/src/lib/Modules/Led/store.ts` (`handleEvent: (event: any)`) |
 | Confidence | Confirmed |
-| Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
+| Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7). Phase 2A typed and validated outgoing commands (`IncomingCommand.ts` no longer takes `any`); the store split remains for 2D |
 | Proposed phase | 2D (roadmap, pending approval) |
 
 **What is wrong.** One Zustand store owns unrelated concerns, and its actions call `invoke` directly. Module files mix protocol schemas, state, side effects and UI. `strict` is on, but `noImplicitAny` is off and outgoing commands are typed `any`, so the command schemas in `protocol/command.ts` are never enforced on send. Seven module UIs (servo, stepper, LiDAR, rangefinder, RFID, IMU, remote receiver) are compiled but never registered.

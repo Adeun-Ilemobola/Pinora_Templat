@@ -1,6 +1,6 @@
 # Communication flow
 
-End-to-end trace of commands, events and connection state, as implemented at `5b5c8ed4`.
+End-to-end trace of commands, events and connection state, as implemented at `5b5c8ed4`. Later phases annotate the sections they change; Phase 2A changes are marked **2A**.
 
 ## 1. Framing and encoding (all transports)
 
@@ -8,7 +8,7 @@ End-to-end trace of commands, events and connection state, as implemented at `5b
 - Firmware → desktop: `ProtocolMessage`, which is one of `{"Registration":{…}}`, `{"ModuleEvent":{"id":…,"event":{…}}}` or `{"System":{…}}`.
 - Desktop → firmware: `IncomingCommand` `{"id":"<uuid>","command":{"<Family>":{…}}}`.
 - Serde default external tagging, with exceptions: `ImuEvent` is internally tagged (`event_type`), and unit variants such as `RangefinderCommandPayload::StartRanging` serialize as bare strings.
-- No version field, sequence number, acknowledgement, checksum or retry.
+- No version field, sequence number, acknowledgement, checksum or retry. **2A:** protocol v1 adds `SystemInfo.protocol_version` (`1`; absent means `0`), shown by the desktop with a mismatch warning. There is still no sequence number, acknowledgement, checksum or retry.
 
 ### Size limits (they differ by path; PIN-TPL-016)
 
@@ -50,6 +50,8 @@ sequenceDiagram
 
 Unknown IDs are logged on the firmware console only. The desktop is not told. `"SSI"` is accepted and ignored.
 
+**2A.** Dispatch order: `"SSI"` (`System(Rediscover)` returns to the main loop, anything else is ignored) → top-level module id → a composite's child (`child_mut`, e.g. the LiDAR's `servo_x`, `servo_y`, `rangefinder`) → unknown. The frontend validates every command with `IncomingCommandSchema` before `send_data`.
+
 ## 3. Event / telemetry path
 
 ```mermaid
@@ -76,6 +78,8 @@ flowchart LR
 
 **Duplication.** The replay cache sends system and registrations again on reconnect. Registration replay is idempotent for the desktop: a store is replaced with defaults, which loses displayed state (PIN-TPL-012). Runtime events are never duplicated by firmware.
 
+**2A.** The desktop now validates each `espState` message with Zod `ProtocolMessageSchema` (all families) and drops, with a console error, any that do not match. A re-sent registration for a known id and kind keeps the existing store. After each connect the desktop sends `Rediscover`, and the firmware re-sends the system snapshot, all registrations and each module's current state (`first_emit`: LED brightness, stepper mode and pivot limits, LiDAR ROI), on every transport including Serial. Duplicate lookup names are reported by the firmware (Medium SysLog) and the desktop (warning in the statistics card).
+
 ## 4. Connection lifecycle
 
 ### Firmware
@@ -84,16 +88,16 @@ flowchart LR
 |---|---|---|---|---|
 | Bluetooth SPP | Bluedroid init → SPP server start → discoverable and pairing accepted for 120 s, then connectable only (Phase 1C) | First `ServerOpen` accepted; later ones rejected | `Close`, write failure, overflow, oversize line → clears pending/input | Desktop reopens COM → replay of system + registrations |
 | Wi-Fi | **Blocks boot** until AP joined; failure aborts `main` | TCP connect + token → replay | Read 0 / error / oversize | Retry every ~2 s (drains outbound into cache meanwhile). No AP reassociation |
-| Serial | stdin reader thread | Always "connected" | n/a | No replay; registrations only at boot |
+| Serial | stdin reader thread | Always "connected" | n/a | No replay cache; registrations at boot and, since 2A, on `Rediscover` |
 
 ### Desktop
 
 | Action | Sequence |
 |---|---|
-| Connect Serial | `Disconnect()` → install listeners → `start_port` (open, DTR low, RTS pulse 100 ms, which **may reset board**) → on success clear registry and logs (race, PIN-TPL-012) |
-| Connect Bluetooth | `Disconnect()` → clear registry and logs → listeners → `start_bluetooth_port` (validate port via PnP, open at 115200, no DTR/RTS) |
-| Start Wi-Fi | `Disconnect()` → clear → listeners → `start_wifi_listener(port)` |
-| Device loss | Bluetooth read error → `bluetoothConnection: Disconnected` → UI error state. Wi-Fi drop → `wifiConnection: Disconnected` → back to Listening, registry cleared. **USB read error → nothing; UI still "Connected"** |
+| Connect Serial | `Disconnect()` → install listeners → `start_port` (open, DTR low, RTS pulse 100 ms, which **may reset board**) → on success clear registry and logs (race, PIN-TPL-012). **2A:** clear first, then listeners → `start_port` → `Rediscover` |
+| Connect Bluetooth | `Disconnect()` → clear registry and logs → listeners → `start_bluetooth_port` (validate port via PnP, open at 115200, no DTR/RTS). **2A:** then `Rediscover` |
+| Start Wi-Fi | `Disconnect()` → clear → listeners → `start_wifi_listener(port)`. **2A:** `Rediscover` on each `wifiConnection: Connected` |
+| Device loss | Bluetooth read error → `bluetoothConnection: Disconnected` → UI error state. Wi-Fi drop → `wifiConnection: Disconnected` → back to Listening, registry cleared. **USB read error → nothing; UI still "Connected"**. **2A:** USB read error → `serialConnection: Disconnected` → UI error state, registry cleared |
 | Disconnect | Clear registry → `stop_port` → `stop_wifi_listener` → remove listeners (logs retained) |
 
 ## 5. Trust boundaries
@@ -123,3 +127,5 @@ The firmware's only input validation is Serde's type check. There are no semanti
 | RemoteReceiver | `Click{key}` | in `remote-receiver.tsx` | ✗ | — |
 
 The aggregate schemas (`UI/src/lib/protocol/*.ts`) are not used on the receive path, so these per-file schemas are documentation in practice (PIN-TPL-007).
+
+**2A.** The aggregate schemas now include every family above plus `System` commands, and are used on both paths: `ProtocolMessageSchema` on receive, `IncomingCommandSchema` on send. `UI/tests/protocol-fixtures.test.ts` parses every line of the Rust golden fixture and checks family coverage, so drift on either side fails a test. The schemas are still hand-written (code generation deferred). Stores and dispatch exist only for Led and Button.

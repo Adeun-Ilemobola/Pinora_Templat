@@ -8,11 +8,11 @@
 | **Scope** | `C:\Dev\Pinora\Pinora_Templat` only. `2dLidar`, `pinora_cli`, `pinora_studio` and `UI` are **not audited** |
 | **Audit date** | 2026-10-31 |
 | **Baseline** | `main` @ `5b5c8ed4`, clean working tree |
-| **Current operation** | Phase 1D, Actuator and LiDAR safety (**Phase 1 complete**) |
-| **Current stage** | Phase 1D **Completed — Verified** (hardware-independent; supervised hardware check pending) ([result](phases/phase-1/phase-1d/RESULT.md)). Roadmap approved ([roadmap](phases/ROADMAP.md)) |
-| **Approval status** | ⏸ **Stopped for review.** Next: **Phase 2A, Protocol contract v1** (007, 012, 017, 021), the first versioned wire change, awaiting authorization |
-| **Source changes so far** | Phase 0 (structural), 1A (tests, scripts, CI), 1B (command safety), 1C (pairing window, COM validation, UI error containment), 1D (actuator and LiDAR safety) on chained local branches ending at `phase-1d/actuator-safety`. Not pushed; `main` unchanged at `5b5c8ed4` |
-| **Last synchronization** | 2026-10-31: mirror verified by SHA-256 over all files (see the mirror's `SYNC-STATUS.md`) |
+| **Current operation** | Phase 2A, Protocol contract v1 |
+| **Current stage** | Phase 2A **Completed — Verified** (hardware-independent; optional hardware check A-V6 pending) ([result](phases/phase-2/phase-2a/RESULT.md)). Roadmap approved ([roadmap](phases/ROADMAP.md)) |
+| **Approval status** | ⏸ **Stopped for review.** Next: **Phase 2B, Transport robustness and authentication** (010, 013, 016, 003-auth), awaiting authorization and a crypto-dependency decision |
+| **Source changes so far** | Phase 0 (structural), 1A (tests, scripts, CI), 1B (command safety), 1C (pairing window, COM validation, UI error containment), 1D (actuator and LiDAR safety), 2A (protocol v1, rediscovery, frontend contract) on chained local branches ending at `phase-2a/protocol-v1`. Not pushed; `main` unchanged at `5b5c8ed4` |
+| **Last synchronization** | 2026-11-01: mirror verified by SHA-256 over all files (see the mirror's `SYNC-STATUS.md`) |
 
 ## Severity totals
 
@@ -20,7 +20,7 @@
 |:-:|:-:|:-:|:-:|:-:|
 | **0** | **6** | **13** | **8** | **27** |
 
-13 Open · 9 In Progress · **6 Resolved** (001, 002, 025 in Phase 1B; 006 in Phase 1C; 004, 005 in Phase 1D). The reassessment re-rated PIN-TPL-016 Medium → Low and added PIN-TPL-027 (Low). Functional defects are untouched. Four High findings are on the [Critical escalation watch-list](findings/critical.md): they become Critical as soon as actuator or LiDAR code is enabled.
+9 Open · 10 In Progress · **8 Resolved** (001, 002, 025 in Phase 1B; 006 in Phase 1C; 004, 005 in Phase 1D; 007, 012 in Phase 2A). Until Phase 2A this line said 13 Open; the register had 12. The reassessment re-rated PIN-TPL-016 Medium → Low and added PIN-TPL-027 (Low). Functional defects are untouched. Four High findings are on the [Critical escalation watch-list](findings/critical.md): they become Critical as soon as actuator or LiDAR code is enabled.
 
 ## Most important risks
 
@@ -29,7 +29,7 @@
 3. ~~**An out-of-range LED value reboots debug builds or mis-drives the LED**~~ (PIN-TPL-002). **Resolved in Phase 1B**: values are clamped to 100 with a warning.
 4. ~~**Dormant motor code moves hardware on boot and accepts unlimited travel; the LiDAR scan may never finish**~~ (PIN-TPL-004, -005). **Resolved in Phase 1D**: no motion at construction, bounded stepper targets, scans always terminate.
 5. ~~**One malformed line from the board can crash the desktop UI**~~ (PIN-TPL-006). **Resolved in Phase 1C**: Tauri validates COM lines, the log helpers never throw, and route errors are contained.
-6. **A hand-copied protocol** makes changes risky (PIN-TPL-007). Host tests and CI now exist (Phase 1A), but firmware state machines are not yet host-testable (PIN-TPL-008).
+6. ~~**A hand-copied protocol** makes changes risky~~ (PIN-TPL-007). **Resolved in Phase 2A**: protocol v1 carries a version, and the TypeScript schemas are tested against the Rust golden fixture. Rediscovery replays current state on every transport (PIN-TPL-012).
 
 ## Issue summary
 
@@ -41,17 +41,17 @@
 | PIN-TPL-004 | High | Actuators move uncommanded; unbounded targets *(latent)* | Resolved |
 | PIN-TPL-005 | High | LiDAR scan never terminates; unbounded memory *(latent)* | Resolved |
 | PIN-TPL-006 | High | Malformed device input crashes the desktop log view | Resolved |
-| PIN-TPL-007 | Med | Rust↔TS contract handwritten, partial, unversioned | Open |
+| PIN-TPL-007 | Med | Rust↔TS contract handwritten, partial, unversioned | Resolved |
 | PIN-TPL-008 | Med | No automated tests or CI | In Progress |
 | PIN-TPL-009 | Med | Main loop busy-polls; no timing guarantees | Open |
 | PIN-TPL-010 | Med | Telemetry backpressure and silent drops | Open |
 | PIN-TPL-011 | Med | Frontend log history unbounded, copied per message | Open |
-| PIN-TPL-012 | Med | Connection-state desync; no state replay | Open |
+| PIN-TPL-012 | Med | Connection-state desync; no state replay | Resolved |
 | PIN-TPL-013 | Med | Wi-Fi dev-grade auth; fragile boot dependency | Open |
 | PIN-TPL-014 | Med | Tauri commands block the UI thread | Open |
 | PIN-TPL-015 | Med | Fresh clone does not build; machine-specific config | In Progress |
 | PIN-TPL-016 | Low | Duplicated framing (dead code removed; re-rated from Medium) | In Progress |
-| PIN-TPL-017 | Med | Module identity and hierarchy incomplete | Open |
+| PIN-TPL-017 | Med | Module identity and hierarchy incomplete | In Progress |
 | PIN-TPL-018 | Med | Hard-coded pins; LED on strapping pin GPIO12 | In Progress |
 | PIN-TPL-019 | Med | Defects in inactive RFID, IR and rangefinder modules | Open |
 | PIN-TPL-020 | Med | Frontend god-store, oversized files, `any` | In Progress |
@@ -75,8 +75,9 @@ Full records: [findings/](findings/README.md).
 - **Done:** **Phase 1C** ([result](phases/phase-1/phase-1c/RESULT.md)): 120 s Bluetooth pairing window; Tauri validates COM lines (non-protocol lines → `espConsole`); log helpers total; route error boundary. Defaults applied: 120 s, `espConsole`.
 - **Done:** **Phase 1D** ([result](phases/phase-1/phase-1d/RESULT.md)): pure stepper and LiDAR cores; no motion at construction; bounded targets; terminating scans; coils released when idle (default applied). **Phase 1 complete.**
 - **Safety gate:** met for hardware-independent checks. Keep actuators out of the default image until hardware checks B-V6, C-V6 and D-V5 pass and, preferably, until 2B closes PIN-TPL-003.
-- **Proposed next step:** **Phase 2A, Protocol contract v1**. Decision needed: correct the misspelled wire names now (with input aliases), or keep them.
-- **Validation gaps:** no hardware or runtime verification yet (B-V6, C-V6, D-V5 pending). Stepper and LiDAR decision logic is host-tested since 1D; sensor modules (2C) and the ESP-IDF I/O paths are verified by build and review only. CI has not executed on GitHub.
+- **Done:** **Phase 2A** ([result](phases/phase-2/phase-2a/RESULT.md)): protocol v1 (version field, `Rediscover`, input aliases); firmware rediscovery with state replay and child routing; USB disconnect event; complete Zod schemas enforced by the golden fixture; validation on receive and send. Default applied: misspelled output names kept. 79 host, 5 Tauri, 137 frontend tests.
+- **Proposed next step:** **Phase 2B, Transport robustness and authentication**. Decision needed: the crypto dependency and device-key provisioning for the handshake.
+- **Validation gaps:** no hardware or runtime verification yet (B-V6, C-V6, D-V5, A-V6 pending). Stepper and LiDAR decision logic is host-tested since 1D; sensor modules (2C) and the ESP-IDF I/O paths are verified by build and review only. CI has not executed on GitHub.
 
 ## Documents
 
@@ -87,14 +88,14 @@ Full records: [findings/](findings/README.md).
 | Communication flow | [architecture/communication-flow.md](architecture/communication-flow.md) |
 | Frozen contracts | [architecture/compatibility-contracts.md](architecture/compatibility-contracts.md) |
 | Issue register | [findings/README.md](findings/README.md) · [critical](findings/critical.md) · [high](findings/high.md) · [medium](findings/medium.md) · [low](findings/low.md) |
-| Phases | [phases/README.md](phases/README.md) · [Roadmap](phases/ROADMAP.md) · [Phase 0 plan](phases/phase-0/PLAN.md) · [Phase 0 result](phases/phase-0/RESULT.md) · [Phase 1A plan](phases/phase-1/phase-1a/PLAN.md) · [Phase 1A result](phases/phase-1/phase-1a/RESULT.md) · [Phase 1B plan](phases/phase-1/phase-1b/PLAN.md) · [Phase 1B result](phases/phase-1/phase-1b/RESULT.md) · [Phase 1C plan](phases/phase-1/phase-1c/PLAN.md) · [Phase 1C result](phases/phase-1/phase-1c/RESULT.md) · [Phase 1D plan](phases/phase-1/phase-1d/PLAN.md) · [Phase 1D result](phases/phase-1/phase-1d/RESULT.md) |
+| Phases | [phases/README.md](phases/README.md) · [Roadmap](phases/ROADMAP.md) · [Phase 0 plan](phases/phase-0/PLAN.md) · [Phase 0 result](phases/phase-0/RESULT.md) · [Phase 1A plan](phases/phase-1/phase-1a/PLAN.md) · [Phase 1A result](phases/phase-1/phase-1a/RESULT.md) · [Phase 1B plan](phases/phase-1/phase-1b/PLAN.md) · [Phase 1B result](phases/phase-1/phase-1b/RESULT.md) · [Phase 1C plan](phases/phase-1/phase-1c/PLAN.md) · [Phase 1C result](phases/phase-1/phase-1c/RESULT.md) · [Phase 1D plan](phases/phase-1/phase-1d/PLAN.md) · [Phase 1D result](phases/phase-1/phase-1d/RESULT.md) · [Phase 2A plan](phases/phase-2/phase-2a/PLAN.md) · [Phase 2A result](phases/phase-2/phase-2a/RESULT.md) |
 | Report | [reports/initial-audit.md](reports/initial-audit.md) · [reports/post-phase-0-reassessment.md](reports/post-phase-0-reassessment.md) |
 | Evidence | [evidence/validation-baseline.md](evidence/validation-baseline.md) · [evidence/probes.md](evidence/probes.md) |
 | Changelog | [CHANGELOG.md](CHANGELOG.md) |
 
 ## Version control
 
-- `docs/audits/` is committed on the local branches (`phase-0/structural-reorganization`, then `phase-1a/host-test-harness`, then `phase-1b/command-safety`, then `phase-1c/trust-boundaries`, then `phase-1d/actuator-safety`, which contains everything so far). It is not on `main` until you merge.
+- `docs/audits/` is committed on the local branches (`phase-0/structural-reorganization`, then `phase-1a/host-test-harness`, then `phase-1b/command-safety`, then `phase-1c/trust-boundaries`, then `phase-1d/actuator-safety`, then `phase-2a/protocol-v1`, which contains everything so far). It is not on `main` until you merge.
 - The workspace mirror `C:\Dev\Pinora\Audits\` is **not under version control**: `C:\Dev\Pinora` is not a Git repository, and no repository was created.
 - Pre-existing `docs/architecture-audit.md` (an earlier review) was left unchanged.
 

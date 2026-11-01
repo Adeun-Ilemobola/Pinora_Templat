@@ -75,7 +75,7 @@ flowchart LR
 | Tauri backend | USB/SPP COM port lifecycle, TCP listener, writes, Wi-Fi authentication and wire validation | COM and Wi-Fi lines are validated as Rust `ProtocolMessage`s (COM since audit Phase 1C; other COM lines go to `espConsole`); depends on `pinora-protocol` but does not own module state |
 | Firmware | Hardware state, module UUIDs, top-level registry and scheduling | Typed commands in; typed protocol messages out |
 | Rust protocol | Serde wire definitions shared with firmware | No ESP-IDF or UI-framework dependencies |
-| TypeScript protocol | Manually maintained Zod schemas and inferred types | Duplicates only part of Rust protocol; not generated or enforced at the receive boundary |
+| TypeScript protocol | Manually maintained Zod schemas and inferred types | Handwritten, but covers every Rust family and is tested against the Rust golden fixture (`UI/tests/protocol-fixtures.test.ts`); validates received messages and outgoing commands. Protocol version 1 (`SystemInfo.protocol_version`) |
 
 There is no root Cargo workspace. Firmware, protocol, and `UI/src-tauri` are separate Cargo packages; `UI` is the frontend package. Firmware and desktop Rust both have local path dependencies on protocol. No first-party CLI implementation, CI workflow, or complete scaffold generator was found in the current tree.
 
@@ -84,8 +84,8 @@ There is no root Cargo workspace. Firmware, protocol, and `UI/src-tauri` are sep
 These internals are especially transitional:
 
 - Frontend global connection/registry ownership versus per-module stores and component-local drafts.
-- Handwritten Rust/TypeScript wire definitions and incomplete schema coverage.
-- Registration timing, reconnect cleanup, parent/child module addressing, and initial-state replay.
+- Handwritten Rust/TypeScript wire definitions (fixture-tested, not generated).
+- Registration timing, parent/child module addressing (`parent_id` is `""` when none), and which modules replay state on rediscovery.
 - Transport queue limits, reconnect replay, development-only Wi-Fi authentication, and Bluetooth pairing behavior.
 - LiDAR scan logic, UI controls, module hierarchy, and event chunk delivery.
 - Template metadata and development recipes left over from earlier architecture.
@@ -113,9 +113,9 @@ All may change substantially before a stable release. See the [evidence-based re
 
 **Command:** LED slider commit/toggle → per-module action → [IncomingCommand.ts](UI/src/lib/IncomingCommand.ts) serializes `{id, command}` → `invoke("send_data")` → Tauri writes the selected USB/SPP COM port or authenticated TCP frame → selected firmware transport deserializes `IncomingCommand` → existing main-loop receiver → exact UUID lookup in the top-level registry → module `handle_command` → hardware write → returned event.
 
-**Event:** module emits `EventPackage { id, event }` → bounded transport emitter → selected firmware transport writes a JSON line → Tauri validates the line as a Rust `ProtocolMessage` (Wi-Fi listener or COM reader) and emits it as `espState`; COM lines that are not protocol messages are emitted as `espConsole` → frontend parses JSON → logs and routes registration/system/module event → per-module store → React subscription. Frontend JSON parsing is not Zod validation.
+**Event:** module emits `EventPackage { id, event }` → bounded transport emitter → selected firmware transport writes a JSON line → Tauri validates the line as a Rust `ProtocolMessage` (Wi-Fi listener or COM reader) and emits it as `espState`; COM lines that are not protocol messages are emitted as `espConsole` → frontend parses JSON and validates it with Zod `ProtocolMessageSchema` → logs and routes registration/system/module event → per-module store → React subscription.
 
-**Connection:** frontend disconnects first and installs listeners. USB Serial opens a COM port and toggles DTR/RTS; Bluetooth opens a paired SPP virtual COM port without USB reset signaling. Wi-Fi starts an authenticated TCP listener. Bluetooth and Wi-Fi firmware workers cache system information and registrations for replay on reconnect; runtime module events are not replayed. Frontend disconnect clears the module registry and system info. A new connection also clears logs; disconnect retains logs.
+**Connection:** frontend disconnects first and installs listeners. USB Serial opens a COM port and toggles DTR/RTS; Bluetooth opens a paired SPP virtual COM port without USB reset signaling. Wi-Fi starts an authenticated TCP listener. Bluetooth and Wi-Fi firmware workers cache system information and registrations for replay on reconnect. After every connect the frontend also sends the protocol v1 system command `{"id":"SSI","command":{"System":{"Rediscover":{}}}}`, and the firmware re-sends a fresh system snapshot, every registration and each module's current state, on every transport including USB. A USB read error is reported as `serialConnection: "Disconnected"`. Frontend disconnect clears the module registry and system info. A new connection clears them and the logs before the port opens; disconnect retains logs.
 
 ## Frontend architecture
 

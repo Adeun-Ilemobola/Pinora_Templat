@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Approved** 2026-10-31 (scope and order). Progress: Phase 1 (1A–1D) Completed — Verified; 2A next, awaiting authorization |
+| Status | **Approved** 2026-10-31 (scope and order). Progress: Phase 1 (1A–1D) and 2A Completed — Verified; 2B next, awaiting authorization |
 | Written | 2026-10-31, after the [post-Phase-0 reassessment](../reports/post-phase-0-reassessment.md) |
 | Code basis | branch `phase-0/structural-reorganization` @ `a2204b33` |
 | Findings covered | all 27 (0 Critical, 6 High, 13 Medium, 8 Low) |
@@ -229,6 +229,8 @@ No new message types are added, so the golden file is unchanged.
 - Optional hardware check: reconnect and see current LED state; unplug USB and see the UI's disconnected state.
 
 **Completion criteria.** Tests are green and the contract is documented as v1. 007, 012, 017 and 021 are Resolved.
+
+**Outcome (2026-11-01).** Completed — Verified ([result](phase-2/phase-2a/RESULT.md)). 007 and 012 Resolved. With the conservative default for misspelled names, the wire-breaking parts of 017 (`""`→`null`) and 021 (output rename) are deferred to a future major protocol version, so both stay In Progress. Code generation was not adopted; the shared golden fixture enforces the contract.
 
 **Recovery plan.** Revert. The protocol returns to its unversioned v0 format, and the golden file is restored.
 

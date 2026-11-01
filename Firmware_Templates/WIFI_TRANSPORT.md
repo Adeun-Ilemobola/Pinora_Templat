@@ -4,7 +4,7 @@ Copy [wifi_config.example.rs](../protocol/src/wifi_config.example.rs) to ignored
 
 The ESP32 connects to DESKTOP_IP:DESKTOP_PORT. Tauri listens on 0.0.0.0 using the port entered in the Transport card. That port must match DESKTOP_PORT. The development token is used only for the connection handshake; normal Pinora messages remain newline-delimited JSON.
 
-The TCP listener accepts one authenticated device at a time. Firmware uses bounded queues, caches system/registration messages for reconnect replay, and may drop runtime events under pressure. It does not replay live module state. The listener binds all interfaces and the token is sent without transport encryption, so this is a development-only connection.
+The TCP listener accepts one authenticated device at a time. Firmware uses bounded queues, caches system/registration messages for reconnect replay, and may drop runtime events under pressure. Live module state is not cached; the desktop requests it with the protocol v1 `Rediscover` command after each connection. The listener binds all interfaces and the token is sent without transport encryption, so this is a development-only connection.
 
 ## Manual hardware check
 

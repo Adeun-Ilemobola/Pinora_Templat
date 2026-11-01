@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Phase | 2A |
-| Status | **Approved** 2026-10-31 |
+| Status | **Completed — Verified** 2026-11-01 (approved 2026-10-31); see [RESULT.md](RESULT.md) |
 | Decision | The user authorized 2A without choosing on the misspelled wire names, and no recommendation had been given. The **conservative default** applies: **keep** `lool_up_id`, `Ckick`, `Idol` and `distant` on output (C-01 and C-10 consumers are unaudited), and **accept** the corrected spellings on input as serde aliases. The output rename is deferred to a future major protocol version |
 | Branch | `phase-2a/protocol-v1`, cut from `phase-1d/actuator-safety` @ `daa3022e` (local, not pushed) |
 | Linked findings | PIN-TPL-007, PIN-TPL-012, PIN-TPL-017, PIN-TPL-021 |

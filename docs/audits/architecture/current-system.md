@@ -99,7 +99,7 @@ Serde types shared by firmware and the Tauri backend. They are the authoritative
 | File | Role |
 |---|---|
 | `lib.rs` | Plugin setup, managed state, handler list |
-| `serial_transport.rs` | `AppState` (one COM port + reader thread; classifies lines via `line_classifier.rs` and emits `espState` / `espConsole`, plus `bluetoothConnection`) |
+| `serial_transport.rs` | `AppState` (one COM port + reader thread; classifies lines via `line_classifier.rs` and emits `espState` / `espConsole`, plus `bluetoothConnection`; **2A:** `serialConnection` for USB) |
 | `line_classifier.rs` | Validates each COM line as a Rust `ProtocolMessage` (Phase 1C) |
 | `bluetooth_ports.rs` | Windows PnP `BTHENUM` query via PowerShell CIM |
 | `commands.rs` | The 10 IPC commands: `greet`, `start_port`, `get_available_ports`, `get_available_bluetooth_ports` (serialport ∩ Windows PnP `BTHENUM` via PowerShell CIM), `start_bluetooth_port`, `send_data` (COM first, else Wi-Fi), `stop_port`, `start_wifi_listener`, `stop_wifi_listener`, `get_wifi_listener_status` |
@@ -115,7 +115,7 @@ All commands are synchronous (PIN-TPL-014). Capabilities: `core:default`, `opene
 | Entry | `main.tsx`, `App.tsx` | Console → Tauri log forwarding; hash router with `/` (Dashboard) and `/logs`; `/lidar` route commented out |
 | Central store | `lib/Modulefront.ts` (+ `lib/registry/registration.ts`) | `useModuleFront`: transport mode and status, listeners, connect/disconnect flows, `ModuleRegistry` (UUID → vanilla store), `LookUpId` (name → UUID), `logs` (unbounded), `systemInfo` |
 | Commands | `lib/IncomingCommand.ts` | `JSON.stringify({id, command})` → `invoke("send_data")` |
-| Protocol schemas | `lib/protocol/*.ts` + module files | Handwritten Zod; aggregate covers LED/Button/SysLog only; **not used for receive validation** |
+| Protocol schemas | `lib/protocol/*.ts` + module files | Handwritten Zod; aggregate covers LED/Button/SysLog only; **not used for receive validation**. **2A:** covers every family, validates receive and send, enforced by the golden fixture |
 | Module UIs | `lib/Modules/<family>/{schema.ts, store.ts, view.tsx, index.ts}` (LiDAR also `geometry.ts`) | LED and Button are registered. Servo, Stepper, LiDAR, Rangefinder, RFID, IMU and RemoteReceiver are compiled but not registered |
 | Views | `page/Dashboard.tsx`, `page/LogsPage.tsx`, `page/LidarPage.tsx` (unrouted), `components/*` | Transport card, ESP32 stats card, module cards, virtualized log viewer |
 | UI kit | `components/ui/*` | shadcn/Base UI primitives (generated-style code; not audited for design) |
@@ -129,7 +129,7 @@ All commands are synchronous (PIN-TPL-014). Capabilities: `core:default`, `opene
 | **Implemented but inactive** | Wi-Fi and Serial firmware transports; Button, Servo, Stepper, Rangefinder, IMU, RFID, RemoteReceiver, Joystick modules |
 | **Experimental** | LiDAR composite module (firmware) and LiDAR page/playground (frontend, unrouted) |
 | **Deprecated / legacy** | `.espConfig/esp_config.json` (stale commands), `greet` command. (The dead `core/emitter.rs` and `ModuleGeter.ts` were deleted in Phase 0.) |
-| **Incomplete scaffolding** | `SSI` rediscovery branch (empty), `first_emit` hook (unused by LED), `LedCluster` module type (enum only), `RangefinderEvent::InvalidMeasurement` and `LidarEvent::Target` (never emitted), `StepperMotorEvent::GetOrigin` (never emitted), PCA9685 creation (commented out) |
+| **Incomplete scaffolding** | `SSI` rediscovery branch (empty; **2A:** implemented as `System(Rediscover)`), `first_emit` hook (unused by LED; **2A:** LED and stepper replay state), `LedCluster` module type (enum only), `RangefinderEvent::InvalidMeasurement` and `LidarEvent::Target` (never emitted), `StepperMotorEvent::GetOrigin` (never emitted), PCA9685 creation (commented out) |
 | **Documentation-only / planned** | Project generation (no generator in this repo; `pre-script.rhai` variables only); multi-chip support (`pre-script.rhai` lists 10 targets; only `esp32` configured); LiDAR scan visualization; broader module UI coverage |
 
 ## 5. Generated and build-output paths (not architecture)
@@ -143,7 +143,7 @@ All commands are synchronous (PIN-TPL-014). Capabilities: `core:default`, `opene
 3. **ESP-IDF callbacks do minimal work.** The Bluetooth GAP/SPP callbacks only copy and enqueue. Parsing, writing and state live in a worker thread with explicit overflow handling (disconnect to resynchronize).
 4. **Bounded firmware queues and explicit size limits.** These include the 8 KiB command cap, 512 B SPP chunks, and one write in flight with congestion tracking.
 5. **The reliable/lossy emission split** (`emit_reliable` vs `try_emit`) is a sound idea and keeps module ticks from blocking on telemetry.
-6. **Reconnect replay** of system and registration messages on Bluetooth and Wi-Fi.
+6. **Reconnect replay** of system and registration messages on Bluetooth and Wi-Fi. (**2A:** complemented by `Rediscover`, which replays current state on every transport.)
 7. **Wi-Fi path validates both directions with the shared Rust types.** It is the model for the other transports.
 8. **No `unsafe` misuse found.** The FFI sites are narrow and checked.
 9. **The frontend's per-module vanilla stores** isolate re-renders, and the log viewer is virtualized.

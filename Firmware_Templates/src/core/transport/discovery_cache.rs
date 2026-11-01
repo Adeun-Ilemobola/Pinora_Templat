@@ -2,7 +2,8 @@
 //!
 //! The latest `System` snapshot and one `Registration` per module UUID are kept so a
 //! desktop that (re)connects can rediscover the modules. Runtime module events are
-//! deliberately not cached, so current values are not replayed (PIN-TPL-012).
+//! deliberately not cached. Current values are replayed on request instead: the
+//! desktop sends `Rediscover` and every module re-runs `first_emit` (Phase 2A).
 
 use pinora_protocol::ProtocolMessage;
 

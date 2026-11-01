@@ -2,6 +2,17 @@
 
 Newest entries first. Each entry is tagged **[AUDIT]** (documentation only, no source change) or **[SOURCE]** (template source, build or config changed).
 
+## 2026-11-01 — Phase 2A, Protocol contract v1 **[SOURCE]**
+
+- Approved; no choice made on misspelled wire names, so the conservative default applied (output kept, corrected spellings accepted as input aliases). Branch `phase-2a/protocol-v1` (local, not pushed), cut from the 1D tip.
+- `c6b31f38` protocol v1: `PROTOCOL_VERSION = 1`, `SystemInfo.protocol_version` (pre-v1 parses as 0), `System(Rediscover {})` on `"SSI"`, input aliases. Golden diff: one new line, one new field.
+- `03d43559` firmware: rediscovery re-sends snapshot, registrations and current state (`first_emit`); child routing via `Module::child_mut`; duplicate lookup names reported.
+- `de71ad3d` Tauri: additive `serialConnection` event on USB read errors.
+- `fd551fe1`, `d7b5046d` frontend: complete Zod schemas checked against all 109 golden lines; validation on receive and send; clear-before-connect; `Rediscover` after connect; USB loss shown; LED unknown until reported; protocol version and duplicate-name warnings. `d7b5046d` restores LF line endings only.
+- Docs: contract notes C-01, C-05, C-06, C-07; communication flow; discovery-cache doc comment.
+- Verification A-V1…A-V5 pass: 6 protocol, 79 host, 5 Tauri, 137 frontend tests; firmware warnings 7 → 6; release +10 116 B text; mutation check caught all four removals. Hardware check A-V6 not run.
+- Register: PIN-TPL-007 and -012 **Resolved**; -017 In Progress. Totals 9 Open, 10 In Progress, 8 Resolved. Correction: the 1D entry and README said 13 Open; the register had 12.
+
 ## 2026-10-31 — Phase 1D, Actuator and LiDAR safety **[SOURCE]**
 
 - Approved; no option chosen, so the recommended default applied (coils released when idle, opt-in holding). Branch `phase-1d/actuator-safety` (local, not pushed), cut from the 1C tip.
