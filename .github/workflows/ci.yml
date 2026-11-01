@@ -48,13 +48,17 @@ jobs:
             echo "::endgroup::"
           done
 
-      - name: Protocol golden wire-format tests
+      - name: Protocol tests (golden wire format, framing, authentication)
+        working-directory: protocol
+        run: cargo +stable test --all-features
+
+      - name: Protocol tests without optional features
         working-directory: protocol
         run: cargo +stable test
 
       - name: Protocol clippy
         working-directory: protocol
-        run: cargo +stable clippy --all-targets
+        run: cargo +stable clippy --all-targets --all-features
 
       - name: Firmware host tests (debug)
         working-directory: tests/firmware-host

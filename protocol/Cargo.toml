@@ -3,6 +3,18 @@ name = "pinora-protocol"
 version = "0.8.0-alpha"
 edition = "2024"
 
+[features]
+# HMAC-SHA256 session authentication (protocol v2, audit Phase 2B). Off by default so
+# the wire types stay dependency-free for other consumers.
+auth = ["dep:hmac", "dep:sha2"]
+
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Pinned: shared by firmware and desktop; versions already used by the desktop lockfile.
+hmac = { version = "=0.12.1", optional = true }
+sha2 = { version = "=0.10.9", optional = true, default-features = false }
+
+[[test]]
+name = "auth"
+required-features = ["auth"]

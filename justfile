@@ -72,9 +72,9 @@ check-firmware:
 # Run every host-side test suite.
 test: test-protocol test-firmware-host test-ui
 
-# Golden wire-format tests for the shared protocol.
+# Golden wire-format, framing and authentication tests for the shared protocol.
 test-protocol:
-    cd protocol && cargo test
+    cd protocol && cargo test --all-features
 
 # Hardware-free firmware code compiled for the host.
 test-firmware-host:

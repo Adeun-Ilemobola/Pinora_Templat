@@ -22,8 +22,11 @@ const fixtures = readFileSync(fixturePath, "utf8")
     return { name, value: JSON.parse(json) };
   });
 
+// `tauri.*` lines (protocol v2 authentication) are produced and consumed by the Tauri
+// backend and the firmware; the WebView never sends or receives them.
+const backendOnly = fixtures.filter((f) => f.name.startsWith("tauri."));
 const commands = fixtures.filter((f) => f.name.startsWith("cmd."));
-const messages = fixtures.filter((f) => !f.name.startsWith("cmd."));
+const messages = fixtures.filter((f) => !f.name.startsWith("cmd.") && !f.name.startsWith("tauri."));
 
 describe("golden wire fixture", () => {
   test("covers every command and event family", () => {
@@ -48,7 +51,18 @@ describe("golden wire fixture", () => {
   });
 });
 
-describe("protocol v1", () => {
+describe("backend-only lines", () => {
+  test("are exactly the authentication lines, and the WebView schemas reject them", () => {
+    expect(backendOnly.length).toBe(11);
+    for (const f of backendOnly) {
+      const asCommand = IncomingCommandSchema.safeParse(f.value).success;
+      const asMessage = ProtocolMessageSchema.safeParse(f.value).success;
+      expect([f.name, asCommand || asMessage]).toEqual([f.name, false]);
+    }
+  });
+});
+
+describe("protocol version", () => {
   test("the frontend version matches the firmware's", () => {
     const system = fixtures.find((f) => f.name === "msg.system")!.value.System;
     expect(system.protocol_version).toBe(PROTOCOL_VERSION);

@@ -106,4 +106,15 @@ msg.registration.servo	{"Registration":{"id":"module-uuid","module_type":"Servo"
 msg.registration.stepper	{"Registration":{"id":"module-uuid","module_type":"StepperMotor","lool_up_id":"led1","parent_id":""}}
 msg.registration.syslog	{"Registration":{"id":"module-uuid","module_type":"SysLog","lool_up_id":"led1","parent_id":""}}
 msg.registration.with_parent	{"Registration":{"id":"child-uuid","module_type":"Servo","lool_up_id":"servo_x","parent_id":"lidar-uuid"}}
-msg.system	{"System":{"protocol_version":1,"esp_idf_version":"v5.5.3","total_heap":"300.00 KiB (307200 bytes)","current_free_heap":"200.00 KiB (204800 bytes)","lowest_free_heap":"190.00 KiB (194560 bytes)","largest_allocation":"100.00 KiB (102400 bytes)","maximum_app_slot":"3.00 MiB (3145728 bytes)","flash":"4.00 MiB (4194304 bytes)"}}
+msg.system	{"System":{"protocol_version":2,"esp_idf_version":"v5.5.3","total_heap":"300.00 KiB (307200 bytes)","current_free_heap":"200.00 KiB (204800 bytes)","lowest_free_heap":"190.00 KiB (194560 bytes)","largest_allocation":"100.00 KiB (102400 bytes)","maximum_app_slot":"3.00 MiB (3145728 bytes)","flash":"4.00 MiB (4194304 bytes)"}}
+tauri.auth.challenge	{"Auth":{"Challenge":{"device_id":"a1b2c3d4e5f6","device_nonce":"0f0e0d0c0b0a09080706050403020100","device_proof":"efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef"}}}
+tauri.auth.key	{"Auth":{"Key":{"device_id":"a1b2c3d4e5f6","key":"1111111111111111111111111111111111111111111111111111111111111111"}}}
+tauri.auth.key_cleared	{"Auth":{"KeyCleared":{"device_id":"a1b2c3d4e5f6"}}}
+tauri.auth.result.failed	{"Auth":{"Result":{"authenticated":false,"reason":"authentication failed"}}}
+tauri.auth.result.ok	{"Auth":{"Result":{"authenticated":true,"reason":""}}}
+tauri.auth.unprovisioned	{"Auth":{"Unprovisioned":{"device_id":"a1b2c3d4e5f6"}}}
+tauri.cmd.auth_begin	{"id":"SSI","command":{"System":{"AuthBegin":{"client_nonce":"000102030405060708090a0b0c0d0e0f"}}}}
+tauri.cmd.auth_response	{"id":"SSI","command":{"System":{"AuthResponse":{"proof":"abababababababababababababababababababababababababababababababab"}}}}
+tauri.cmd.clear_key	{"id":"SSI","command":{"System":{"ClearKey":{}}}}
+tauri.cmd.provision_key	{"id":"SSI","command":{"System":{"ProvisionKey":{}}}}
+tauri.signed_command	{"seq":7,"mac":"cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd","signed":"{\"id\":\"u\",\"command\":{\"Led\":{\"Toggle\":{}}}}"}

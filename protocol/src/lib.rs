@@ -12,15 +12,22 @@
 //! `distant` are on the wire; `Registration::parent_id` is `""` for top-level modules.
 //!
 //! `wifi_config` is a local, git-ignored file (copy `wifi_config.example.rs`).
+//!
+//! Protocol v2 (audit Phase 2B): [`framing`] is the one line framer and limit table
+//! for every transport; [`auth`] holds the authentication wire types and, with the
+//! `auth` feature, the HMAC session state machines.
 
+pub mod auth;
 pub mod bluetooth_config;
 pub mod command;
+pub mod framing;
 pub mod global_definitions;
 pub mod module;
 pub mod module_event;
 pub mod registration;
 pub mod wifi_config;
 
+pub use auth::{AuthMessage, CommandLine, SignedCommand, parse_command_line};
 pub use command::*;
 pub use global_definitions::*;
 pub use module::*;

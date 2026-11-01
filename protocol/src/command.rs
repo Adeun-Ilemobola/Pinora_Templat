@@ -20,6 +20,17 @@ pub enum SystemCommand {
     /// Re-send the system snapshot, every registration and every module's current
     /// state. The desktop sends it after each (re)connect.
     Rediscover {},
+    /// Protocol v2: start the authentication handshake (sent by Tauri). See
+    /// [`crate::auth`].
+    AuthBegin { client_nonce: String },
+    /// Protocol v2: the desktop's proof (sent by Tauri).
+    AuthResponse { proof: String },
+    /// Protocol v2: create the device key if missing and return it. Accepted **only**
+    /// by the USB serial console.
+    ProvisionKey {},
+    /// Protocol v2: delete the device key (the device becomes unprovisioned). USB
+    /// serial console only.
+    ClearKey {},
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

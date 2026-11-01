@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 // Mirrors pinora-protocol `PROTOCOL_VERSION`; checked against the golden fixture.
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 export const SystemInfoSchema = z.object({
     // Absent before protocol v1 (Phase 2A); such firmware is treated as version 0.

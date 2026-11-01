@@ -568,6 +568,77 @@ fn all_cases() -> Cases {
         }
     }
 
+    // ---- Protocol v2 authentication (audit Phase 2B) ----
+    // `tauri.*` lines are produced and consumed by the desktop backend and the
+    // firmware only; they never reach the WebView.
+    let sys = |command| cmd(SYSTEM_COMMAND_ID, ModuleCommand::System(command));
+    c.add(
+        "tauri.cmd.auth_begin",
+        sys(SystemCommand::AuthBegin {
+            client_nonce: "000102030405060708090a0b0c0d0e0f".into(),
+        }),
+    );
+    c.add(
+        "tauri.cmd.auth_response",
+        sys(SystemCommand::AuthResponse {
+            proof: "ab".repeat(32),
+        }),
+    );
+    c.add(
+        "tauri.cmd.provision_key",
+        sys(SystemCommand::ProvisionKey {}),
+    );
+    c.add("tauri.cmd.clear_key", sys(SystemCommand::ClearKey {}));
+    c.add(
+        "tauri.signed_command",
+        SignedCommand {
+            seq: 7,
+            mac: "cd".repeat(32),
+            signed: r#"{"id":"u","command":{"Led":{"Toggle":{}}}}"#.into(),
+        },
+    );
+    c.add(
+        "tauri.auth.challenge",
+        ProtocolMessage::Auth(AuthMessage::Challenge {
+            device_id: "a1b2c3d4e5f6".into(),
+            device_nonce: "0f0e0d0c0b0a09080706050403020100".into(),
+            device_proof: "ef".repeat(32),
+        }),
+    );
+    c.add(
+        "tauri.auth.unprovisioned",
+        ProtocolMessage::Auth(AuthMessage::Unprovisioned {
+            device_id: "a1b2c3d4e5f6".into(),
+        }),
+    );
+    c.add(
+        "tauri.auth.result.ok",
+        ProtocolMessage::Auth(AuthMessage::Result {
+            authenticated: true,
+            reason: String::new(),
+        }),
+    );
+    c.add(
+        "tauri.auth.result.failed",
+        ProtocolMessage::Auth(AuthMessage::Result {
+            authenticated: false,
+            reason: "authentication failed".into(),
+        }),
+    );
+    c.add(
+        "tauri.auth.key",
+        ProtocolMessage::Auth(AuthMessage::Key {
+            device_id: "a1b2c3d4e5f6".into(),
+            key: "11".repeat(32),
+        }),
+    );
+    c.add(
+        "tauri.auth.key_cleared",
+        ProtocolMessage::Auth(AuthMessage::KeyCleared {
+            device_id: "a1b2c3d4e5f6".into(),
+        }),
+    );
+
     c
 }
 
@@ -633,8 +704,9 @@ fn bluetooth_identity_and_limits_are_unchanged() {
 }
 
 #[test]
-fn protocol_v1_constants() {
-    assert_eq!(PROTOCOL_VERSION, 1);
+fn protocol_version_constants() {
+    // 1 since Phase 2A, 2 since Phase 2B (authentication).
+    assert_eq!(PROTOCOL_VERSION, 2);
     assert_eq!(SYSTEM_COMMAND_ID, "SSI");
 }
 

@@ -25,6 +25,7 @@ pub fn remember(
                 registrations.push(message.clone());
             }
         }
-        ProtocolMessage::ModuleEvent(_) => {}
+        // Authentication messages belong to one session and are never replayed.
+        ProtocolMessage::ModuleEvent(_) | ProtocolMessage::Auth(_) => {}
     }
 }

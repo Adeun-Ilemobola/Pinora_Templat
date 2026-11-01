@@ -84,7 +84,7 @@ impl Wifi {
                 .outbound
                 .send(event)
                 .map_err(|error| format!("Wi-Fi outbound queue unavailable: {error}")),
-            ProtocolMessage::ModuleEvent(_) => self
+            ProtocolMessage::ModuleEvent(_) | ProtocolMessage::Auth(_) => self
                 .outbound
                 .try_send(event)
                 .map_err(|error| format!("Wi-Fi outbound queue unavailable: {error}")),
