@@ -5,7 +5,10 @@
 //! selected transport. Inbound commands arrive on an `mpsc` channel that the main
 //! loop drains.
 
+pub mod auth_gate;
 pub mod bluetooth;
+pub mod console;
+pub mod device_key;
 pub mod discovery_cache;
 pub mod drop_stats;
 pub mod emitter;

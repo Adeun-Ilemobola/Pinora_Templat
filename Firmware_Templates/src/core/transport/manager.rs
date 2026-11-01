@@ -6,6 +6,11 @@
 //! runtime events are dropped when a stage is full. Since audit Phase 2B every drop
 //! is counted ([`DropCounters`]) and the sender thread reports the totals as one
 //! Medium SysLog (source `"log"`) every [`REPORT_INTERVAL`].
+//!
+//! Authentication (Phase 2B, PIN-TPL-003): the manager opens the NVS [`KeyStore`]
+//! before the radio starts, hands it to the radio transport, and starts the USB
+//! [`console`] reader in every image. In the Serial image the console is also the
+//! command source.
 
 use esp_idf_svc::{
     eventloop::{EspEventLoop, System},
@@ -24,6 +29,8 @@ use std::{
     thread,
 };
 
+use crate::core::transport::console;
+use crate::core::transport::device_key::KeyStore;
 use crate::core::transport::drop_stats::{DropCounters, REPORT_INTERVAL};
 use crate::core::transport::serial;
 use crate::core::transport::wifi::Wifi;
@@ -45,6 +52,8 @@ pub struct TransportCore {
     pub transport_type: Arc<TransportType>,
     core: Arc<Mutex<Option<Core>>>,
     pub emitter: TransportEmitter,
+    /// Serial image only: commands read by the USB console.
+    console_commands: Mutex<Option<Receiver<IncomingCommand>>>,
 }
 
 impl TransportCore {
@@ -56,17 +65,40 @@ impl TransportCore {
     ) -> anyhow::Result<Self> {
         let (emitter, receiver) = TransportEmitter::new();
         let drops = emitter.drop_counters();
+        // Opened before the radio starts; keys are generated later with the radio on,
+        // except in the Serial image.
+        let radio_active = !matches!(transport_type, TransportType::Serial);
+        let keys = Arc::new(KeyStore::open(nvs.clone(), radio_active)?);
 
         // Firmware selects one ingress/egress transport at startup; protocol messages stay shared.
         let core = match transport_type {
-            TransportType::Wifi => Some(Core::Wifi(Wifi::new(sys_loop, nvs, modem, drops)?)),
-            TransportType::Bluetooth => Some(Core::Bluetooth(Bluetooth::new(modem, nvs, drops)?)),
+            TransportType::Wifi => Some(Core::Wifi(Wifi::new(
+                sys_loop,
+                nvs,
+                modem,
+                drops,
+                keys.clone(),
+            )?)),
+            TransportType::Bluetooth => Some(Core::Bluetooth(Bluetooth::new(
+                modem,
+                nvs,
+                drops,
+                keys.clone(),
+            )?)),
             _ => None,
         };
+        let (forward, console_commands) = if matches!(transport_type, TransportType::Serial) {
+            let (sender, receiver) = mpsc::channel::<IncomingCommand>();
+            (Some(sender), Some(receiver))
+        } else {
+            (None, None)
+        };
+        console::spawn(keys, forward)?;
         let mut transport_core = TransportCore {
             transport_type: Arc::new(transport_type),
             core: Arc::new(Mutex::new(core)),
             emitter,
+            console_commands: Mutex::new(console_commands),
         };
         transport_core.build_sender(transport_type, receiver);
         Ok(transport_core)
@@ -160,11 +192,11 @@ impl TransportCore {
             (TransportType::Bluetooth, Some(Core::Bluetooth(bluetooth))) => {
                 bluetooth.take_incoming()
             }
-            (TransportType::Serial, _) => {
-                let (command_sender, command_receiver) = mpsc::channel::<IncomingCommand>();
-                std::thread::spawn(move || serial::command_reader(&command_sender));
-                Some(command_receiver)
-            }
+            (TransportType::Serial, _) => self
+                .console_commands
+                .lock()
+                .map_err(|_| anyhow::anyhow!("console lock poisoned"))?
+                .take(),
             _ => None,
         }
         .ok_or_else(|| anyhow::anyhow!("the transport's command receiver was already taken"))

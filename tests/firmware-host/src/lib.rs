@@ -10,6 +10,9 @@ pub mod core {
     pub mod module;
 
     pub mod transport {
+        #[path = "../../../../../Firmware_Templates/src/core/transport/auth_gate.rs"]
+        pub mod auth_gate;
+
         #[path = "../../../../../Firmware_Templates/src/core/transport/emitter.rs"]
         pub mod emitter;
 

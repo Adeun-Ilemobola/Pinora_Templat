@@ -2,8 +2,9 @@
 //!
 //! Startup order is part of the firmware's behavior (contract C-15). Keep it:
 //! patches and logger → peripherals → console UART → event loop and NVS → transport
-//! (one per image) → system snapshot → I²C bus → shared hardware → modules →
-//! registration → command receiver → main loop.
+//! (one per image; since audit Phase 2B it first opens the NVS key store and then
+//! starts the USB console reader) → system snapshot → I²C bus → shared hardware →
+//! modules → registration → command receiver → main loop.
 //!
 //! Locals declared here (transport, buses, modules) live until `main` returns, which
 //! only happens on an error.

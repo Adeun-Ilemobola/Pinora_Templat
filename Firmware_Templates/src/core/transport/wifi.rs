@@ -9,6 +9,9 @@
 //! * Each TCP connection has a reader thread and a writer loop, so outbound frames
 //!   are no longer limited to one per read timeout (about 20 messages/s before 2B).
 //! * Lines use the shared [`LineFramer`]; drops are counted in [`DropCounters`].
+//! * Each connection has a [`DeviceSession`]: a device with a key is read-only until
+//!   the desktop completes the HMAC handshake, then accepts only signed commands
+//!   (PIN-TPL-003; see `auth_gate`). Session replies go to that connection only.
 //!
 //! The token and Wi-Fi credentials are still compiled in, and the token travels
 //! unencrypted.
@@ -24,6 +27,8 @@ use std::{
     time::Duration,
 };
 
+use crate::core::transport::auth_gate::{process_line, Action};
+use crate::core::transport::device_key::{random_bytes, KeyStore};
 use crate::core::transport::discovery_cache::remember;
 use crate::core::transport::drop_stats::{DropCounters, Stage};
 use esp_idf_svc::{
@@ -33,6 +38,7 @@ use esp_idf_svc::{
     wifi::{AuthMethod, BlockingWifi, ClientConfiguration, Configuration, EspWifi},
 };
 use pinora_protocol::{
+    auth::DeviceSession,
     framing::{encode_line, Frame, LineFramer, MAX_LINE_BYTES},
     wifi_config::{DESKTOP_IP, DESKTOP_PORT, DEV_TOKEN, WIFI_PASSWORD, WIFI_SSID},
     IncomingCommand, ProtocolMessage,
@@ -57,6 +63,7 @@ impl Wifi {
         nvs: EspDefaultNvsPartition,
         modem: Modem<'static>,
         drops: Arc<DropCounters>,
+        keys: Arc<KeyStore>,
     ) -> anyhow::Result<Self> {
         let address: SocketAddr = format!("{DESKTOP_IP}:{DESKTOP_PORT}").parse()?;
 
@@ -88,7 +95,16 @@ impl Wifi {
         thread::Builder::new()
             .name("wifi-transport".into())
             .stack_size(8192)
-            .spawn(move || run_client(address, link_up, outbound_rx, incoming_tx, client_drops))?;
+            .spawn(move || {
+                run_client(
+                    address,
+                    link_up,
+                    outbound_rx,
+                    incoming_tx,
+                    client_drops,
+                    keys,
+                )
+            })?;
 
         Ok(Self {
             outbound,
@@ -183,6 +199,7 @@ fn run_client(
     outbound: mpsc::Receiver<ProtocolMessage>,
     incoming: mpsc::SyncSender<IncomingCommand>,
     drops: Arc<DropCounters>,
+    keys: Arc<KeyStore>,
 ) {
     let mut system = None;
     let mut registrations = Vec::new();
@@ -199,6 +216,7 @@ fn run_client(
                         &mut system,
                         &mut registrations,
                         &drops,
+                        &keys,
                     );
                     log::info!("Desktop disconnected; TCP reconnecting");
                 }
@@ -223,6 +241,7 @@ fn serve_connection(
     system: &mut Option<ProtocolMessage>,
     registrations: &mut Vec<ProtocolMessage>,
     drops: &DropCounters,
+    keys: &Arc<KeyStore>,
 ) {
     let setup = stream
         .set_read_timeout(Some(Duration::from_secs(3)))
@@ -244,11 +263,21 @@ fn serve_connection(
     let closed = Arc::new(AtomicBool::new(false));
     let reader_closed = closed.clone();
     let reader_incoming = incoming.clone();
+    let reader_keys = keys.clone();
+    // Session replies (handshake, rejections) for this connection only.
+    let (replies, reply_rx) = mpsc::channel::<ProtocolMessage>();
     let reader = match thread::Builder::new()
         .name("wifi-reader".into())
         .stack_size(8192)
-        .spawn(move || read_commands(reader_stream, reader_incoming, reader_closed))
-    {
+        .spawn(move || {
+            read_commands(
+                reader_stream,
+                reader_incoming,
+                reader_closed,
+                &reader_keys,
+                &replies,
+            )
+        }) {
         Ok(handle) => handle,
         Err(error) => {
             log::warn!("Could not start the Wi-Fi reader: {error}");
@@ -264,8 +293,14 @@ fn serve_connection(
     match replay {
         Err(error) => log::warn!("TCP write failed: {error}"),
         Ok(()) => {
-            while !closed.load(Ordering::Acquire) {
-                match outbound.recv_timeout(Duration::from_millis(100)) {
+            'connection: while !closed.load(Ordering::Acquire) {
+                while let Ok(reply) = reply_rx.try_recv() {
+                    if let Err(error) = write_frame(&mut stream, &reply, drops) {
+                        log::warn!("TCP write failed: {error}");
+                        break 'connection;
+                    }
+                }
+                match outbound.recv_timeout(Duration::from_millis(50)) {
                     Ok(message) => {
                         remember(&message, system, registrations);
                         if let Err(error) = write_frame(&mut stream, &message, drops) {
@@ -291,7 +326,10 @@ fn read_commands(
     mut stream: TcpStream,
     incoming: mpsc::SyncSender<IncomingCommand>,
     closed: Arc<AtomicBool>,
+    keys: &KeyStore,
+    replies: &mpsc::Sender<ProtocolMessage>,
 ) {
+    let mut session = DeviceSession::new(keys.device_id());
     let _ = stream.set_read_timeout(Some(READ_POLL));
     let mut framer = LineFramer::new(MAX_LINE_BYTES);
     let mut buffer = [0u8; 1024];
@@ -302,15 +340,26 @@ fn read_commands(
                 // TCP reads may contain partial or multiple newline-delimited commands.
                 for frame in framer.push(&buffer[..count]) {
                     match frame {
-                        Frame::Line(line) => match serde_json::from_slice::<IncomingCommand>(&line)
-                        {
-                            Ok(command) => {
-                                if incoming.send(command).is_err() {
-                                    break 'connection;
+                        Frame::Line(line) => {
+                            let key = keys.current();
+                            match process_line(&mut session, &line, key.as_ref(), random_bytes) {
+                                Ok(actions) => {
+                                    for action in actions {
+                                        match action {
+                                            Action::Deliver(command) => {
+                                                if incoming.send(command).is_err() {
+                                                    break 'connection;
+                                                }
+                                            }
+                                            Action::Send(message) => {
+                                                let _ = replies.send(message);
+                                            }
+                                        }
+                                    }
                                 }
+                                Err(error) => log::warn!("Invalid Wi-Fi command: {error}"),
                             }
-                            Err(error) => log::warn!("Invalid Wi-Fi command: {error}"),
-                        },
+                        }
                         Frame::Overflow => {
                             log::warn!("Wi-Fi command too long; disconnecting");
                             break 'connection;

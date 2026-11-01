@@ -15,8 +15,11 @@
 //! * runtime messages dropped at the work queue or the pending-frame queue are
 //!   counted in [`DropCounters`] and reported periodically (Phase 2B, PIN-TPL-010).
 //!
-//! Security (PIN-TPL-003): the device stays discoverable, uses SSP Just Works and
-//! auto-confirms pairing. There is no application-level authorization.
+//! Security (PIN-TPL-003): SSP Just Works pairing is accepted only during the
+//! pairing window after boot (Phase 1C). Since Phase 2B every connection also has
+//! an application-level [`DeviceSession`]: a device with a key is read-only until
+//! the peer completes the HMAC handshake, and then accepts only signed commands
+//! (see `auth_gate`).
 
 use std::{
     collections::VecDeque,
@@ -29,6 +32,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::core::transport::auth_gate::{process_line, Action};
+use crate::core::transport::device_key::{random_bytes, KeyStore};
 use crate::core::transport::discovery_cache::remember;
 use crate::core::transport::drop_stats::{DropCounters, Stage};
 use crate::core::transport::pairing_window::{PairingWindow, PAIRING_WINDOW};
@@ -47,6 +52,7 @@ use esp_idf_svc::{
     },
 };
 use pinora_protocol::{
+    auth::DeviceSession,
     bluetooth_config::{DEVICE_NAME, MAX_MESSAGE_BYTES, SERVICE_NAME, SPP_WRITE_CHUNK_BYTES},
     framing::{encode_line, EncodeError, Frame, LineFramer, MAX_LINE_BYTES},
     IncomingCommand, ProtocolMessage,
@@ -80,6 +86,7 @@ impl Bluetooth {
         mut modem: Modem<'static>,
         nvs: EspDefaultNvsPartition,
         drops: Arc<DropCounters>,
+        keys: Arc<KeyStore>,
     ) -> anyhow::Result<Self> {
         // Release BLE-only memory; keep NVS-backed state for Classic pairing.
         // SAFETY: the reborrowed modem is used only for this call, before BtDriver takes ownership.
@@ -207,6 +214,7 @@ impl Bluetooth {
                     overflow,
                     pairing_open,
                     worker_drops,
+                    keys,
                 )
             })?;
 
@@ -252,7 +260,9 @@ fn run_worker(
     overflow: Arc<AtomicBool>,
     pairing_open: Arc<AtomicBool>,
     drops: Arc<DropCounters>,
+    keys: Arc<KeyStore>,
 ) {
+    let mut session = DeviceSession::new(keys.device_id());
     let mut connection = None;
     let mut write_pending = false;
     let mut congested = false;
@@ -310,6 +320,7 @@ fn run_worker(
                 write_pending = false;
                 congested = false;
                 framer.clear();
+                session.reset();
                 pending.clear();
                 // Only system and registration messages are replayed; live state is not cached.
                 for message in system.iter().chain(registrations.iter()) {
@@ -323,6 +334,7 @@ fn run_worker(
                 congested = false;
                 framer.clear();
                 pending.clear();
+                session.reset();
                 log::info!("Bluetooth SPP disconnected");
             }
             Work::Data(handle, bytes) if connection == Some(handle) => {
@@ -330,10 +342,20 @@ fn run_worker(
                 for frame in framer.push(&bytes) {
                     match frame {
                         Frame::Line(line) => {
-                            match serde_json::from_slice::<IncomingCommand>(&line) {
-                                Ok(command) => {
-                                    if incoming.send(command).is_err() {
-                                        return;
+                            let key = keys.current();
+                            match process_line(&mut session, &line, key.as_ref(), random_bytes) {
+                                Ok(actions) => {
+                                    for action in actions {
+                                        match action {
+                                            Action::Deliver(command) => {
+                                                if incoming.send(command).is_err() {
+                                                    return;
+                                                }
+                                            }
+                                            Action::Send(message) => {
+                                                enqueue(&message, &mut pending, &drops)
+                                            }
+                                        }
                                     }
                                 }
                                 Err(error) => log::warn!("Invalid Bluetooth command: {error}"),
@@ -342,6 +364,7 @@ fn run_worker(
                         Frame::Overflow => {
                             log::warn!("Bluetooth command too long; disconnecting");
                             framer.clear();
+                            session.reset();
                             connection = None;
                             pending.clear();
                             let _ = spp.disconnect(handle);
