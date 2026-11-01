@@ -13,11 +13,12 @@
 //! Children are routable only through `ChangeMotorAngle` (PIN-TPL-017). Not
 //! instantiated in the current image.
 
-use crate::core::hardware::{RangefinderI2c, TimerState};
+use crate::core::hardware::{now_us, RangefinderI2c, TimerState};
 use crate::core::transport::emitter::{EmitterError, TransportEmitter};
 use crate::modules::composite::lidar_scan::{
     chunk_count, validate_roi, validate_step, ScanAdvance, ScanPlan, POINTS_PER_CHUNK,
 };
+use crate::utilities::rate_limit::{with_suppressed, Admission, RateLimiter};
 use pinora_protocol::module::lidar::{LidarEvent, RangPoint, ScanState};
 use pinora_protocol::module::servomodule::ServoCapability;
 
@@ -58,6 +59,8 @@ pub struct Lidar<'d> {
 
     current_chunk: u32,
     total_chunks: u32,
+    /// At most one "NEXT ROW/COLUMN" SysLog per second (Phase 2B, PIN-TPL-010).
+    step_log_limit: RateLimiter,
 }
 
 impl<'d> Lidar<'d> {
@@ -119,6 +122,7 @@ impl<'d> Lidar<'d> {
             point_map: vec![],
             current_chunk: 1,
             total_chunks: 0,
+            step_log_limit: RateLimiter::per_second(1),
         };
 
         match new_lidar.rangefinder.start_ranging() {
@@ -287,11 +291,13 @@ impl<'d> Module for Lidar<'d> {
                 (next, text)
             }
         };
-        self.emit(ModuleEvent::SysLog(SysLogEvent {
-            text,
-            raw_err: None,
-            priority: LogPriority::Low,
-        }));
+        if let Admission::Admit { suppressed } = self.step_log_limit.admit(now_us() as u64) {
+            self.emit(ModuleEvent::SysLog(SysLogEvent {
+                text: with_suppressed(&text, suppressed),
+                raw_err: None,
+                priority: LogPriority::Low,
+            }));
+        }
 
         self.curr_point_bottom = next;
         self.move_to_point();

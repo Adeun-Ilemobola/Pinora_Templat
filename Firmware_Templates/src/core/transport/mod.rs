@@ -7,6 +7,7 @@
 
 pub mod bluetooth;
 pub mod discovery_cache;
+pub mod drop_stats;
 pub mod emitter;
 pub mod manager;
 pub mod pairing_window;

@@ -68,7 +68,7 @@ fn main() -> anyhow::Result<()> {
 
     runtime::register_all(&mut modules)?;
 
-    let command_receiver = { transport.handle_incoming() };
+    let command_receiver = transport.handle_incoming()?;
 
     runtime::run(&mut modules, command_receiver, last_yield_us, sync_sender)
 }

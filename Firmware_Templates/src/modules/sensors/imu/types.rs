@@ -1,4 +1,5 @@
 use crate::core::{hardware::SharedI2cDevice, module::ModuleCore};
+use crate::utilities::rate_limit::RateLimiter;
 use core::fmt;
 use serde::Serialize;
 
@@ -62,6 +63,14 @@ pub struct MpuDevice<'d> {
 
     pub point_count: u16,
     pub point_count_max: u16,
+
+    /// Emission limits for the gyro and accel streams (Phase 2B, PIN-TPL-010). A
+    /// changed reading marks the stream dirty; the latest value is sent when the
+    /// limiter admits it.
+    pub gyro_limit: RateLimiter,
+    pub accel_limit: RateLimiter,
+    pub gyro_dirty: bool,
+    pub accel_dirty: bool,
 }
 
 #[derive(Debug, Serialize)]

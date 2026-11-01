@@ -6,11 +6,14 @@
 //! handle, the partial-line buffer, the outbound frame queue and the replay cache.
 //! The worker enforces:
 //! * one connection at a time (later `ServerOpen`s are disconnected);
-//! * inbound lines capped at `MAX_MESSAGE_BYTES`; a longer line disconnects;
+//! * inbound lines framed by the shared [`LineFramer`] (`MAX_LINE_BYTES`); a longer
+//!   line disconnects;
 //! * one SPP write in flight; the next chunk (≤ `SPP_WRITE_CHUNK_BYTES`) waits for
 //!   `WriteDone` and for congestion to clear;
 //! * a callback-queue overflow drops the link to resynchronize framing;
-//! * on connect, the cached system snapshot and registrations are replayed.
+//! * on connect, the cached system snapshot and registrations are replayed;
+//! * runtime messages dropped at the work queue or the pending-frame queue are
+//!   counted in [`DropCounters`] and reported periodically (Phase 2B, PIN-TPL-010).
 //!
 //! Security (PIN-TPL-003): the device stays discoverable, uses SSP Just Works and
 //! auto-confirms pairing. There is no application-level authorization.
@@ -27,6 +30,7 @@ use std::{
 };
 
 use crate::core::transport::discovery_cache::remember;
+use crate::core::transport::drop_stats::{DropCounters, Stage};
 use crate::core::transport::pairing_window::{PairingWindow, PAIRING_WINDOW};
 use esp_idf_svc::{
     bt::{
@@ -44,6 +48,7 @@ use esp_idf_svc::{
 };
 use pinora_protocol::{
     bluetooth_config::{DEVICE_NAME, MAX_MESSAGE_BYTES, SERVICE_NAME, SPP_WRITE_CHUNK_BYTES},
+    framing::{encode_line, EncodeError, Frame, LineFramer, MAX_LINE_BYTES},
     IncomingCommand, ProtocolMessage,
 };
 
@@ -64,13 +69,18 @@ enum Work {
 pub struct Bluetooth {
     outbound: SyncSender<Work>,
     incoming: Mutex<Option<Receiver<IncomingCommand>>>,
+    drops: Arc<DropCounters>,
     _gap: Arc<ClassicGap>,
     _spp: Arc<ClassicSpp>,
     _driver: Arc<ClassicDriver>,
 }
 
 impl Bluetooth {
-    pub fn new(mut modem: Modem<'static>, nvs: EspDefaultNvsPartition) -> anyhow::Result<Self> {
+    pub fn new(
+        mut modem: Modem<'static>,
+        nvs: EspDefaultNvsPartition,
+        drops: Arc<DropCounters>,
+    ) -> anyhow::Result<Self> {
         // Release BLE-only memory; keep NVS-backed state for Classic pairing.
         // SAFETY: the reborrowed modem is used only for this call, before BtDriver takes ownership.
         reduce_bt_memory(unsafe { modem.reborrow() })?;
@@ -184,6 +194,7 @@ impl Bluetooth {
 
         let worker_gap = gap.clone();
         let worker_spp = spp.clone();
+        let worker_drops = drops.clone();
         thread::Builder::new()
             .name("bluetooth-transport".into())
             .stack_size(8192)
@@ -195,12 +206,14 @@ impl Bluetooth {
                     incoming_tx,
                     overflow,
                     pairing_open,
+                    worker_drops,
                 )
             })?;
 
         Ok(Self {
             outbound,
             incoming: Mutex::new(Some(incoming)),
+            drops,
             _gap: gap,
             _spp: spp,
             _driver: driver,
@@ -215,10 +228,14 @@ impl Bluetooth {
                 .outbound
                 .send(work)
                 .map_err(|error| format!("Bluetooth queue unavailable: {error}")),
-            _ => self
-                .outbound
-                .try_send(work)
-                .map_err(|error| format!("Bluetooth queue unavailable: {error}")),
+            _ => match self.outbound.try_send(work) {
+                Ok(()) => Ok(()),
+                Err(mpsc::TrySendError::Full(_)) => {
+                    self.drops.record(Stage::Transport);
+                    Ok(())
+                }
+                Err(error) => Err(format!("Bluetooth queue unavailable: {error}")),
+            },
         }
     }
 
@@ -234,11 +251,12 @@ fn run_worker(
     incoming: SyncSender<IncomingCommand>,
     overflow: Arc<AtomicBool>,
     pairing_open: Arc<AtomicBool>,
+    drops: Arc<DropCounters>,
 ) {
     let mut connection = None;
     let mut write_pending = false;
     let mut congested = false;
-    let mut input = Vec::new();
+    let mut framer = LineFramer::new(MAX_LINE_BYTES);
     let mut pending = VecDeque::new();
     let mut system = None;
     let mut registrations = Vec::new();
@@ -259,7 +277,7 @@ fn run_worker(
         }
         if overflow.swap(false, Ordering::Relaxed) {
             // A lost callback may contain frame bytes or write state, so resynchronize by reconnecting.
-            input.clear();
+            framer.clear();
             pending.clear();
             if let Some(handle) = connection.take() {
                 let _ = spp.disconnect(handle);
@@ -291,11 +309,11 @@ fn run_worker(
                 connection = Some(handle);
                 write_pending = false;
                 congested = false;
-                input.clear();
+                framer.clear();
                 pending.clear();
                 // Only system and registration messages are replayed; live state is not cached.
                 for message in system.iter().chain(registrations.iter()) {
-                    enqueue(message, &mut pending);
+                    enqueue(message, &mut pending, &drops);
                 }
                 log::info!("Bluetooth SPP connected");
             }
@@ -303,16 +321,16 @@ fn run_worker(
                 connection = None;
                 write_pending = false;
                 congested = false;
-                input.clear();
+                framer.clear();
                 pending.clear();
                 log::info!("Bluetooth SPP disconnected");
             }
             Work::Data(handle, bytes) if connection == Some(handle) => {
                 // SPP callbacks can split or combine newline-delimited JSON commands.
-                for byte in bytes {
-                    if byte == b'\n' {
-                        if !input.iter().all(u8::is_ascii_whitespace) {
-                            match serde_json::from_slice::<IncomingCommand>(&input) {
+                for frame in framer.push(&bytes) {
+                    match frame {
+                        Frame::Line(line) => {
+                            match serde_json::from_slice::<IncomingCommand>(&line) {
                                 Ok(command) => {
                                     if incoming.send(command).is_err() {
                                         return;
@@ -321,16 +339,14 @@ fn run_worker(
                                 Err(error) => log::warn!("Invalid Bluetooth command: {error}"),
                             }
                         }
-                        input.clear();
-                    } else if input.len() < MAX_MESSAGE_BYTES {
-                        input.push(byte);
-                    } else {
-                        log::warn!("Bluetooth command too long; disconnecting");
-                        input.clear();
-                        connection = None;
-                        pending.clear();
-                        let _ = spp.disconnect(handle);
-                        break;
+                        Frame::Overflow => {
+                            log::warn!("Bluetooth command too long; disconnecting");
+                            framer.clear();
+                            connection = None;
+                            pending.clear();
+                            let _ = spp.disconnect(handle);
+                            break;
+                        }
                     }
                 }
             }
@@ -351,7 +367,7 @@ fn run_worker(
             Work::Message(message) => {
                 remember(&message, &mut system, &mut registrations);
                 if connection.is_some() {
-                    enqueue(&message, &mut pending);
+                    enqueue(&message, &mut pending, &drops);
                 }
             }
             _ => {}
@@ -384,17 +400,17 @@ fn run_worker(
     }
 }
 
-fn enqueue(message: &ProtocolMessage, pending: &mut VecDeque<Vec<u8>>) {
+fn enqueue(message: &ProtocolMessage, pending: &mut VecDeque<Vec<u8>>, drops: &DropCounters) {
     if pending.len() >= 128 {
-        log::warn!("Bluetooth outbound queue full; dropping message");
+        drops.record(Stage::Link);
         return;
     }
-    match serde_json::to_vec(message) {
-        Ok(mut frame) if frame.len() < MAX_MESSAGE_BYTES => {
-            frame.push(b'\n');
-            pending.push_back(frame);
+    match encode_line(message) {
+        Ok(frame) => pending.push_back(frame),
+        Err(EncodeError::TooLong(length)) => {
+            log::warn!("Bluetooth protocol message of {length} bytes exceeds the line limit");
+            drops.record(Stage::Link);
         }
-        Ok(_) => log::warn!("Bluetooth protocol message exceeds size limit"),
         Err(error) => log::warn!("Bluetooth serialization failed: {error}"),
     }
 }

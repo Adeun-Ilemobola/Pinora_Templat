@@ -45,6 +45,9 @@ fn try_emit_drops_without_blocking_when_the_queue_is_full() {
     for n in 0..(QUEUE_CAPACITY as u32 + 10) {
         emitter.try_emit(event(n)); // must return immediately even when full
     }
+    // Drops are counted, not logged one by one (Phase 2B, PIN-TPL-010).
+    let report = emitter.drop_counters().take().expect("drops were counted");
+    assert_eq!((report.emitter, report.transport, report.link), (10, 0, 0));
     let received: Vec<_> = rx.try_iter().collect();
     assert_eq!(received.len(), QUEUE_CAPACITY);
     assert_eq!(received.first(), Some(&event(0)));

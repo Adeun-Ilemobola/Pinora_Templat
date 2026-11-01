@@ -3,15 +3,21 @@
 //!
 //! * `emit_reliable` (registration, system snapshot) blocks until there is room, so
 //!   discovery messages are never dropped here. Do not call it from `tick()`.
-//! * `try_emit` (runtime events, logs) drops the message with a warning when the
-//!   queue is full, so module ticks never block on telemetry.
+//! * `try_emit` (runtime events, logs) drops the message when the queue is full, so
+//!   module ticks never block on telemetry. Drops are counted in [`DropCounters`]
+//!   and reported periodically (Phase 2B, PIN-TPL-010), not logged one by one.
 //!
 //! Enqueueing is not delivery: there is no acknowledgement or retry.
 
 use std::{
     fmt,
-    sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError},
+    sync::{
+        mpsc::{sync_channel, Receiver, SyncSender, TrySendError},
+        Arc,
+    },
 };
+
+use crate::core::transport::drop_stats::{DropCounters, Stage};
 
 use pinora_protocol::{
     EventPackage, LogPriority, ModuleEvent, ProtocolMessage, SysLogEvent, SystemInfo,
@@ -31,12 +37,24 @@ impl fmt::Display for EmitterError {
 #[derive(Debug, Clone)]
 pub struct TransportEmitter {
     tx: SyncSender<ProtocolMessage>,
+    drops: Arc<DropCounters>,
 }
 
 impl TransportEmitter {
     pub fn new() -> (Self, Receiver<ProtocolMessage>) {
         let (tx, rx) = sync_channel::<ProtocolMessage>(128);
-        (Self { tx }, rx)
+        (
+            Self {
+                tx,
+                drops: Arc::new(DropCounters::default()),
+            },
+            rx,
+        )
+    }
+
+    /// The drop counters shared by every outbound stage of this emitter's transport.
+    pub fn drop_counters(&self) -> Arc<DropCounters> {
+        Arc::clone(&self.drops)
     }
 
     pub fn system_info(&self, data: SystemInfo) -> Result<(), EmitterError> {
@@ -58,9 +76,7 @@ impl TransportEmitter {
         match self.tx.try_send(message) {
             Ok(()) => {}
 
-            Err(TrySendError::Full(_)) => {
-                log::warn!("Event queue is full; dropping runtime message");
-            }
+            Err(TrySendError::Full(_)) => self.drops.record(Stage::Emitter),
 
             Err(TrySendError::Disconnected(_)) => {
                 log::error!("Event emitter is disconnected");

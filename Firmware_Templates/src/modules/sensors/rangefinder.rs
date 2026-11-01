@@ -1,6 +1,7 @@
-use crate::core::hardware::RangefinderI2c;
+use crate::core::hardware::{now_us, RangefinderI2c};
 use crate::core::module::{Module, ModuleCore, ModuleError};
 use crate::core::transport::emitter::{EmitterError, TransportEmitter};
+use crate::utilities::rate_limit::{with_suppressed, Admission, RateLimiter};
 use pinora_protocol::{
     command::ModuleCommand,
     global_definitions::ModuleType,
@@ -20,6 +21,9 @@ pub struct Rangefinder<'d> {
     pub timing_budget_ms: u16,
     pub inter_measurement_ms: u16,
     pub distance_mode: DistanceMode,
+    /// At most one "Failed to update range" SysLog per second (Phase 2B,
+    /// PIN-TPL-010); before, one was sent on every failed tick.
+    pub error_limit: RateLimiter,
 }
 
 impl<'d> Rangefinder<'d> {
@@ -59,6 +63,7 @@ impl<'d> Rangefinder<'d> {
             timing_budget_ms: 50,
             inter_measurement_ms: 60,
             distance_mode: DistanceMode::Long,
+            error_limit: RateLimiter::per_second(1),
         };
 
         Ok(rangefinder)
@@ -184,11 +189,13 @@ impl<'d> Module for Rangefinder<'d> {
                 }));
             }
             Err(_) => {
-                self.emit(ModuleEvent::SysLog(SysLogEvent {
-                    text: "Failed to update range".to_string(),
-                    raw_err: None,
-                    priority: LogPriority::Critical,
-                }));
+                if let Admission::Admit { suppressed } = self.error_limit.admit(now_us() as u64) {
+                    self.emit(ModuleEvent::SysLog(SysLogEvent {
+                        text: with_suppressed("Failed to update range", suppressed),
+                        raw_err: None,
+                        priority: LogPriority::Critical,
+                    }));
+                }
                 return Err(ModuleError::OperationFailed);
             }
         }

@@ -16,6 +16,9 @@ pub mod core {
         #[path = "../../../../../Firmware_Templates/src/core/transport/discovery_cache.rs"]
         pub mod discovery_cache;
 
+        #[path = "../../../../../Firmware_Templates/src/core/transport/drop_stats.rs"]
+        pub mod drop_stats;
+
         #[path = "../../../../../Firmware_Templates/src/core/transport/pairing_window.rs"]
         pub mod pairing_window;
     }
@@ -47,4 +50,7 @@ pub mod runtime {
 pub mod utilities {
     #[path = "../../../../Firmware_Templates/src/utilities/math.rs"]
     pub mod math;
+
+    #[path = "../../../../Firmware_Templates/src/utilities/rate_limit.rs"]
+    pub mod rate_limit;
 }

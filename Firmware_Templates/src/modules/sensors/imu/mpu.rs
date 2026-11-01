@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        hardware::SharedI2cDevice,
+        hardware::{now_us, SharedI2cDevice},
         module::{Module, ModuleCore, ModuleError},
         transport::emitter::{EmitterError, TransportEmitter},
     },
@@ -8,6 +8,7 @@ use crate::{
         Axes, ImuError, ImuEvent, ImuModel, Mpu, MpuDevice, MpuDeviceErr, MpuDeviceMode, RawAxes,
         ACCEL_SENSITIVITY, ACCEL_XOUT_H, GYRO_SENSITIVITY, GYRO_XOUT_H,
     },
+    utilities::rate_limit::{Admission, RateLimiter},
 };
 use embedded_hal::i2c::I2c;
 use esp_idf_svc::hal::i2c::I2cError;
@@ -17,6 +18,11 @@ use pinora_protocol::{
     module_event::{EventPackage, LogPriority, ModuleEvent, SysLogEvent},
     registration::ProtocolMessage,
 };
+
+/// Most samples per second sent for each of the gyro and accel streams. Before Phase 2B
+/// the IMU emitted on every tick whose reading changed, which for a noisy sensor is
+/// every tick (PIN-TPL-010).
+const IMU_SAMPLES_PER_SECOND: u32 = 20;
 
 impl<'d> Mpu<'d> {
     pub fn identify(
@@ -109,6 +115,11 @@ impl<'d> MpuDevice<'d> {
                 y: 0.0,
             },
             bias_collection_gyro: vec![],
+
+            gyro_limit: RateLimiter::per_second(IMU_SAMPLES_PER_SECOND),
+            accel_limit: RateLimiter::per_second(IMU_SAMPLES_PER_SECOND),
+            gyro_dirty: false,
+            accel_dirty: false,
         };
 
         Ok(imu)
@@ -202,6 +213,16 @@ impl<'d> MpuDevice<'d> {
             self.gyro.x = cover.x - self.bias_gyro.x;
             self.gyro.z = cover.z - self.bias_gyro.z;
             self.gyro.y = cover.y - self.bias_gyro.y;
+            self.gyro_dirty = true;
+        }
+        // Coalesced: the latest reading is sent at most IMU_SAMPLES_PER_SECOND times.
+        if self.gyro_dirty
+            && matches!(
+                self.gyro_limit.admit(now_us() as u64),
+                Admission::Admit { .. }
+            )
+        {
+            self.gyro_dirty = false;
             self.emit(ModuleEvent::Imu(ImuEvent::Gyro {
                 raw_axes: self.gyro_raw,
                 axes: self.gyro,
@@ -216,6 +237,15 @@ impl<'d> MpuDevice<'d> {
             self.accel.x = cover.x - self.bias_accel.x;
             self.accel.z = cover.z - self.bias_accel.z;
             self.accel.y = cover.y - self.bias_accel.y;
+            self.accel_dirty = true;
+        }
+        if self.accel_dirty
+            && matches!(
+                self.accel_limit.admit(now_us() as u64),
+                Admission::Admit { .. }
+            )
+        {
+            self.accel_dirty = false;
             self.emit(ModuleEvent::Imu(ImuEvent::Accel {
                 raw_axes: self.accel_raw,
                 axes: self.accel,
