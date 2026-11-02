@@ -107,7 +107,7 @@ pub fn from_hex<const N: usize>(text: &str) -> Option<[u8; N]> {
         _ => None,
     };
     let mut out = [0u8; N];
-    for (index, pair) in digits.chunks_exact(2).enumerate() {
+    for (index, pair) in digits.as_chunks::<2>().0.iter().enumerate() {
         out[index] = (value(pair[0])? << 4) | value(pair[1])?;
     }
     Some(out)

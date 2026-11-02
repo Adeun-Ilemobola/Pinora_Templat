@@ -21,7 +21,7 @@ pub fn decode(pulses: &[Pulse]) -> Option<u8> {
     let bits = pulses.get(start..start + 64)?;
 
     let mut data = [0u8; 4];
-    for (bit_index, pair) in bits.chunks_exact(2).enumerate() {
+    for (bit_index, pair) in bits.as_chunks::<2>().0.iter().enumerate() {
         let (low, high) = (pair[0], pair[1]);
         if low.0 || !(350..=800).contains(&low.1) || !high.0 {
             return None;

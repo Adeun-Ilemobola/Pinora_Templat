@@ -48,10 +48,21 @@ impl DropCounters {
             Stage::Transport => &self.transport,
             Stage::Link => &self.link,
         };
-        // Saturating, so a long flood cannot wrap to a small number.
-        let _ = counter.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |count| {
-            Some(count.saturating_add(1))
-        });
+        // Saturating, so a long flood cannot wrap to a small number. A plain
+        // compare-exchange loop: `fetch_update` is deprecated on newer Rust and its
+        // replacement `try_update` is not available on the firmware toolchain.
+        let mut count = counter.load(Ordering::Relaxed);
+        while count != u32::MAX {
+            match counter.compare_exchange_weak(
+                count,
+                count + 1,
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+            ) {
+                Ok(_) => break,
+                Err(actual) => count = actual,
+            }
+        }
     }
 
     /// Returns and resets the counts; `None` if nothing was dropped.
