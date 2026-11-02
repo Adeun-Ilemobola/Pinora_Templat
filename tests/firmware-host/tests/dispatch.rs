@@ -1,7 +1,6 @@
 //! Tests for `Firmware_Templates/src/runtime/dispatch.rs` (Phase 1B, PIN-TPL-001):
 //! a failing command is reported and does not stop command processing.
 
-use std::collections::HashMap;
 use std::sync::mpsc::Receiver;
 
 use pinora_firmware_host_tests::core::module::{Module, ModuleCore, ModuleError, ModuleRegistry};
@@ -40,7 +39,7 @@ fn setup() -> (ModuleRegistry<'static>, String, Receiver<ProtocolMessage>) {
         handled: 0,
     };
     let id = module.id().to_string();
-    let mut registry: ModuleRegistry<'static> = HashMap::new();
+    let mut registry: ModuleRegistry<'static> = ModuleRegistry::new();
     registry.insert(id.clone(), Box::new(module));
     (registry, id, rx)
 }
@@ -195,7 +194,7 @@ fn setup_parent() -> (ModuleRegistry<'static>, String, Receiver<ProtocolMessage>
         },
     };
     let child_id = parent.child.id().to_string();
-    let mut registry: ModuleRegistry<'static> = HashMap::new();
+    let mut registry: ModuleRegistry<'static> = ModuleRegistry::new();
     registry.insert(parent.id().to_string(), Box::new(parent));
     (registry, child_id, rx)
 }

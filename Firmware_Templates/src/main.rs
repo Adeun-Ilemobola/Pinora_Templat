@@ -22,7 +22,6 @@ use crate::core::hardware::*;
 use crate::core::module::ModuleRegistry;
 use crate::core::transport::manager::{TransportCore, TransportType};
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::rc::Rc;
 
 fn main() -> anyhow::Result<()> {
@@ -39,7 +38,7 @@ fn main() -> anyhow::Result<()> {
     let sync_sender = transport.emitter.clone();
 
     print_esp_system_info(sync_sender.clone())?;
-    let mut modules: ModuleRegistry<'_> = HashMap::new();
+    let mut modules = ModuleRegistry::new();
     let last_yield_us = now_us();
 
     let i2c = I2cDriver::new(

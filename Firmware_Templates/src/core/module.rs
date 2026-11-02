@@ -4,7 +4,8 @@
 //!
 //! 1. **Construction** in `board` acquires the hardware. It must not move anything
 //!    (since Phase 1D no module does; PIN-TPL-004).
-//! 2. Insertion into the [`ModuleRegistry`], keyed by runtime UUID.
+//! 2. Insertion into the [`ModuleRegistry`], keyed by runtime UUID. **Construction
+//!    order is tick, registration and replay order** (since Phase 2C, PIN-TPL-027).
 //! 3. [`Module::register`], then [`Module::first_emit`], once each.
 //! 4. [`Module::tick`] on every main-loop iteration, forever.
 //! 5. [`Module::handle_command`] whenever a command's `id` equals this module's UUID.
@@ -33,9 +34,77 @@ use crate::core::transport::emitter::{EmitterError, TransportEmitter};
 /// A boxed module as stored in the registry.
 pub type ModuleHandle<'a> = Box<dyn Module + 'a>;
 
-/// Top-level modules keyed by runtime UUID. Commands are routed to these first, then to
-/// their children via [`Module::child_mut`] (since Phase 2A; PIN-TPL-017).
-pub type ModuleRegistry<'a> = HashMap<String, ModuleHandle<'a>>;
+/// Top-level modules keyed by runtime UUID, **in insertion order**. Commands are routed
+/// to these first, then to their children via [`Module::child_mut`] (since Phase 2A;
+/// PIN-TPL-017).
+///
+/// Before Phase 2C this was a `HashMap` with randomized hashing, so tick, registration
+/// and replay order changed on every boot (PIN-TPL-027). Now iteration follows
+/// insertion order and an index serves lookups by id.
+#[derive(Default)]
+pub struct ModuleRegistry<'a> {
+    modules: Vec<(String, ModuleHandle<'a>)>,
+    index: HashMap<String, usize>,
+}
+
+impl<'a> ModuleRegistry<'a> {
+    pub fn new() -> Self {
+        Self {
+            modules: Vec::new(),
+            index: HashMap::new(),
+        }
+    }
+
+    /// Adds a module at the end. Re-inserting an id replaces that module in place and
+    /// returns the old one.
+    pub fn insert(&mut self, id: String, module: ModuleHandle<'a>) -> Option<ModuleHandle<'a>> {
+        if let Some(&position) = self.index.get(&id) {
+            return Some(std::mem::replace(&mut self.modules[position].1, module));
+        }
+        self.index.insert(id.clone(), self.modules.len());
+        self.modules.push((id, module));
+        None
+    }
+
+    pub fn get_mut(&mut self, id: &str) -> Option<&mut ModuleHandle<'a>> {
+        let position = *self.index.get(id)?;
+        Some(&mut self.modules[position].1)
+    }
+
+    pub fn contains_key(&self, id: &str) -> bool {
+        self.index.contains_key(id)
+    }
+
+    pub fn len(&self) -> usize {
+        self.modules.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.modules.is_empty()
+    }
+
+    pub fn clear(&mut self) {
+        self.modules.clear();
+        self.index.clear();
+    }
+
+    /// Ids in insertion order.
+    pub fn ids(&self) -> impl Iterator<Item = &str> {
+        self.modules.iter().map(|(id, _)| id.as_str())
+    }
+
+    pub fn values(&self) -> impl Iterator<Item = &ModuleHandle<'a>> {
+        self.modules.iter().map(|(_, module)| module)
+    }
+
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut ModuleHandle<'a>> {
+        self.modules.iter_mut().map(|(_, module)| module)
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = (&String, &mut ModuleHandle<'a>)> {
+        self.modules.iter_mut().map(|(id, module)| (&*id, module))
+    }
+}
 
 /// Lookup names used by more than one top-level module, sorted. The desktop maps
 /// lookup names to modules, so duplicates hide a module there (PIN-TPL-017).

@@ -1,8 +1,6 @@
 //! Characterization tests for the `Module` contract in
 //! `Firmware_Templates/src/core/module.rs`, using a hardware-free stub module.
 
-use std::collections::HashMap;
-
 use pinora_firmware_host_tests::core::module::{
     Module, ModuleCore, ModuleError, ModuleHandle, ModuleRegistry,
 };
@@ -121,7 +119,7 @@ fn registry_routes_by_uuid() {
     let (emitter, _rx) = TransportEmitter::new();
     let module = StubModule::new("led1", None, emitter);
     let id = module.id().to_string();
-    let mut registry: ModuleRegistry<'_> = HashMap::new();
+    let mut registry: ModuleRegistry<'_> = ModuleRegistry::new();
     let handle: ModuleHandle<'_> = Box::new(module);
     registry.insert(id.clone(), handle);
     let command = ModuleCommand::Led(LedCommandPayload::Toggle {});
@@ -141,7 +139,7 @@ fn registry_routes_by_uuid() {
 fn duplicate_lookup_names_are_detected() {
     use pinora_firmware_host_tests::core::module::duplicate_lookup_names;
     let (emitter, _rx) = TransportEmitter::new();
-    let mut registry: ModuleRegistry<'_> = HashMap::new();
+    let mut registry: ModuleRegistry<'_> = ModuleRegistry::new();
     for name in ["led1", "led2", "led1", "led3", "led2"] {
         let module = StubModule::new(name, None, emitter.clone());
         registry.insert(module.id().to_string(), Box::new(module));
@@ -159,4 +157,58 @@ fn modules_have_no_children_by_default() {
     let mut module = StubModule::new("led1", None, emitter);
     let id = module.id().to_string();
     assert!(module.child_mut(&id).is_none());
+}
+
+// ---- Phase 2C: the registry keeps construction order (PIN-TPL-027) ----
+
+#[test]
+fn iteration_follows_insertion_order_on_every_run() {
+    // Ids are random UUIDs, as on the device; a HashMap would reorder them.
+    for _ in 0..20 {
+        let (emitter, _rx) = TransportEmitter::new();
+        let mut registry: ModuleRegistry<'_> = ModuleRegistry::new();
+        let names = ["led1", "led2", "led3", "imu", "lidar", "rfid", "servo"];
+        for name in names {
+            let module = StubModule::new(name, None, emitter.clone());
+            registry.insert(module.id().to_string(), Box::new(module));
+        }
+        let order: Vec<_> = registry
+            .values()
+            .map(|m| m.core().lookup_name.clone())
+            .collect();
+        assert_eq!(order, names);
+        let order: Vec<_> = registry
+            .iter_mut()
+            .map(|(_, m)| m.core().lookup_name.clone())
+            .collect();
+        assert_eq!(order, names);
+    }
+}
+
+#[test]
+fn lookups_and_replacement_keep_positions() {
+    let (emitter, _rx) = TransportEmitter::new();
+    let mut registry: ModuleRegistry<'_> = ModuleRegistry::new();
+    let first = StubModule::new("a", None, emitter.clone());
+    let first_id = first.id().to_string();
+    registry.insert(first_id.clone(), Box::new(first));
+    let second = StubModule::new("b", None, emitter.clone());
+    registry.insert(second.id().to_string(), Box::new(second));
+
+    assert_eq!(registry.get_mut(&first_id).unwrap().core().lookup_name, "a");
+    let replaced = registry.insert(
+        first_id.clone(),
+        Box::new(StubModule::new("c", None, emitter)),
+    );
+    assert!(replaced.is_some());
+    assert_eq!(registry.len(), 2);
+    let order: Vec<_> = registry
+        .values()
+        .map(|m| m.core().lookup_name.clone())
+        .collect();
+    assert_eq!(order, ["c", "b"]);
+    assert_eq!(registry.ids().next(), Some(first_id.as_str()));
+    assert!(registry.get_mut("missing").is_none());
+    registry.clear();
+    assert!(registry.is_empty());
 }
