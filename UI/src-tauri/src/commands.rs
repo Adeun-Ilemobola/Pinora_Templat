@@ -1,14 +1,18 @@
 //! Tauri IPC commands. Function names, argument names and return shapes are an IPC
 //! contract with the frontend (audit contract C-06). Do not rename them.
 //!
-//! All commands are synchronous and run on Tauri's main thread (PIN-TPL-014).
+//! Since audit Phase 2D (PIN-TPL-014) the slow commands (port listing, the PowerShell
+//! Bluetooth query, connect, disconnect) are `async` and run their work on a blocking
+//! thread, so the window stays responsive. `send_data` and the other quick commands
+//! stay synchronous, which also keeps commands in order. Names and arguments are
+//! unchanged.
 //!
 //! Phase 2B (additive): `start_wifi_listener` takes an optional `bindAddress`;
 //! `provision_device_key`, `clear_device_key`, `forget_device_key`,
 //! `list_paired_devices` and `get_auth_status` are new. None returns a key.
 
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 
 use serialport::SerialPortType;
 
@@ -25,8 +29,21 @@ pub fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+/// Runs blocking work off the main thread.
+async fn blocking<T: Send + 'static>(
+    work: impl FnOnce() -> T + Send + 'static,
+) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(work)
+        .await
+        .map_err(|error| format!("Background task failed: {error}"))
+}
+
 #[tauri::command]
-pub fn get_available_ports() -> Result<Vec<String>, String> {
+pub async fn get_available_ports() -> Result<Vec<String>, String> {
+    blocking(list_ports).await?
+}
+
+fn list_ports() -> Result<Vec<String>, String> {
     match serialport::available_ports() {
         Ok(ports) => Ok(ports.into_iter().map(|p| p.port_name).collect()),
         Err(e) => {
@@ -36,13 +53,18 @@ pub fn get_available_ports() -> Result<Vec<String>, String> {
     }
 }
 
+/// The port selector's Refresh: always queries Windows again.
 #[tauri::command]
-pub fn get_available_bluetooth_ports() -> Result<Vec<String>, String> {
+pub async fn get_available_bluetooth_ports() -> Result<Vec<String>, String> {
+    blocking(|| list_bluetooth_ports(true)).await?
+}
+
+fn list_bluetooth_ports(#[allow(unused_variables)] refresh: bool) -> Result<Vec<String>, String> {
     let ports = serialport::available_ports()
         .map_err(|error| format!("Could not list paired Bluetooth COM ports: {error}"))?;
     #[cfg(windows)]
     // Windows serialport can label SPP virtual COM ports Unknown, so check PnP ownership.
-    let windows_ports = windows_bluetooth_ports()?;
+    let windows_ports = windows_bluetooth_ports(refresh)?;
 
     Ok(ports
         .into_iter()
@@ -65,24 +87,26 @@ pub fn get_available_bluetooth_ports() -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
-pub fn start_bluetooth_port(
-    state: State<'_, Mutex<AppState>>,
-    app: AppHandle,
-    name: String,
-) -> Result<(), String> {
-    // Only allow a port found by the same outgoing-SPP discovery used by the selector.
-    let available = get_available_bluetooth_ports()?;
+pub async fn start_bluetooth_port(app: AppHandle, name: String) -> Result<(), String> {
+    blocking(move || start_bluetooth_port_blocking(app, name)).await?
+}
+
+fn start_bluetooth_port_blocking(app: AppHandle, name: String) -> Result<(), String> {
+    // Only allow a port found by the same outgoing-SPP discovery used by the selector
+    // (cached for a few seconds, so a connect right after a refresh is quick).
+    let available = list_bluetooth_ports(false)?;
     if !available
         .iter()
         .any(|port| port.eq_ignore_ascii_case(&name))
     {
         return Err(format!("{name} is not a paired Bluetooth COM port"));
     }
+    let state = app.state::<Mutex<AppState>>();
     let mut state = state.lock().map_err(|error| error.to_string())?;
     state.name = name;
     state.rate = 115200; // Windows ignores the baud rate for SPP virtual COM ports.
     state
-        .connect(Arc::new(app), TransportType::Bluetooth)
+        .connect(Arc::new(app.clone()), TransportType::Bluetooth)
         .map_err(|error| format!("Bluetooth SPP connection failed: {error:?}"))?;
     Ok(())
 }
@@ -223,16 +247,26 @@ pub fn stop_wifi_listener(state: State<'_, Mutex<Option<WifiTransport>>>) -> Res
 /// Opens a USB serial port. Note: every failure is reported only as
 /// `ConnectionType::Error`; the detail goes to the log (PIN-TPL-023).
 #[tauri::command]
-pub fn start_port(
-    state: State<'_, Mutex<AppState>>,
+pub async fn start_port(
     app: AppHandle,
-    name: &str,
+    name: String,
     rate: u32,
 ) -> Result<ConnectionType, ConnectionType> {
-    let mut state = state.lock().unwrap();
-    let app_handle = Arc::new(app);
+    blocking(move || start_port_blocking(app, name, rate))
+        .await
+        .unwrap_or(Err(ConnectionType::Error))
+}
 
-    state.name = name.to_string();
+fn start_port_blocking(
+    app: AppHandle,
+    name: String,
+    rate: u32,
+) -> Result<ConnectionType, ConnectionType> {
+    let state = app.state::<Mutex<AppState>>();
+    let mut state = state.lock().map_err(|_| ConnectionType::Error)?;
+    let app_handle = Arc::new(app.clone());
+
+    state.name = name;
     state.rate = rate;
 
     log::info!(
@@ -256,8 +290,13 @@ pub fn start_port(
 }
 
 #[tauri::command]
-pub fn stop_port(state: State<'_, Mutex<AppState>>) -> Result<(), ()> {
-    let mut state = state.lock().unwrap();
-    state.shutdown();
-    Ok(())
+pub async fn stop_port(app: AppHandle) -> Result<(), ()> {
+    // Joins the reader thread, so it runs off the main thread too.
+    blocking(move || {
+        if let Ok(mut state) = app.state::<Mutex<AppState>>().lock() {
+            state.shutdown();
+        }
+    })
+    .await
+    .map_err(|_| ())
 }
