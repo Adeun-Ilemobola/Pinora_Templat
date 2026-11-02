@@ -30,10 +30,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The protocol crate declares `wifi_config` unconditionally; CI uses the
-      # placeholder values from the tracked example (PIN-TPL-015).
-      - name: Provide placeholder Wi-Fi config
-        run: cp protocol/src/wifi_config.example.rs protocol/src/wifi_config.rs
+      # No Wi-Fi config step: since audit Phase 2E the protocol's build script falls
+      # back to the example's placeholders, as it does for any fresh clone.
 
       - name: Install stable Rust
         run: rustup toolchain install stable --profile minimal --component rustfmt,clippy
@@ -80,9 +78,6 @@ jobs:
         shell: pwsh
     steps:
       - uses: actions/checkout@v4
-
-      - name: Provide placeholder Wi-Fi config
-        run: Copy-Item protocol/src/wifi_config.example.rs protocol/src/wifi_config.rs
 
       - uses: oven-sh/setup-bun@v2
         with:

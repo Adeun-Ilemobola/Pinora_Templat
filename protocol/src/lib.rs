@@ -11,7 +11,9 @@
 //! serialize as bare strings; the misspelled names `lool_up_id`, `Ckick`, `Idol` and
 //! `distant` are on the wire; `Registration::parent_id` is `""` for top-level modules.
 //!
-//! `wifi_config` is a local, git-ignored file (copy `wifi_config.example.rs`).
+//! `wifi_config` comes from the local, git-ignored `src/wifi_config.rs`, or from the
+//! placeholders in `wifi_config.example.rs` when that file is absent (`build.rs`,
+//! audit Phase 2E).
 //!
 //! Protocol v2 (audit Phase 2B): [`framing`] is the one line framer and limit table
 //! for every transport; [`auth`] holds the authentication wire types and, with the
@@ -25,7 +27,10 @@ pub mod global_definitions;
 pub mod module;
 pub mod module_event;
 pub mod registration;
-pub mod wifi_config;
+/// Local Wi-Fi settings (see `build.rs`).
+pub mod wifi_config {
+    include!(concat!(env!("OUT_DIR"), "/wifi_config.rs"));
+}
 
 pub use auth::{AuthMessage, CommandLine, SignedCommand, parse_command_line};
 pub use command::*;

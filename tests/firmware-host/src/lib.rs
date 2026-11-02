@@ -5,6 +5,11 @@
 //! included here; if a firmware edit adds one, this crate stops compiling, which is
 //! the intended alarm. Paths are relative to each inline module's directory.
 
+pub mod board {
+    #[path = "../../../../Firmware_Templates/src/board/pin_map.rs"]
+    pub mod pin_map;
+}
+
 pub mod core {
     #[path = "../../../../Firmware_Templates/src/core/module.rs"]
     pub mod module;

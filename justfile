@@ -88,7 +88,7 @@ test-ui:
 hw-test usb bt:
     cd tests/hardware-probe && cargo run --release -- persist {{usb}} && cargo run --release -- scenario {{usb}} {{bt}}
 
-# Tauri unit tests (needs UI/dist and protocol/src/wifi_config.rs; not in `test`).
+# Tauri unit tests (needs UI/dist; not in `test`).
 test-tauri:
     cd UI/src-tauri && cargo test --locked
 

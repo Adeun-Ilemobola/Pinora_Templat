@@ -10,11 +10,15 @@
 //! | `led3` | 27 | 2 | |
 //! | I²C0 bus | SDA 21, SCL 22 | — | 100 kHz, created in `main.rs`; no consumer in this image |
 //!
+//! The same assignments are kept as data in [`pin_map::PIN_MAP`], which a host test
+//! checks against `main.rs` (audit Phase 2E, PIN-TPL-018).
+//!
 //! All LEDs share LEDC timer0 (5 kHz, 13-bit). Wiring for the other module
 //! families is kept, commented out, in [`disabled_wiring`]; read its warnings before
 //! enabling any of it.
 
 pub mod disabled_wiring;
+pub mod pin_map;
 
 use std::cell::RefCell;
 use std::rc::Rc;

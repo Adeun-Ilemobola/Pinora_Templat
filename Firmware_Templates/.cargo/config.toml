@@ -1,6 +1,8 @@
 [build]
 target = "xtensa-esp32-espidf"
-# Keep ESP-IDF build output on a short Windows path.
+# Keep ESP-IDF build output on a short Windows path (ESP-IDF builds fail on long
+# Windows paths). Other machines: set CARGO_TARGET_DIR, which overrides this
+# (audit Phase 2E, PIN-TPL-015); `just flash` and the C:/t cache keep working.
 target-dir = "C:/t"
 
 [target.'cfg(target_os = "espidf")']
