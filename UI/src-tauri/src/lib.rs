@@ -12,23 +12,19 @@
 //! `bluetoothConnection` and `serialConnection` (added in Phase 2A; `"Disconnected"`
 //! only) with `"Connected"` / `"Disconnected"`, contract C-07.
 
-// Phase 2B Q5 (in progress): the auth modules are tested but not yet wired into
-// the transports.
-#[allow(dead_code)]
 mod auth_link;
 mod bluetooth_ports;
 mod commands;
-#[allow(dead_code)]
 mod device_keys;
-#[allow(dead_code)]
 mod events;
 mod line_classifier;
 mod serial_transport;
 mod wifi_transport;
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::Manager;
 
+use device_keys::DeviceKeys;
 use serial_transport::AppState;
 use wifi_transport::WifiTransport;
 
@@ -53,7 +49,19 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
-            app.manage(Mutex::new(AppState::new()));
+            // Paired-device keys (Phase 2B); never exposed to the WebView.
+            let keys = match app.path().app_data_dir() {
+                Ok(dir) => DeviceKeys::load(dir.join("device-keys.json")),
+                Err(error) => {
+                    log::warn!(
+                        "No app data directory ({error}); paired keys are kept in memory only"
+                    );
+                    DeviceKeys::default()
+                }
+            };
+            let keys = Arc::new(Mutex::new(keys));
+            app.manage(Arc::clone(&keys));
+            app.manage(Mutex::new(AppState::new(keys)));
             app.manage(Mutex::new(None::<WifiTransport>));
             Ok(())
         })
@@ -68,7 +76,12 @@ pub fn run() {
             commands::stop_port,
             commands::start_wifi_listener,
             commands::stop_wifi_listener,
-            commands::get_wifi_listener_status
+            commands::get_wifi_listener_status,
+            commands::provision_device_key,
+            commands::clear_device_key,
+            commands::forget_device_key,
+            commands::list_paired_devices,
+            commands::get_auth_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

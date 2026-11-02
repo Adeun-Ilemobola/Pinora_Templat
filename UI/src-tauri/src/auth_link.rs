@@ -17,6 +17,13 @@ use serde::Serialize;
 
 use crate::device_keys::DeviceKeys;
 
+/// A fresh handshake nonce from the operating system's RNG.
+pub(crate) fn random_nonce() -> Result<[u8; NONCE_BYTES], String> {
+    let mut nonce = [0u8; NONCE_BYTES];
+    getrandom::getrandom(&mut nonce).map_err(|error| error.to_string())?;
+    Ok(nonce)
+}
+
 /// Tauri event carrying [`AuthStatus`] and [`PairingEvent`] payloads (contract C-07,
 /// added in Phase 2B).
 pub(crate) const AUTH_EVENT: &str = "deviceAuth";
@@ -72,10 +79,6 @@ impl AuthLink {
             kind,
             session: ClientSession::new(),
         }
-    }
-
-    pub(crate) fn kind(&self) -> LinkKind {
-        self.kind
     }
 
     pub(crate) fn status(&self) -> AuthStatus {

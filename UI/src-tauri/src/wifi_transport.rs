@@ -1,21 +1,49 @@
+//! Wi-Fi listener: the ESP32 connects as a TCP client and authenticates with the
+//! development token (contract C-03), then exchanges newline-delimited JSON.
+//!
+//! Since audit Phase 2B (PIN-TPL-013, PIN-TPL-003, PIN-TPL-016):
+//! * One thread accepts; each peer authenticates on its own worker within an
+//!   overall deadline ([`AUTH_DEADLINE`]), so a slow or silent peer can no longer
+//!   hold the listener (before: 3 s per byte, up to ~25 minutes). At most
+//!   [`MAX_PENDING_AUTH`] peers authenticate at once.
+//! * The newest authenticated device replaces the previous connection, so a device
+//!   that reconnects after a half-open TCP drop is not locked out.
+//! * The bind address is configurable (default `0.0.0.0`).
+//! * Lines use the shared [`LineFramer`] (8 KiB; 256 KiB before 2B).
+//! * After the token, the backend runs the protocol v2 handshake ([`AuthLink`]) and
+//!   signs every command; `Auth` messages never reach the WebView.
+
 use pinora_protocol::{
+    auth::AuthStatus,
+    framing::{Frame, LineFramer, MAX_AUTH_LINE_BYTES, MAX_LINE_BYTES},
     wifi_config::{DESKTOP_PORT, DEV_TOKEN},
-    IncomingCommand,
 };
 use serde::Serialize;
 use std::{
     io::{self, Read, Write},
     net::{Shutdown, TcpListener, TcpStream},
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
         Arc, Mutex,
     },
     thread::{self, JoinHandle},
-    time::Duration,
+    time::{Duration, Instant},
 };
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
 
-const MAX_LINE_BYTES: usize = 262_144;
+use crate::auth_link::{random_nonce, AuthLink, LinkKind, Outcome, AUTH_EVENT};
+use crate::device_keys::DeviceKeys;
+use crate::events::{emit_serialized, EventSink};
+use crate::line_classifier::{classify, ComLine};
+
+/// Total time a peer has to send a valid token line.
+#[cfg(not(test))]
+pub(crate) const AUTH_DEADLINE: Duration = Duration::from_secs(5);
+#[cfg(test)]
+pub(crate) const AUTH_DEADLINE: Duration = Duration::from_millis(400);
+/// Peers allowed to authenticate at the same time; more are refused at once.
+pub(crate) const MAX_PENDING_AUTH: usize = 4;
+pub(crate) const DEFAULT_BIND: &str = "0.0.0.0";
 
 #[derive(Serialize)]
 pub struct WifiListenerStatus {
@@ -34,49 +62,69 @@ impl WifiListenerStatus {
     }
 }
 
+struct Session {
+    id: u64,
+    writer: TcpStream,
+    auth: AuthLink,
+}
+
+type Current = Arc<Mutex<Option<Session>>>;
+
 pub struct WifiTransport {
     running: Arc<AtomicBool>,
     connected: Arc<AtomicBool>,
     port: u16,
-    writer: Arc<Mutex<Option<TcpStream>>>,
+    current: Current,
     thread: Option<JoinHandle<()>>,
 }
 
 impl WifiTransport {
-    pub fn start(app: AppHandle, port: u16) -> Result<Self, String> {
+    pub fn start(
+        app: AppHandle,
+        port: u16,
+        bind: Option<&str>,
+        keys: Arc<Mutex<DeviceKeys>>,
+    ) -> Result<Self, String> {
         if port == 0 {
             return Err("Listener port must be between 1 and 65535".into());
         }
-        let listener = TcpListener::bind(("0.0.0.0", port)).map_err(|error| error.to_string())?;
-        // The listener stays nonblocking so Stop can join its worker promptly.
+        let bind = bind.unwrap_or(DEFAULT_BIND);
+        let listener = TcpListener::bind((bind, port)).map_err(|error| error.to_string())?;
+        let transport = Self::start_on(app, listener, keys)?;
+        log::info!("Wi-Fi listener started on {bind}:{port}");
+        Ok(transport)
+    }
+
+    pub(crate) fn start_on<S: EventSink>(
+        sink: S,
+        listener: TcpListener,
+        keys: Arc<Mutex<DeviceKeys>>,
+    ) -> Result<Self, String> {
+        let port = listener.local_addr().map_err(|e| e.to_string())?.port();
+        // The listener stays nonblocking so Stop can join its accept thread promptly.
         listener
             .set_nonblocking(true)
             .map_err(|error| error.to_string())?;
         let running = Arc::new(AtomicBool::new(true));
         let connected = Arc::new(AtomicBool::new(false));
-        let writer = Arc::new(Mutex::new(None));
-        let worker_running = Arc::clone(&running);
-        let worker_connected = Arc::clone(&connected);
-        let worker_writer = Arc::clone(&writer);
+        let current: Current = Arc::new(Mutex::new(None));
+        let shared = Shared {
+            sink,
+            running: Arc::clone(&running),
+            connected: Arc::clone(&connected),
+            current: Arc::clone(&current),
+            keys,
+            pending: Arc::new(AtomicUsize::new(0)),
+        };
         let thread = thread::Builder::new()
             .name("pinora-wifi-listener".into())
-            .spawn(move || {
-                listen_for_device(
-                    listener,
-                    app,
-                    worker_running,
-                    worker_connected,
-                    worker_writer,
-                )
-            })
+            .spawn(move || accept_loop(listener, shared))
             .map_err(|error| error.to_string())?;
-
-        log::info!("Wi-Fi listener started on port {port}");
         Ok(Self {
             running,
             connected,
             port,
-            writer,
+            current,
             thread: Some(thread),
         })
     }
@@ -89,20 +137,25 @@ impl WifiTransport {
         }
     }
 
-    pub fn send(&self, data: &str) -> Result<(), String> {
-        // Validate with the shared Rust protocol before writing to the authenticated device.
-        let command: IncomingCommand = serde_json::from_str(data)
-            .map_err(|error| format!("Invalid Pinora command: {error}"))?;
-        let mut frame = serde_json::to_vec(&command).map_err(|error| error.to_string())?;
-        frame.push(b'\n');
+    pub(crate) fn auth_status(&self) -> AuthStatus {
+        self.current
+            .lock()
+            .ok()
+            .and_then(|slot| slot.as_ref().map(|session| session.auth.status()))
+            .unwrap_or(AuthStatus::Idle)
+    }
 
-        let mut guard = self.writer.lock().map_err(|error| error.to_string())?;
-        let stream = guard
+    /// Validates a WebView command and writes it, signed once the device is
+    /// authenticated.
+    pub fn send(&self, data: &str) -> Result<(), String> {
+        let mut slot = self.current.lock().map_err(|error| error.to_string())?;
+        let session = slot
             .as_mut()
             .ok_or_else(|| "No authenticated Wi-Fi device".to_string())?;
-        if let Err(error) = stream.write_all(&frame) {
-            if let Some(stream) = guard.take() {
-                let _ = stream.shutdown(Shutdown::Both);
+        let line = session.auth.outgoing(data)?;
+        if let Err(error) = session.writer.write_all(line.as_bytes()) {
+            if let Some(session) = slot.take() {
+                let _ = session.writer.shutdown(Shutdown::Both);
             }
             self.connected.store(false, Ordering::Relaxed);
             return Err(error.to_string());
@@ -111,12 +164,12 @@ impl WifiTransport {
     }
 
     pub fn stop(&mut self) {
-        // Closing the writer also wakes a blocked connection while the listener shuts down.
+        // Closing the current connection wakes its reader while the listener shuts down.
         self.running.store(false, Ordering::Relaxed);
         self.connected.store(false, Ordering::Relaxed);
-        if let Ok(mut guard) = self.writer.lock() {
-            if let Some(stream) = guard.take() {
-                let _ = stream.shutdown(Shutdown::Both);
+        if let Ok(mut slot) = self.current.lock() {
+            if let Some(session) = slot.take() {
+                let _ = session.writer.shutdown(Shutdown::Both);
             }
         }
         if let Some(thread) = self.thread.take() {
@@ -131,78 +184,36 @@ impl Drop for WifiTransport {
     }
 }
 
-fn authenticate(stream: &mut TcpStream) -> io::Result<()> {
-    // Reject unauthenticated peers before exposing their frames to the frontend.
-    stream.set_read_timeout(Some(Duration::from_secs(3)))?;
-    stream.set_write_timeout(Some(Duration::from_secs(2)))?;
-    let mut line = Vec::new();
-    let mut byte = [0u8; 1];
-    loop {
-        stream.read_exact(&mut byte)?;
-        if byte[0] == b'\n' {
-            break;
-        }
-        if line.len() >= 512 {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "auth line too long",
-            ));
-        }
-        line.push(byte[0]);
-    }
-
-    if line != format!("PINORA-AUTH 1 {DEV_TOKEN}").as_bytes() {
-        let _ = stream.write_all(b"PINORA-AUTH REJECT\n");
-        return Err(io::Error::new(
-            io::ErrorKind::PermissionDenied,
-            "authentication failed",
-        ));
-    }
-    stream.write_all(b"PINORA-AUTH OK\n")?;
-    stream.set_read_timeout(Some(Duration::from_millis(100)))?;
-    Ok(())
-}
-
-fn listen_for_device(
-    listener: TcpListener,
-    app: AppHandle,
+#[derive(Clone)]
+struct Shared<S> {
+    sink: S,
     running: Arc<AtomicBool>,
     connected: Arc<AtomicBool>,
-    writer: Arc<Mutex<Option<TcpStream>>>,
-) {
-    // One authenticated ESP32 connection is read at a time; reconnects re-enter accept.
-    while running.load(Ordering::Relaxed) {
-        match listener.accept() {
-            Ok((mut stream, peer)) => {
-                if let Err(error) = stream.set_nonblocking(false) {
-                    log::warn!("Could not configure Wi-Fi stream for {peer}: {error}");
-                    continue;
-                }
+    current: Current,
+    keys: Arc<Mutex<DeviceKeys>>,
+    pending: Arc<AtomicUsize>,
+}
 
-                if let Err(error) = authenticate(&mut stream) {
-                    log::warn!("Wi-Fi authentication failed for {peer}: {error}");
+fn accept_loop<S: EventSink>(listener: TcpListener, shared: Shared<S>) {
+    let mut next_id = 0u64;
+    while shared.running.load(Ordering::Relaxed) {
+        match listener.accept() {
+            Ok((stream, peer)) => {
+                if shared.pending.load(Ordering::SeqCst) >= MAX_PENDING_AUTH {
+                    log::warn!("Too many Wi-Fi peers authenticating; refusing {peer}");
                     continue;
                 }
-                if !running.load(Ordering::Relaxed) {
-                    break;
+                shared.pending.fetch_add(1, Ordering::SeqCst);
+                next_id += 1;
+                let id = next_id;
+                let worker = shared.clone();
+                let spawned = thread::Builder::new()
+                    .name("pinora-wifi-peer".into())
+                    .spawn(move || serve_peer(stream, peer, id, worker));
+                if let Err(error) = spawned {
+                    log::warn!("Could not start a Wi-Fi worker: {error}");
+                    shared.pending.fetch_sub(1, Ordering::SeqCst);
                 }
-                let Ok(clone) = stream.try_clone() else {
-                    log::warn!("Could not clone Wi-Fi stream");
-                    continue;
-                };
-                if let Ok(mut guard) = writer.lock() {
-                    *guard = Some(clone);
-                }
-                connected.store(true, Ordering::Relaxed);
-                log::info!("ESP32 connected: {peer}");
-                let _ = app.emit("wifiConnection", "Connected");
-                read_messages(&mut stream, &app, &running);
-                connected.store(false, Ordering::Relaxed);
-                if let Ok(mut guard) = writer.lock() {
-                    *guard = None;
-                }
-                log::info!("ESP32 disconnected");
-                let _ = app.emit("wifiConnection", "Disconnected");
             }
             Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
                 thread::sleep(Duration::from_millis(50));
@@ -215,35 +226,161 @@ fn listen_for_device(
     }
 }
 
-fn read_messages(stream: &mut TcpStream, app: &AppHandle, running: &AtomicBool) {
+fn serve_peer<S: EventSink>(
+    mut stream: TcpStream,
+    peer: std::net::SocketAddr,
+    id: u64,
+    shared: Shared<S>,
+) {
+    let authenticated = stream
+        .set_nonblocking(false)
+        .and_then(|()| authenticate(&mut stream, Instant::now() + AUTH_DEADLINE));
+    shared.pending.fetch_sub(1, Ordering::SeqCst);
+    if let Err(error) = authenticated {
+        log::warn!("Wi-Fi authentication failed for {peer}: {error}");
+        return;
+    }
+    if !shared.running.load(Ordering::Relaxed) {
+        return;
+    }
+    let (Ok(writer), Ok(())) = (
+        stream.try_clone(),
+        stream.set_read_timeout(Some(Duration::from_millis(100))),
+    ) else {
+        log::warn!("Could not configure the Wi-Fi stream for {peer}");
+        return;
+    };
+
+    let status = {
+        let Ok(mut slot) = shared.current.lock() else {
+            return;
+        };
+        if let Some(old) = slot.take() {
+            log::info!("A newly authenticated device replaces the previous Wi-Fi connection");
+            let _ = old.writer.shutdown(Shutdown::Both);
+        }
+        let mut session = Session {
+            id,
+            writer,
+            auth: AuthLink::new(LinkKind::Wifi),
+        };
+        match random_nonce() {
+            Ok(nonce) => {
+                if let Some(begin) = session.auth.begin(nonce) {
+                    if let Err(error) = session.writer.write_all(begin.as_bytes()) {
+                        log::warn!("Could not start authentication with {peer}: {error}");
+                        return;
+                    }
+                }
+            }
+            Err(error) => log::error!("Could not generate a nonce: {error}"),
+        }
+        let status = session.auth.status();
+        *slot = Some(session);
+        status
+    };
+
+    shared.connected.store(true, Ordering::Relaxed);
+    log::info!("ESP32 connected: {peer}");
+    shared
+        .sink
+        .emit_text("wifiConnection", "Connected".to_string());
+    emit_serialized(&shared.sink, AUTH_EVENT, &status);
+
+    read_messages(&mut stream, id, &shared);
+
+    let still_current = match shared.current.lock() {
+        Ok(mut slot) if slot.as_ref().map(|session| session.id) == Some(id) => {
+            *slot = None;
+            true
+        }
+        _ => false,
+    };
+    if still_current {
+        shared.connected.store(false, Ordering::Relaxed);
+        log::info!("ESP32 disconnected");
+        shared
+            .sink
+            .emit_text("wifiConnection", "Disconnected".to_string());
+    }
+}
+
+/// Reads the device's token line within `deadline` and answers OK or REJECT.
+fn authenticate(stream: &mut TcpStream, deadline: Instant) -> io::Result<()> {
+    stream.set_write_timeout(Some(Duration::from_secs(2)))?;
+    let mut framer = LineFramer::new(MAX_AUTH_LINE_BYTES);
+    let mut buffer = [0u8; 128];
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "authentication deadline passed",
+            ));
+        }
+        stream.set_read_timeout(Some(remaining))?;
+        let count = stream.read(&mut buffer)?;
+        if count == 0 {
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                "peer closed during authentication",
+            ));
+        }
+        // The device sends nothing after its token line until it reads OK.
+        if let Some(frame) = framer.push(&buffer[..count]).into_iter().next() {
+            return match frame {
+                Frame::Line(line) if token_matches(&line) => stream.write_all(b"PINORA-AUTH OK\n"),
+                Frame::Line(_) => {
+                    let _ = stream.write_all(b"PINORA-AUTH REJECT\n");
+                    Err(io::Error::new(
+                        io::ErrorKind::PermissionDenied,
+                        "authentication failed",
+                    ))
+                }
+                Frame::Overflow => Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "auth line too long",
+                )),
+            };
+        }
+    }
+}
+
+fn token_matches(line: &[u8]) -> bool {
+    let expected = format!("PINORA-AUTH 1 {DEV_TOKEN}");
+    let expected = expected.as_bytes();
+    // Constant time for equal lengths.
+    line.len() == expected.len()
+        && line
+            .iter()
+            .zip(expected)
+            .fold(0u8, |acc, (a, b)| acc | (a ^ b))
+            == 0
+}
+
+fn read_messages<S: EventSink>(stream: &mut TcpStream, id: u64, shared: &Shared<S>) {
     // TCP can split or merge JSON lines; validate each complete protocol message.
-    let mut input = Vec::new();
+    let mut framer = LineFramer::new(MAX_LINE_BYTES);
     let mut buffer = [0u8; 1024];
-    while running.load(Ordering::Relaxed) {
+    while shared.running.load(Ordering::Relaxed) {
         match stream.read(&mut buffer) {
             Ok(0) => return,
             Ok(count) => {
-                input.extend_from_slice(&buffer[..count]);
-                while let Some(end) = input.iter().position(|byte| *byte == b'\n') {
-                    let line: Vec<u8> = input.drain(..=end).collect();
-                    if line.len() > MAX_LINE_BYTES {
-                        log::warn!("Wi-Fi message too long");
-                        return;
-                    }
-                    match crate::line_classifier::classify(&line) {
-                        crate::line_classifier::ComLine::Protocol(text) => {
-                            let _ = app.emit("espState", text);
+                for frame in framer.push(&buffer[..count]) {
+                    let line = match frame {
+                        Frame::Line(line) => line,
+                        Frame::Overflow => {
+                            log::warn!("Wi-Fi message too long");
+                            return;
                         }
-                        // Auth lines (protocol v2) are backend-only and never forwarded.
-                        crate::line_classifier::ComLine::Auth(_) => {}
-                        crate::line_classifier::ComLine::Console(_) => {
-                            log::warn!("Invalid Pinora message on Wi-Fi connection");
+                    };
+                    match classify(&line) {
+                        ComLine::Protocol(text) => shared.sink.emit_text("espState", text),
+                        ComLine::Auth(message) => handle_auth(message, id, shared),
+                        ComLine::Console(_) => {
+                            log::warn!("Invalid Pinora message on Wi-Fi connection")
                         }
                     }
-                }
-                if input.len() > MAX_LINE_BYTES {
-                    log::warn!("Wi-Fi message too long");
-                    return;
                 }
             }
             Err(error)
@@ -258,5 +395,240 @@ fn read_messages(stream: &mut TcpStream, app: &AppHandle, running: &AtomicBool) 
                 return;
             }
         }
+    }
+}
+
+/// Lock order: session slot, then keys.
+fn handle_auth<S: EventSink>(message: pinora_protocol::AuthMessage, id: u64, shared: &Shared<S>) {
+    let Ok(mut slot) = shared.current.lock() else {
+        return;
+    };
+    // A replaced connection's late messages are ignored.
+    let Some(session) = slot.as_mut().filter(|session| session.id == id) else {
+        return;
+    };
+    let outcomes = match shared.keys.lock() {
+        Ok(mut keys) => session.auth.on_auth_message(message, &mut keys),
+        Err(_) => return,
+    };
+    for outcome in outcomes {
+        match outcome {
+            Outcome::Reply(reply) => {
+                if let Err(error) = session.writer.write_all(reply.as_bytes()) {
+                    log::warn!("Could not answer the device: {error}");
+                }
+            }
+            Outcome::Status(status) => emit_serialized(&shared.sink, AUTH_EVENT, &status),
+            Outcome::Pairing(event) => emit_serialized(&shared.sink, AUTH_EVENT, &event),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pinora_protocol::auth::{Decision, DeviceSession, Key, KEY_BYTES, NONCE_BYTES};
+    use pinora_protocol::{parse_command_line, AuthMessage, CommandLine, ProtocolMessage};
+    use std::io::{BufRead, BufReader};
+
+    const DEVICE: &str = "a1b2c3d4e5f6";
+
+    #[derive(Clone, Default)]
+    struct Recorder(Arc<Mutex<Vec<(String, String)>>>);
+
+    impl EventSink for Recorder {
+        fn emit_text(&self, event: &str, payload: String) {
+            self.0.lock().unwrap().push((event.into(), payload));
+        }
+        fn emit_json(&self, event: &str, payload: serde_json::Value) {
+            self.0
+                .lock()
+                .unwrap()
+                .push((event.into(), payload.to_string()));
+        }
+    }
+
+    impl Recorder {
+        fn wait_for(&self, event: &str, contains: &str) {
+            let deadline = Instant::now() + Duration::from_secs(3);
+            while Instant::now() < deadline {
+                if self
+                    .0
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .any(|(e, p)| e == event && p.contains(contains))
+                {
+                    return;
+                }
+                thread::sleep(Duration::from_millis(10));
+            }
+            panic!(
+                "no {event} event containing {contains:?}: {:?}",
+                self.0.lock().unwrap()
+            );
+        }
+    }
+
+    fn key() -> Key {
+        Key::from_bytes([9; KEY_BYTES])
+    }
+
+    fn listener(keys: DeviceKeys) -> (WifiTransport, Recorder, u16) {
+        let recorder = Recorder::default();
+        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let transport =
+            WifiTransport::start_on(recorder.clone(), listener, Arc::new(Mutex::new(keys)))
+                .unwrap();
+        let port = transport.port;
+        (transport, recorder, port)
+    }
+
+    /// A fake device: connects and sends the token; returns the stream and a reader.
+    fn device(port: u16, token_line: &str) -> (TcpStream, BufReader<TcpStream>) {
+        let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(3)))
+            .unwrap();
+        stream.write_all(token_line.as_bytes()).unwrap();
+        let reader = BufReader::new(stream.try_clone().unwrap());
+        (stream, reader)
+    }
+
+    fn good_token() -> String {
+        format!("PINORA-AUTH 1 {DEV_TOKEN}\n")
+    }
+
+    fn read_line(reader: &mut BufReader<TcpStream>) -> String {
+        let mut line = String::new();
+        reader.read_line(&mut line).unwrap();
+        line
+    }
+
+    fn write_message(stream: &mut TcpStream, message: &ProtocolMessage) {
+        let mut line = serde_json::to_vec(message).unwrap();
+        line.push(b'\n');
+        stream.write_all(&line).unwrap();
+    }
+
+    #[test]
+    fn a_paired_device_completes_the_handshake_and_receives_signed_commands() {
+        let mut keys = DeviceKeys::default();
+        keys.insert(DEVICE, &key()).unwrap();
+        let (transport, recorder, port) = listener(keys);
+        let (mut stream, mut reader) = device(port, &good_token());
+        assert_eq!(read_line(&mut reader), "PINORA-AUTH OK\n");
+        recorder.wait_for("wifiConnection", "Connected");
+
+        let mut session = DeviceSession::new(DEVICE);
+        let answer = |line: String, session: &mut DeviceSession| -> Decision {
+            session.handle(
+                parse_command_line(line.trim_end().as_bytes()).unwrap(),
+                Some(&key()),
+                || [4; NONCE_BYTES],
+            )
+        };
+        let Decision::Reply(challenge) = answer(read_line(&mut reader), &mut session) else {
+            panic!("expected AuthBegin")
+        };
+        write_message(&mut stream, &ProtocolMessage::Auth(challenge));
+        let Decision::Reply(result) = answer(read_line(&mut reader), &mut session) else {
+            panic!("expected AuthResponse")
+        };
+        write_message(&mut stream, &ProtocolMessage::Auth(result));
+        recorder.wait_for("deviceAuth", "Authenticated");
+
+        transport
+            .send(r#"{"id":"u","command":{"Led":{"Toggle":{}}}}"#)
+            .unwrap();
+        let line = read_line(&mut reader);
+        let parsed = parse_command_line(line.trim_end().as_bytes()).unwrap();
+        assert!(matches!(parsed, CommandLine::Signed(_)));
+        assert!(matches!(
+            session.handle(parsed, Some(&key()), || unreachable!()),
+            Decision::Forward(_)
+        ));
+        // Protocol lines still reach the WebView; Auth lines never do.
+        assert!(!recorder
+            .0
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|(event, payload)| event == "espState" && payload.contains("Auth")));
+    }
+
+    #[test]
+    fn a_trickling_peer_is_cut_off_at_the_overall_deadline() {
+        let (_transport, _recorder, port) = listener(DeviceKeys::default());
+        let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(3)))
+            .unwrap();
+        let started = Instant::now();
+        // One byte every 50 ms never completes a line; each byte would have reset a
+        // per-read timeout before 2B.
+        for byte in b"PINORA-AUTH 1 slowly-slowly-slowly" {
+            if stream.write_all(&[*byte]).is_err() {
+                break;
+            }
+            thread::sleep(Duration::from_millis(50));
+            if started.elapsed() > AUTH_DEADLINE * 3 {
+                break;
+            }
+        }
+        let mut rest = Vec::new();
+        let _ = stream.read_to_end(&mut rest);
+        assert!(
+            started.elapsed() < AUTH_DEADLINE * 4,
+            "closed after {:?}",
+            started.elapsed()
+        );
+        assert!(rest.is_empty(), "no OK for a trickling peer");
+    }
+
+    #[test]
+    fn a_wrong_token_is_rejected() {
+        let (transport, _recorder, port) = listener(DeviceKeys::default());
+        let (_stream, mut reader) = device(port, "PINORA-AUTH 1 wrong\n");
+        assert_eq!(read_line(&mut reader), "PINORA-AUTH REJECT\n");
+        assert!(!transport.status().connected);
+    }
+
+    #[test]
+    fn a_new_authenticated_device_replaces_the_old_connection() {
+        let (transport, recorder, port) = listener(DeviceKeys::default());
+        let (_first, mut first_reader) = device(port, &good_token());
+        assert_eq!(read_line(&mut first_reader), "PINORA-AUTH OK\n");
+        let _ = read_line(&mut first_reader); // AuthBegin
+        recorder.wait_for("wifiConnection", "Connected");
+
+        let (_second, mut second_reader) = device(port, &good_token());
+        assert_eq!(read_line(&mut second_reader), "PINORA-AUTH OK\n");
+        let _ = read_line(&mut second_reader); // AuthBegin
+
+        // The first connection is closed.
+        let mut rest = String::new();
+        assert_eq!(first_reader.read_line(&mut rest).unwrap_or(0), 0);
+        // Commands go to the second device (unauthenticated: sent plain).
+        transport
+            .send(r#"{"id":"u","command":{"Led":{"Toggle":{}}}}"#)
+            .unwrap();
+        assert!(read_line(&mut second_reader).contains("Toggle"));
+        assert!(transport.status().connected);
+    }
+
+    #[test]
+    fn a_device_without_a_key_is_reported_unprovisioned() {
+        let (_transport, recorder, port) = listener(DeviceKeys::default());
+        let (mut stream, mut reader) = device(port, &good_token());
+        assert_eq!(read_line(&mut reader), "PINORA-AUTH OK\n");
+        assert!(read_line(&mut reader).contains("AuthBegin"));
+        write_message(
+            &mut stream,
+            &ProtocolMessage::Auth(AuthMessage::Unprovisioned {
+                device_id: DEVICE.into(),
+            }),
+        );
+        recorder.wait_for("deviceAuth", "Unprovisioned");
     }
 }
