@@ -112,6 +112,21 @@ describe("incoming messages", () => {
     expect(store().logs.length).toBe(0);
   });
 
+  test("SysLogs from the reserved source \"log\" are logged without a module store", async () => {
+    await store().ConnectBluetooth("COM7");
+    const errors: unknown[][] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => errors.push(args);
+    try {
+      emit("espState", line({ ModuleEvent: { id: "log", event: { SysLog: { text: "t", raw_err: null, priority: "Low" } } } }));
+      await flush();
+    } finally {
+      console.error = original;
+    }
+    expect(store().logs.length).toBe(1);
+    expect(errors).toEqual([]);
+  });
+
   test("the system snapshot is stored", async () => {
     await store().ConnectBluetooth("COM7");
     const system = {

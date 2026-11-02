@@ -1,12 +1,15 @@
 //! UART0 console setup.
 
+use esp_idf_svc::hal::uart::UART0;
+
 /// Installs the UART0 driver (2 KiB RX/TX buffers) and routes stdio through it, so
 /// the Serial transport can read commands from `stdin` and `println!` reaches the host.
 ///
-/// Ownership note (PIN-TPL-026): this drives UART0 through raw ESP-IDF calls, while
-/// `Peripherals::take()` still hands out `p.uart0` as if it were free. Never also
-/// construct a `UartDriver` on `p.uart0`.
-pub fn configure_console_uart() -> anyhow::Result<()> {
+/// Ownership (PIN-TPL-026, since audit Phase 3A): this drives UART0 through raw
+/// ESP-IDF calls, so it takes `p.uart0` by value. The peripheral is then gone from
+/// `Peripherals` and the type system prevents a second driver on UART0 (before 3A the
+/// rule was only documented).
+pub fn configure_console_uart(_uart0: UART0<'static>) -> anyhow::Result<()> {
     use esp_idf_svc::sys;
     use std::ptr;
 

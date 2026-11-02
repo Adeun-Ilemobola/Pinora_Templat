@@ -15,7 +15,7 @@ Pinora connects an ESP32 hardware application to a React/Tauri desktop control w
 
 ## Documentation entry point
 
-This README describes the current working-tree implementation. The maintainer reports that Bluetooth is working after pairing; this is not a Codex-verified round-trip hardware result. Source is authoritative. See the [architecture review](docs/architecture-audit.md), [Bluetooth guide](Firmware_Templates/BLUETOOTH_TRANSPORT.md), and [Wi-Fi guide](Firmware_Templates/WIFI_TRANSPORT.md) for details.
+This README describes the current working-tree implementation. On 2026-11-02 the Bluetooth image was verified on an attached ESP32 with three LEDs (GPIO 12/14/27) by `just hw-test`: authentication, pairing, rediscovery, LED commands and reconnect replay (see `docs/audits/phases/phase-2/phase-2b/RESULT.md`). The Wi-Fi image and the other module families have not been verified on hardware. Source is authoritative. See the [architecture review](docs/architecture-audit.md), [Bluetooth guide](Firmware_Templates/BLUETOOTH_TRANSPORT.md), and [Wi-Fi guide](Firmware_Templates/WIFI_TRANSPORT.md) for details.
 
 - [Architecture overview](#architecture-overview) and [data flow](#data-flow)
 - [Frontend](#frontend-architecture), [firmware](#firmware-architecture), and [shared protocol](#shared-protocol)
@@ -77,7 +77,7 @@ flowchart LR
 | Rust protocol | Serde wire definitions shared with firmware | No ESP-IDF or UI-framework dependencies |
 | TypeScript protocol | Manually maintained Zod schemas and inferred types | Handwritten, but covers every Rust family and is tested against the Rust golden fixture (`UI/tests/protocol-fixtures.test.ts`); validates received messages and outgoing commands. Protocol version 1 (`SystemInfo.protocol_version`) |
 
-There is no root Cargo workspace. Firmware, protocol, and `UI/src-tauri` are separate Cargo packages; `UI` is the frontend package. Firmware and desktop Rust both have local path dependencies on protocol. No first-party CLI implementation, CI workflow, or complete scaffold generator was found in the current tree.
+There is no root Cargo workspace. Firmware, protocol, and `UI/src-tauri` are separate Cargo packages; `UI` is the frontend package. Firmware and desktop Rust both have local path dependencies on protocol. A CI workflow (`.github/workflows/ci.yml`) runs the host-side suites; no first-party CLI implementation or complete scaffold generator exists in this tree.
 
 ## Architecture stability
 
@@ -125,7 +125,7 @@ All may change substantially before a stable release. See the [evidence-based re
 
 [Module implementations](UI/src/lib/Modules) live in one directory per family, split into `schema.ts`, `store.ts` and `view.tsx`, re-exported by `index.ts`. Firmware events drive reported LED values; sliders may hold local drafts. Button stores count `Ckick` events. Dashboard discovers LED and Button stores while connected. [LogViewer](UI/src/components/LogViewer.tsx) virtualizes rendering, while the underlying log array remains unbounded. SysLog messages can be displayed there even when module-store dispatch rejects their source.
 
-The LiDAR route inserts `fake-lidar` into the real global registry. Its control actions are no-ops and its event handler only logs; the canvas is a coordinate/pivot playground, not a live scan renderer. Browser-only Vite preview does not provide native serial IPC; console forwarding also calls the Tauri logging plugin.
+The LiDAR page is a coordinate/pivot playground, not a live scan renderer: LiDAR registrations do not create stores yet. Browser-only Vite preview does not provide native serial IPC; console warnings and errors are also forwarded to the Tauri logging plugin.
 
 ## Firmware architecture
 
@@ -141,7 +141,7 @@ Current startup wiring:
 
 [HardwareContext](Firmware_Templates/src/core/hardware/context.rs) currently creates the LED timer and retains the I2C bus. The PCA9685 initialization call is commented out, as is servo startup. Since audit Phase 1D, servo, stepper and LiDAR construction moves nothing; their sweeps are explicit `run_self_test()` calls, stepper targets are bounded, and LiDAR scans always terminate.
 
-The main thread owns `HashMap<String, Box<dyn Module>>` and peripheral lifetimes. I2C/PWM sharing uses `Rc<RefCell<...>>` and `RcDevice` on that thread. Each iteration ticks all modules, processes at most one command, and yields 1 ms after roughly 650 ms between yields. This is cooperative polling, not a fixed-rate scheduler. Tick errors are reported as rate-limited `SysLog`s, and a failing command is reported as a `SysLog` without stopping the loop ([runtime/dispatch.rs](Firmware_Templates/src/runtime/dispatch.rs)). Out-of-range LED brightness is clamped to 100 with a warning.
+The main thread owns the insertion-ordered module registry and peripheral lifetimes. I2C/PWM sharing uses `Rc<RefCell<...>>` and `RcDevice` on that thread. The loop runs at a fixed 1 ms period (`CONFIG_FREERTOS_HZ=1000`): it ticks all modules in construction order, handles pending commands, then blocks until the next period; measured on hardware, the mean period is 1.000 ms with p99 ≤ 1.2 ms ([runtime/schedule.rs](Firmware_Templates/src/runtime/schedule.rs)). Tick errors are reported as rate-limited `SysLog`s, and a failing command is reported as a `SysLog` without stopping the loop ([runtime/dispatch.rs](Firmware_Templates/src/runtime/dispatch.rs)). Out-of-range LED brightness is clamped to 100 with a warning.
 
 [TransportEmitter](Firmware_Templates/src/core/transport/emitter.rs) has a 128-message `sync_channel` and a transport sender worker. Registration/system messages block until enqueue succeeds; runtime events/logs use `try_send` and can be dropped. Wi-Fi and Bluetooth each add bounded work queues and cache system/registration messages for reconnect replay. Reliable enqueue is not acknowledgement, persistence, or guaranteed delivery. System heap/flash/partition fields are formatted strings captured once at startup; `maximum_app_slot` is the running partition size, not a scan of all slots.
 
@@ -239,7 +239,7 @@ Host protocol build check, from `protocol`:
 cargo +stable check
 ```
 
-The standalone protocol lockfile is ignored, so a fresh checkout resolves it locally on the first check. Do not regenerate the firmware lockfile to address that. Characterization tests (behavior-recording, not correctness tests) exist for the wire format (`cd protocol; cargo +stable test`) and the desktop log helpers (`cd UI; bun test`); the hardware-free firmware code has host tests (`just test` runs all three suites), and `.github/workflows/ci.yml` runs them on push.
+The standalone protocol lockfile is ignored, so a fresh checkout resolves it locally on the first check. Do not regenerate the firmware lockfile to address that. Tests: protocol (`cd protocol; cargo +stable test --all-features`), hardware-free firmware code (`tests/firmware-host`), desktop frontend (`cd UI; bun test`) and backend (`just test-tauri`); `just test` runs the first three and CI runs them on push with clippy warnings denied. `just hw-test <usb> <bt>` runs on-device checks.
 
 Firmware, from `Firmware_Templates`, with the existing ESP 1.93 environment loaded:
 
@@ -270,14 +270,14 @@ From `UI`, `bun run tauri dev` launches the native desktop plus Vite. `bun run d
 | [Tauri capabilities](UI/src-tauri/capabilities/default.json) | Main-window core/opener/log permissions |
 | [Vite config](UI/vite.config.ts) / [TS config](UI/tsconfig.json) | React/Tailwind plugins, port, aliases, strict type/unused checks |
 | [pinora.toml](pinora.toml) | Release metadata; `schema_version = 1` is separately meaningful |
-| [wifi_config.example.rs](protocol/src/wifi_config.example.rs) | Tracked placeholder for ignored local `wifi_config.rs`; local password and token compile into firmware and desktop |
+| [wifi_config.example.rs](protocol/src/wifi_config.example.rs) | Placeholder values, used automatically when the ignored local `wifi_config.rs` is absent; a local password and token compile into firmware and desktop |
 | [bluetooth_config.rs](protocol/src/bluetooth_config.rs) | Shared SPP name and message-size settings, with no static pairing secret |
 
 No runtime consumer of `pinora.toml` or `.espConfig/esp_config.json` was found in authored application/build code. The Rhai script lists additional chip targets; that is template data, not verified board support.
 
 ## Current limitations
 
-The [architecture review](docs/architecture-audit.md#architecture-quality-review) details partial reconnect replay, incomplete frontend runtime validation, startup event timing, serial error reporting, bounded transport queues and unbounded frontend logs, inconsistent error propagation, mixed payload tags, and partial LiDAR behavior. Characterization tests (behavior-recording, not correctness tests) exist for the wire format (`cd protocol; cargo +stable test`) and the desktop log helpers (`cd UI; bun test`); the hardware-free firmware code has host tests (`just test` runs all three suites), and `.github/workflows/ci.yml` runs them on push. The maintainer's Bluetooth report does not certify all commands, modules, or reconnection paths.
+The [architecture review](docs/architecture-audit.md#architecture-quality-review) records the earlier review; the current state of every finding is in the [audit register](docs/audits/findings/README.md). Characterization tests (behavior-recording, not correctness tests) exist for the wire format (`cd protocol; cargo +stable test`) and the desktop log helpers (`cd UI; bun test`); the hardware-free firmware code has host tests (`just test` runs all three suites), and `.github/workflows/ci.yml` runs them on push. The maintainer's Bluetooth report does not certify all commands, modules, or reconnection paths.
 
 ## Roadmap / near-term direction
 

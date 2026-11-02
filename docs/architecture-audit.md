@@ -1,6 +1,6 @@
 # Pinora architecture audit — v0.8.0-alpha
 
-The [master README](../README.md) is the developer entry point. Pinora is an unstable alpha for the maintainer's development workflow. This document describes implemented code and known limits, not a hardware certification. The maintainer reports that the Bluetooth implementation works; Codex observed Windows pairing and outgoing COM discovery but did not complete an end-to-end LED command check.
+The [master README](../README.md) is the developer entry point. Pinora is an unstable alpha for the maintainer's development workflow. This document describes implemented code and known limits, not a hardware certification. On 2026-11-02 the Bluetooth image was verified on an attached ESP32 by `just hw-test` (audit Phase 2B); the Wi-Fi image and other module families were not.
 
 ## Ownership and data flow
 
@@ -46,7 +46,7 @@ Current firmware startup registers three PWM LED modules, named `led1`, `led2`, 
 | Protocol alignment | TypeScript schemas are handwritten and cover fewer variants than the Rust crate; no generation or receive-boundary schema enforcement exists. |
 | Identity | Commands route through a top-level UUID map; duplicate lookup names can replace frontend lookup entries. |
 | Replay | Wi-Fi/SPP replay system and registration messages, not runtime values. Since audit Phase 2A the desktop sends `Rediscover` after connecting, which replays current state on every transport. |
-| Queues | Firmware queues are bounded; runtime events can drop. The desktop COM line buffer and frontend log history are unbounded. |
+| Queues | Firmware queues are bounded; runtime events can drop. Since audit Phase 2B the desktop COM line buffer is bounded at 8 KiB, and since 2D the frontend log history keeps the newest 5 000 entries. |
 | Failure paths | Tick and command-handler errors are reported as `SysLog`s and the main loop continues (since audit Phase 1B). Error handling still varies by transport. |
 | Security | Wi-Fi uses a plaintext static development token and a listener on all interfaces. Bluetooth Just Works pairing lacks numeric-comparison MITM protection; pairing is limited to a 120 s window after boot, but there is no application-level authentication yet. |
 | Scope | No automatic failover or simultaneous firmware transport routing. Experimental module families remain inactive. |
@@ -56,7 +56,7 @@ Current firmware startup registers three PWM LED modules, named `led1`, `led2`, 
 
 ESP Rust `esp-1.93` and ESP-IDF 5.5.3 remain selected for firmware. Earlier frozen compiler trials built the same firmware snapshot with ESP 1.93 and 1.98.1 in debug and release; compiler success alone did not establish runtime compatibility. ESP 1.98.1 is not adopted. ESP 1.99 failed during `build-std` in that trial. The current v0.8.0-alpha working tree passed frozen ESP 1.93 debug/release builds, a host protocol check, a Tauri Rust library build, and a TypeScript/Vite frontend build after cleanup. Those builds did not flash or exercise hardware.
 
-Windows pairing authenticated, and the outgoing Pinora SPP virtual COM port was identified. The maintainer reports Bluetooth operation. Codex has not independently verified every LED command, event, reconnect path, or sustained hardware behavior. Characterization tests (behavior-recording, not correctness tests) exist for the wire format (`cd protocol; cargo +stable test`) and the desktop log helpers (`cd UI; bun test`); the hardware-free firmware code has host tests (`just test` runs all three suites), and `.github/workflows/ci.yml` runs them on push.
+Windows pairing authenticated, and the outgoing Pinora SPP virtual COM port was identified. On 2026-11-02 the Bluetooth image was verified on an attached ESP32 with three LEDs (GPIO 12/14/27) by `just hw-test`: authentication, pairing, rediscovery, LED commands and reconnect replay (see `docs/audits/phases/phase-2/phase-2b/RESULT.md`). The Wi-Fi image and the other module families have not been verified on hardware. The test suites and CI are described in the [audit record](audits/README.md).
 
 ## Configuration and release boundaries
 

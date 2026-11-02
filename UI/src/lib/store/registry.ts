@@ -68,6 +68,10 @@ export const createRegistrySlice: Slice<RegistrySlice> = (set, get) => ({
 
   ModuleEvent: (data: EventPackage) => {
     try {
+      // SysLogs are shown by the log history, whatever their source; the reserved
+      // source "log" (contract C-05) has no module store (PIN-TPL-017, Phase 3A:
+      // before, each one was reported as "Module store not found").
+      if ("SysLog" in data.event) return;
       const moduleStore = get().ModuleRegistry[data.id];
       if (!moduleStore) {
         console.error("Module store not found for ID:", data.id);

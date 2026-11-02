@@ -29,7 +29,7 @@ fn main() -> anyhow::Result<()> {
     esp_idf_svc::log::EspLogger::initialize_default();
     let p = Peripherals::take()?;
 
-    configure_console_uart()?;
+    configure_console_uart(p.uart0)?;
     let sys_loop = EspSystemEventLoop::take()?;
     let nvs = EspDefaultNvsPartition::take()?;
     // Select one transport for this firmware image: Serial, Wifi, or Bluetooth.

@@ -1,6 +1,6 @@
 # Bluetooth Classic SPP — v0.8.0-alpha
 
-The current firmware source selects Bluetooth on the **classic ESP32** with ESP-IDF 5.5.3 and the supported `esp-1.93` compiler. Windows pairing authenticated and the outgoing SPP COM port was identified. The maintainer reports Bluetooth operation; Codex has not independently verified every command, event, and reconnect path on hardware. See the [master README](../README.md) for the alpha policy and the [architecture review](../docs/architecture-audit.md).
+The current firmware source selects Bluetooth on the **classic ESP32** with ESP-IDF 5.5.3 and the supported `esp-1.93` compiler. Windows pairing authenticated and the outgoing SPP COM port was identified. On 2026-11-02 the Bluetooth image was verified on an attached ESP32 with three LEDs (GPIO 12/14/27) by `just hw-test`: authentication, pairing, rediscovery, LED commands and reconnect replay (see `docs/audits/phases/phase-2/phase-2b/RESULT.md`). The Wi-Fi image and the other module families have not been verified on hardware. See the [master README](../README.md) for the alpha policy and the [architecture review](../docs/architecture-audit.md).
 
 ## Why SPP
 
@@ -8,7 +8,7 @@ ESP32 Classic SPP exposes a serial service that Windows can map to a paired virt
 
 The firmware's [startup selection](src/main.rs) selects `TransportType::Bluetooth`. Serial and Wi-Fi remain source-selectable alternatives; it runs one transport per image. [sdkconfig.defaults](sdkconfig.defaults) enables Classic SPP and [shared Bluetooth settings](../protocol/src/bluetooth_config.rs) define the advertised name, service name, 8 KiB message limit and SPP write chunk size. No static pairing PIN or Bluetooth token is stored in source.
 
-For a fresh checkout, copy the [Wi-Fi config example](../protocol/src/wifi_config.example.rs) to ignored `protocol/src/wifi_config.rs` before building: the shared protocol declares that module even when Bluetooth is selected. Placeholder values are suitable only when Wi-Fi is not used.
+A fresh checkout builds as is: without the ignored `protocol/src/wifi_config.rs`, the placeholders of the [Wi-Fi config example](../protocol/src/wifi_config.example.rs) are used (with a build warning). They are suitable only when Wi-Fi is not used.
 
 The board advertises `Pinora Dev ESP32` and offers the `Pinora SPP` service. The server requests authenticated/encrypted SPP and uses Windows Secure Simple Pairing with the board's no-input/no-display capability. This is the development-grade Just Works association; it has no numeric-comparison MITM protection. Legacy fixed-PIN requests are rejected. **New devices can pair only during the first 120 s after the SPP service starts**; after that the board is connectable but not discoverable and rejects new pairings, while already-bonded devices still connect (audit Phase 1C, PIN-TPL-003). Power-cycle the board to open a new pairing window. Windows pairing only opens the radio link: a device paired in the window can send commands unless the board has an application key (see **Pairing a desktop with the device** below, audit Phase 2B). Until then, do not use this link for sensitive commands on an untrusted radio environment.
 
