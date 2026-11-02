@@ -31,7 +31,7 @@ It currently runs the **Phase 3A image**, flashed with the project's bootloader 
 - **Actuators.** None is attached.
 - **The desktop app's window.** Not launched; the store tests mock the Tauri IPC, and the CSP was not checked in the running app.
 - **Bluetooth edge cases.** Rejection of a second, unbonded device, and USB unplug.
-- **The CI workflow on GitHub.**
+- **The CI workflow on GitHub.** It started with the push on 2026-11-02; its result is not recorded here.
 
 ## Decisions taken as defaults under your approval (2026-11-02)
 
@@ -48,9 +48,9 @@ Pairing over USB, read-only enforcement and RustCrypto were your explicit choice
 
 ## Git state and your next steps
 
-All work was done on **11 chained local branches**, each cut from the previous one. **On 2026-11-02, at your request, `main` was fast-forwarded to `phase-3a/cleanup` (`aa80dffc`)**: 67 commits on top of the baseline `5b5c8ed4`, with no merge commit and no rewritten history. The phase branches are kept. Nothing was pushed.
+All work was done on **11 chained local branches**, each cut from the previous one. **On 2026-11-02, at your request, `main` was fast-forwarded to `phase-3a/cleanup` (`cf61f79b`, after the history fix below)**: 67 commits on top of the baseline `5b5c8ed4`, with no merge commit and no rewritten history. The phase branches are kept. **`main` was pushed to GitHub on 2026-11-02** (fast-forward from `5b5c8ed4`), which started the CI workflow.
 
-1. Push `main` when you want CI to run on GitHub (your decision; not done).
+1. Check the CI run on GitHub (it started with the push).
 2. Later work:
    - Protocol v3, which removes the 2 Blocked findings (`parent_id` `""` → `null`; output spellings). Do it together with the sibling projects.
    - Audits of `pinora_cli`, `pinora_studio`, `2dLidar` and `UI`. These are out of scope here; contract C-10 waits on them.

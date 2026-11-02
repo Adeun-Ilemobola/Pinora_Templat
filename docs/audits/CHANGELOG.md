@@ -2,9 +2,14 @@
 
 Newest entries first. Each entry is tagged **[AUDIT]** (documentation only, no source change) or **[SOURCE]** (template source, build or config changed).
 
+## 2026-11-02 — Pushed **[AUDIT]**
+
+- Before the first push, 6 399 Cargo build files under `UI/src-tauri/debug/` (committed by mistake in Phase 3A, including a generated copy of the local `wifi_config.rs`) were removed from the six unpushed commits with your approval. Contents are otherwise identical; backups were kept locally. The folder is now ignored.
+- `main` was pushed to GitHub as a fast-forward from `5b5c8ed4`; the CI workflow started.
+
 ## 2026-11-02 — Merged into `main` **[AUDIT]**
 
-- At your request, `main` was fast-forwarded from `5b5c8ed4` to `phase-3a/cleanup` (`aa80dffc`): 67 commits, no merge commit, no rewritten history. Phase branches kept. Not pushed.
+- At your request, `main` was fast-forwarded from `5b5c8ed4` to `phase-3a/cleanup` (`cf61f79b`, after the history fix below): 67 commits, no merge commit, no rewritten history. Phase branches kept. Not pushed.
 
 ## 2026-11-02 — Phase 3A, Low-severity cleanup and hardening **[SOURCE]** — roadmap complete
 
