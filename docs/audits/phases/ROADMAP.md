@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Approved** 2026-10-31 (scope and order). Progress: Phase 1 (1A–1D), 2A–2D Completed — Verified. On 2026-11-02 you authorized the remaining phases without stopping between them, and on-device testing with the attached ESP32 |
+| Status | **Approved** 2026-10-31 (scope and order). Progress: Phase 1 (1A–1D) and Phase 2 (2A–2E) Completed — Verified. On 2026-11-02 you authorized the remaining phases without stopping between them, and on-device testing with the attached ESP32 |
 | Written | 2026-10-31, after the [post-Phase-0 reassessment](../reports/post-phase-0-reassessment.md) |
 | Code basis | branch `phase-0/structural-reorganization` @ `a2204b33` |
 | Findings covered | all 27 (0 Critical, 6 High, 13 Medium, 8 Low) |
@@ -369,6 +369,8 @@ No new message types are added, so the golden file is unchanged.
 **Verification strategy.** A clean-clone build in a temporary directory following only the documented steps. Firmware ELF code sizes compared, which are expected unchanged apart from the removed dependencies.
 
 **Completion criteria.** 015 and 018 are Resolved (018 Verified after you rewire, if you choose to).
+
+**Outcome (2026-11-02).** Completed — Verified ([result](phase-2/phase-2e/RESULT.md)). GPIO12 kept (your wiring); `embassy-time` turned out to be required at link time, so only `rand` was removed.
 
 **Recovery plan.** Revert the commits. The lockfile is restored from Git.
 

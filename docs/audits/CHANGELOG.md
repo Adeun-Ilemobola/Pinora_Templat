@@ -2,6 +2,14 @@
 
 Newest entries first. Each entry is tagged **[AUDIT]** (documentation only, no source change) or **[SOURCE]** (template source, build or config changed).
 
+## 2026-11-02 — Phase 2E, Build reproducibility and hardware configuration **[SOURCE]**
+
+- Branch `phase-2e/reproducible-builds`, cut from the 2D tip. GPIO12 kept (your wiring); `C:/t` kept with a `CARGO_TARGET_DIR` override.
+- `8addc1ad` ESP-IDF Git patches pinned by `rev`; `rand` removed; `embassy-time` kept (required at link time; the audit's "unused" note was wrong).
+- `2435464d` `wifi_config` fallback in `protocol/build.rs`; CI no longer copies the example; `board/pin_map.rs` with host checks.
+- A fresh clone (offline, no `wifi_config.rs`) built and passed protocol, host, frontend and Tauri suites; release ELF unchanged; hw-test 23/23 + 5/5.
+- Register: 015, 018 **Resolved**. Totals 2 Open, 4 In Progress, 21 Resolved.
+
 ## 2026-11-02 — Phase 2D, Desktop performance and structure **[SOURCE]**
 
 - Branch `phase-2d/desktop`, cut from the 2C tip. Defaults: 5 000-entry history with export, 50 ms batches, warn/error-only console forwarding, 10 s port cache.

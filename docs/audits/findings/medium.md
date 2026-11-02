@@ -225,7 +225,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Affected files | `protocol/src/lib.rs:6` + `.gitignore` (`/protocol/src/wifi_config.rs` required but untracked); `Firmware_Templates/.cargo/config.toml:4` (`target-dir = "C:/t"`); `Firmware_Templates/Cargo.toml:17-20` (Git patches without `rev`); `.gitignore` (`/protocol/Cargo.lock` ignored); `UI/src/lib/Modulefront.TS` (upper-case `.TS` extension); `justfile` (`clean-ui` uses PowerShell syntax; `[windows]` shell only); `Firmware_Templates/Cargo.toml:29`, `:32` (`rand`, `embassy-time` declared but unused by source) |
 | Current location (after Phase 0) | `protocol/src/lib.rs:22`; `Firmware_Templates/.cargo/config.toml:4`; `Firmware_Templates/Cargo.toml:17-20`, `:29`, `:32`; `.gitignore`. The `.TS` extension is fixed |
 | Confidence | Confirmed, except the `.TS` case-sensitivity break, which is Probable: `tsc` on Windows resolved it as `Modulefront.ts`, and Linux or case-sensitive macOS would not |
-| Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
+| Status | **Resolved** in Phase 2E (2026-11-02): `wifi_config` falls back to the example (fresh clones build), ESP-IDF Git patches pinned by `rev`, unused `rand` removed (`embassy-time` is needed at link time and stays), `C:/t` kept with a `CARGO_TARGET_DIR` override. A fresh clone built and passed every suite except the firmware image (ESP-IDF download). See phases/phase-2/phase-2e/RESULT.md |
 | Proposed phase | 2E (roadmap, pending approval) |
 
 **What is wrong.** A fresh clone fails every Rust build until the developer creates an untracked secrets file. The firmware target directory is a hard-coded Windows drive path. `cargo update` would pull the moving `master` of three ESP-IDF crates. The standalone protocol lockfile is not tracked. One TypeScript source file has an upper-case extension, so it resolves only on case-insensitive file systems.
@@ -281,7 +281,7 @@ Re-rated **Medium → Low** in the post-Phase-0 reassessment (2026-10-31). The f
 | Affected files | `Firmware_Templates/src/main.rs:209-254` (LEDs on GPIO 12/14/27); commented alternates reuse the same pins: `:130` joystick button GPIO12, `:172-174` RFID RGB on GPIO12/14/27 |
 | Current location (after Phase 0) | `Firmware_Templates/src/board/mod.rs` (pin map and LED wiring); `Firmware_Templates/src/board/disabled_wiring.rs` |
 | Confidence | Probable. GPIO12 (MTDI) selects flash voltage at reset on classic ESP32 modules unless eFuses override it. The actual board, eFuse state and LED wiring were not inspected |
-| Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
+| Status | **Resolved** in Phase 2E (2026-11-02): `board/pin_map.rs` with host checks against `main.rs`; GPIO12 kept because your LEDs are wired there, and the board booted normally through more than 15 resets. See phases/phase-2/phase-2e/RESULT.md |
 | Proposed phase | 2E (roadmap, pending approval) |
 
 **What is wrong.** Wiring is authored inline in `main()` with no board description or conflict check. `led1` drives GPIO12, a strapping pin: if external circuitry holds it high at reset, the module selects 1.8 V flash and fails to boot on 3.3 V-flash modules. Commented module wiring reuses GPIO 12, 14 and 27, so uncommenting it collides with the LEDs. `Peripherals::take()` would make that a compile error in most cases, but not when the pins come from different code paths.
