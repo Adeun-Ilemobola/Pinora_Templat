@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Approved** 2026-10-31 (scope and order). Progress: Phase 1 (1A–1D), 2A, 2B and 2C Completed — Verified. On 2026-11-02 you authorized the remaining phases without stopping between them, and on-device testing with the attached ESP32 |
+| Status | **Approved** 2026-10-31 (scope and order). Progress: Phase 1 (1A–1D), 2A–2D Completed — Verified. On 2026-11-02 you authorized the remaining phases without stopping between them, and on-device testing with the attached ESP32 |
 | Written | 2026-10-31, after the [post-Phase-0 reassessment](../reports/post-phase-0-reassessment.md) |
 | Code basis | branch `phase-0/structural-reorganization` @ `a2204b33` |
 | Findings covered | all 27 (0 Critical, 6 High, 13 Medium, 8 Low) |
@@ -337,6 +337,8 @@ No new message types are added, so the golden file is unchanged.
 - The main-thread stall during port refresh is measured before and after.
 
 **Completion criteria.** 011, 014 and 020 are Resolved.
+
+**Outcome (2026-11-02).** Completed — Verified ([result](phase-2/phase-2d/RESULT.md)). All three Resolved; the GUI itself was not exercised (tests mock the Tauri IPC).
 
 **Recovery plan.** Revert the commits.
 

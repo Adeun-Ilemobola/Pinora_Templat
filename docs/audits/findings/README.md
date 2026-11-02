@@ -34,16 +34,16 @@ Baseline: commit `5b5c8ed4` (branch `main`), audited 2026-10-31. Line references
 | PIN-TPL-008 | Medium | Firmware module logic not yet host-testable (harness + CI added in 1A) | Testing | Yes | Confirmed | Resolved | 1A |
 | PIN-TPL-009 | Medium | Main loop busy-polls; no timing guarantees | Firmware runtime | Yes | Probable | Resolved | 2C |
 | PIN-TPL-010 | Medium | Telemetry backpressure: stacked queues, silent drops, no rate limits | Communication | Partly | Confirmed | Resolved | 2B |
-| PIN-TPL-011 | Medium | Frontend log history unbounded and copied per message | Desktop performance | Yes | Confirmed (static) | Open | 2D |
+| PIN-TPL-011 | Medium | Frontend log history unbounded and copied per message | Desktop performance | Yes | Confirmed (static) | Resolved | 2D |
 | PIN-TPL-012 | Medium | Connection state desync; timing-dependent discovery; no state replay | Communication / UI | Yes | Confirmed | Resolved | 2A |
 | PIN-TPL-013 | Medium | Wi-Fi: dev-grade auth, single-thread listener, fatal boot dependency | Security / transport | No (selectable) | Confirmed / Probable | Resolved | 2B |
-| PIN-TPL-014 | Medium | Tauri commands block the UI-facing thread | Desktop backend | Yes | Probable | Open | 2D |
+| PIN-TPL-014 | Medium | Tauri commands block the UI-facing thread | Desktop backend | Yes | Probable | Resolved | 2D |
 | PIN-TPL-015 | Medium | Builds machine-specific; fresh clone does not build | Build | Yes | Confirmed / Probable | In Progress | 2E |
 | PIN-TPL-016 | Low (was Medium) | Duplicated framing with divergent limits (dead code removed in Phase 0) | Structure | Yes | Confirmed | Resolved | 2B |
 | PIN-TPL-017 | Medium | Module identity and hierarchy partially implemented | Architecture | Partly | Confirmed | In Progress | 2A |
 | PIN-TPL-018 | Medium | Hard-coded pins; LED on strapping pin GPIO12; latent conflicts | Hardware config | Yes | Probable | In Progress | 2E |
 | PIN-TPL-019 | Medium | Defects in inactive RFID, IR receiver and rangefinder modules | Firmware modules | No (latent) | Confirmed (static) | Resolved | 2C |
-| PIN-TPL-020 | Medium | Frontend god-store and `any` typing (file split done in Phase 0) | Desktop structure | Yes | Confirmed | In Progress | 2D |
+| PIN-TPL-020 | Medium | Frontend god-store and `any` typing (file split done in Phase 0) | Desktop structure | Yes | Confirmed | Resolved | 2D |
 | PIN-TPL-021 | Low | Misspelled wire names (internal names fixed in Phase 0) | Naming | Yes | Confirmed | In Progress | 2A |
 | PIN-TPL-022 | Low | Lint not enforced (formatting fixed in Phase 0) | Tooling | Yes | Confirmed | In Progress | 3A |
 | PIN-TPL-023 | Low | Tauri scaffold metadata, CSP disabled, `greet`, lost error detail | Desktop packaging | Yes | Confirmed | Open | 3A |
@@ -75,3 +75,4 @@ Baseline: commit `5b5c8ed4` (branch `main`), audited 2026-10-31. Line references
 | 2026-11-01 | Phase 2A (protocol v1): PIN-TPL-007 and -012 **Resolved**; PIN-TPL-017 Open → In Progress; -020 and -021 stay In Progress with 2A progress noted. Totals 9 Open, 10 In Progress, 8 Resolved. |
 | 2026-11-02 | Phase 2B (protocol v2, transport robustness and authentication): PIN-TPL-003, -010, -013 and -016 **Resolved**. Totals 7 Open, 8 In Progress, 12 Resolved. |
 | 2026-11-02 | Phase 2C (runtime and sensors): PIN-TPL-008, -009, -019 and -027 **Resolved** (009 and 027 verified on the board). Totals 4 Open, 7 In Progress, 16 Resolved. |
+| 2026-11-02 | Phase 2D (desktop performance and structure): PIN-TPL-011, -014 and -020 **Resolved**. Totals 2 Open, 6 In Progress, 19 Resolved. |

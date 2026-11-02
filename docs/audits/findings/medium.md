@@ -118,7 +118,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Affected files | `UI/src/lib/Modulefront.TS:294` (`logs: [...state.logs, event]`), `:263` (`console.info` per message); `UI/src/main.tsx:8-39` (every console call forwarded over Tauri IPC); `UI/src/components/LogViewer.tsx:113-126` (re-filters full history on each update); `UI/src/lib/logs.ts:88` (`JSON.stringify` per entry when searching) |
 | Current location (after Phase 0) | `UI/src/lib/Modulefront.ts:259`, `:290`; `UI/src/main.tsx:8-39`; `UI/src/components/LogViewer.tsx:113-126`; `UI/src/lib/logs.ts:88` |
 | Confidence | Confirmed (static). The slowdown was not benchmarked |
-| Status | Open |
+| Status | **Resolved** in Phase 2D (2026-11-02): history bounded at 5 000 with export, batched updates, cached search text, no per-message console IPC; 100 000-message test. See phases/phase-2/phase-2d/RESULT.md |
 | Proposed phase | 2D (roadmap, pending approval) |
 
 **What is wrong.** Each incoming message copies the full `logs` array, which is O(n) per message and O(n²) over a session. It also triggers a full re-filter in `LogViewer`, which with a search term stringifies every entry. Every message is additionally logged with `console.info`, which `main.tsx` forwards through the Tauri log plugin, adding a second IPC round-trip per message. The forwarding promise is not awaited or caught.
@@ -200,7 +200,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Affected files | `UI/src-tauri/src/lib.rs:190-227` (spawns PowerShell CIM query), `:117` (100 ms sleep while holding the state mutex), `:77` (`join` on reader thread), `:229-246`, `:312-342` (synchronous commands) |
 | Current location (after Phase 0) | `UI/src-tauri/src/bluetooth_ports.rs:8-27`; `UI/src-tauri/src/serial_transport.rs:121`; all commands in `UI/src-tauri/src/commands.rs` are synchronous |
 | Confidence | Probable: Tauri 2 runs non-`async` commands on the main thread. UI stall not measured |
-| Status | Open |
+| Status | **Resolved** in Phase 2D (2026-11-02): slow commands async on blocking threads; Bluetooth query cached (measured 0.43–0.91 s warm, ~7 s cold). Window responsiveness not measured in the GUI. See phases/phase-2/phase-2d/RESULT.md |
 | Proposed phase | 2D (roadmap, pending approval) |
 
 **What is wrong.** All commands are synchronous `fn`s. `get_available_bluetooth_ports` launches `powershell.exe` and waits for a CIM query, typically hundreds of milliseconds to seconds. `start_bluetooth_port` runs it again before connecting. `start_port` sleeps 100 ms while holding `Mutex<AppState>`, which `send_data` also needs.
@@ -331,7 +331,7 @@ Re-rated **Medium → Low** in the post-Phase-0 reassessment (2026-10-31). The f
 | Affected files | `UI/src/lib/Modulefront.TS` (385 lines: transport lifecycle, IPC listeners, registry, lookup map, logs, system info); `UI/src/lib/Modules/lidar.tsx` (948 lines), `stepper.tsx` (552), `rangefinder.tsx` (382), each combining Zod schema, Zustand store, IPC commands and React views; `UI/tsconfig.json:27` (`noImplicitAny: false`); `UI/src/lib/IncomingCommand.ts:4` (`command: any`); `UI/src/lib/Modules/Led.tsx:49` (`handleEvent: (event: any)`) |
 | Current location (after Phase 0) | `UI/src/lib/Modulefront.ts` (381 lines); `UI/src/lib/Modules/lidar/view.tsx` (616), `stepper/view.tsx` (339); `UI/tsconfig.json:27`; `UI/src/lib/IncomingCommand.ts:7`; `UI/src/lib/Modules/Led/store.ts` (`handleEvent: (event: any)`) |
 | Confidence | Confirmed |
-| Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7). Phase 2A typed and validated outgoing commands (`IncomingCommand.ts` no longer takes `any`); the store split remains for 2D |
+| Status | **Resolved** in Phase 2D (2026-11-02): store split into four slices behind the same API, `noImplicitAny`, no explicit `any`, typed and validated commands (2A), store characterization tests. See phases/phase-2/phase-2d/RESULT.md |
 | Proposed phase | 2D (roadmap, pending approval) |
 
 **What is wrong.** One Zustand store owns unrelated concerns, and its actions call `invoke` directly. Module files mix protocol schemas, state, side effects and UI. `strict` is on, but `noImplicitAny` is off and outgoing commands are typed `any`, so the command schemas in `protocol/command.ts` are never enforced on send. Seven module UIs (servo, stepper, LiDAR, rangefinder, RFID, IMU, remote receiver) are compiled but never registered.

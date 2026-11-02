@@ -2,6 +2,13 @@
 
 Newest entries first. Each entry is tagged **[AUDIT]** (documentation only, no source change) or **[SOURCE]** (template source, build or config changed).
 
+## 2026-11-02 — Phase 2D, Desktop performance and structure **[SOURCE]**
+
+- Branch `phase-2d/desktop`, cut from the 2C tip. Defaults: 5 000-entry history with export, 50 ms batches, warn/error-only console forwarding, 10 s port cache.
+- `80f71533` bounded, batched logs; `e2317af4` async slow commands and port cache; `5d50de28` store split, strict typing, store characterization tests.
+- bun test 166, Tauri 21; mutation check caught all three removals. Measured port query: 0.43–0.91 s warm, ~7 s cold.
+- Register: 011, 014, 020 **Resolved**. Totals 2 Open, 6 In Progress, 19 Resolved.
+
 ## 2026-11-02 — Phase 2C, Firmware runtime and sensor modules **[SOURCE]**
 
 - Authorized under your blanket approval; defaults recorded in the plan (1 kHz tick and blocking 1 ms loop, RFID record v1, RMT IR capture). Branch `phase-2c/runtime-sensors`, cut from the 2B tip.
