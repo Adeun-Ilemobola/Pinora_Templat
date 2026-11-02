@@ -191,13 +191,13 @@ fn discover(bt: &mut Port) -> (Option<SystemInfo>, Vec<(String, String)>, Vec<St
         };
         match serde_json::from_str::<ProtocolMessage>(line.trim()) {
             Ok(ProtocolMessage::System(s)) => info = Some(s),
-            Ok(ProtocolMessage::Registration(r)) if r.module_type == ModuleType::Led => {
-                if !leds
-                    .iter()
-                    .any(|(n, _): &(String, String)| *n == r.lool_up_id)
-                {
-                    leds.push((r.lool_up_id.clone(), r.id.clone()));
-                }
+            Ok(ProtocolMessage::Registration(r))
+                if r.module_type == ModuleType::Led
+                    && !leds
+                        .iter()
+                        .any(|(n, _): &(String, String)| *n == r.lool_up_id) =>
+            {
+                leds.push((r.lool_up_id.clone(), r.id.clone()));
             }
             _ => {}
         }
