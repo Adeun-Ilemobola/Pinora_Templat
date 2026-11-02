@@ -8,7 +8,8 @@
 // backend (all transports since Phase 1C); here they are validated again with the
 // Zod ProtocolMessageSchema (Phase 2A, PIN-TPL-007) and routed by their top-level
 // key. Non-protocol lines arrive separately on espConsole. Only Led and Button
-// registrations create stores. The log history is unbounded (PIN-TPL-011). IPC
+// registrations create stores. The log history is bounded and batched (Phase 2D,
+// PIN-TPL-011: before, it was unbounded and copied on every message). IPC
 // command and event names are contracts with the Tauri backend (C-06, C-07).
 //
 // Rediscovery (Phase 2A, PIN-TPL-012): state is cleared before a transport starts,
@@ -47,7 +48,7 @@ import {
 import { Registration } from "./protocol/registration";
 import { SystemInfo } from "./protocol/system";
 import { EventPackage } from "./protocol/event";
-import { recordLogReceipt } from "./logs";
+import { appendBounded, createLogBatcher, recordLogReceipt } from "./logs";
 import { requestRediscovery } from "./IncomingCommand";
 import { DeviceAuthSchema, type DeviceAuth } from "./auth";
 
@@ -151,6 +152,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
     await get().Disconnect();
     // Cleared before the port opens: clearing after it (before Phase 2A) could drop
     // registrations that arrived in between.
+    logBatcher.clear();
     set({ TransportMode: "Serial", ...emptyDeviceState(), logs: [] });
     await get().InitializeListeners();
 
@@ -171,6 +173,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
   },
   ConnectWifi: async (port: number) => {
     await get().Disconnect();
+    logBatcher.clear();
     set({
       TransportMode: "Wi-Fi",
       PortStat: "Listening",
@@ -191,6 +194,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
   },
   ConnectBluetooth: async (portName: string) => {
     await get().Disconnect();
+    logBatcher.clear();
     set({
       TransportMode: "Bluetooth",
       PortStat: "Disconnected",
@@ -298,7 +302,6 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
       }
 
       try {
-        console.info("Raw message received:", message);
         get().HandleEvent(parsed.data);
 
       } catch (error) {
@@ -364,7 +367,7 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
   },
   HandleEvent: (event: ProtocolMessage) => {
     recordLogReceipt(event);
-    set((state) => ({ logs: [...state.logs, event] }));
+    logBatcher.push(event);
     // Implementation for handling events
     try {
       const key = Object.keys(event)[0] as ProtocolMessageKey;
@@ -479,7 +482,10 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
   },
   logs: [],
   systemInfo: null,
-  clearLogs: () => set({ logs: [] }),
+  clearLogs: () => {
+    logBatcher.clear();
+    set({ logs: [] });
+  },
   BuildViewCache: (): { id: string; look_up_id: string; kind: string }[] => {
     // Implement the logic to build the view cache here
     return Object.entries(get().LookUpId).map(([look_up_id, id]) => ({
@@ -490,3 +496,8 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
   },
 
 }));
+
+// One store update per 50 ms burst of messages, bounded to LOG_CAPACITY entries.
+const logBatcher = createLogBatcher<ProtocolMessage>((batch) =>
+  useModuleFront.setState((state) => ({ logs: appendBounded(state.logs, batch) })),
+);

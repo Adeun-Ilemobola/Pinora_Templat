@@ -6,6 +6,8 @@ import type { ProtocolMessage } from "@/lib/protocol/message";
 import type { LogPriority } from "@/lib/protocol/event";
 import {
   describeLog,
+  exportLogs,
+  LOG_CAPACITY,
   matchesLog,
   logCategories,
   logPriorities,
@@ -241,9 +243,25 @@ export function LogViewer() {
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p role="status" className="text-xs text-muted-foreground">
-            {`${visible.length.toLocaleString()} of ${logs.length.toLocaleString()} entries `}
+            {`${visible.length.toLocaleString()} of ${logs.length.toLocaleString()} entries (newest ${LOG_CAPACITY.toLocaleString()} kept) `}
             {active && <Badge variant="secondary">Filters active</Badge>}
           </p>
+          <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={!logs.length}
+            onClick={() => {
+              const url = URL.createObjectURL(new Blob([exportLogs(logs)], { type: "application/json" }));
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = `pinora-logs-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+              link.click();
+              URL.revokeObjectURL(url);
+            }}
+          >
+            Export
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -255,6 +273,7 @@ export function LogViewer() {
           >
             Clear history
           </Button>
+          </div>
         </div>
         <div
           ref={scrollRef}
