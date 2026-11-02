@@ -12,8 +12,16 @@
 //! `bluetoothConnection` and `serialConnection` (added in Phase 2A; `"Disconnected"`
 //! only) with `"Connected"` / `"Disconnected"`, contract C-07.
 
+// Phase 2B Q5 (in progress): the auth modules are tested but not yet wired into
+// the transports.
+#[allow(dead_code)]
+mod auth_link;
 mod bluetooth_ports;
 mod commands;
+#[allow(dead_code)]
+mod device_keys;
+#[allow(dead_code)]
+mod events;
 mod line_classifier;
 mod serial_transport;
 mod wifi_transport;

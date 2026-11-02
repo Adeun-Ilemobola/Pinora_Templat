@@ -1,6 +1,6 @@
 use pinora_protocol::{
     wifi_config::{DESKTOP_PORT, DEV_TOKEN},
-    IncomingCommand, ProtocolMessage,
+    IncomingCommand,
 };
 use serde::Serialize;
 use std::{
@@ -230,12 +230,15 @@ fn read_messages(stream: &mut TcpStream, app: &AppHandle, running: &AtomicBool) 
                         log::warn!("Wi-Fi message too long");
                         return;
                     }
-                    if serde_json::from_slice::<ProtocolMessage>(&line).is_ok() {
-                        if let Ok(text) = String::from_utf8(line) {
+                    match crate::line_classifier::classify(&line) {
+                        crate::line_classifier::ComLine::Protocol(text) => {
                             let _ = app.emit("espState", text);
                         }
-                    } else {
-                        log::warn!("Invalid Pinora message on Wi-Fi connection");
+                        // Auth lines (protocol v2) are backend-only and never forwarded.
+                        crate::line_classifier::ComLine::Auth(_) => {}
+                        crate::line_classifier::ComLine::Console(_) => {
+                            log::warn!("Invalid Pinora message on Wi-Fi connection");
+                        }
                     }
                 }
                 if input.len() > MAX_LINE_BYTES {

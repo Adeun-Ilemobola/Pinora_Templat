@@ -6,8 +6,12 @@
 //! `espConsole`. This is the same validation the Wi-Fi transport already applies,
 //! and it keeps unexpected input out of the frontend's protocol handling
 //! (PIN-TPL-006, Phase 1C).
+//!
+//! Protocol v2 `Auth` messages (Phase 2B) are classified separately and have **no**
+//! WebView event: the backend consumes them, so a device key can never be forwarded
+//! by accident. Both the COM reader and the Wi-Fi listener use this classifier.
 
-use pinora_protocol::ProtocolMessage;
+use pinora_protocol::{AuthMessage, ProtocolMessage};
 
 /// Tauri event for validated protocol lines (contract C-07).
 pub(crate) const PROTOCOL_EVENT: &str = "espState";
@@ -20,19 +24,25 @@ pub(crate) enum ComLine {
     Protocol(String),
     /// Not a protocol message.
     Console(String),
+    /// An authentication message: handled by the backend, never forwarded.
+    Auth(AuthMessage),
 }
 
 impl ComLine {
-    pub(crate) fn event_name(&self) -> &'static str {
+    /// The WebView event for this line; `None` for backend-only lines.
+    pub(crate) fn event_name(&self) -> Option<&'static str> {
         match self {
-            ComLine::Protocol(_) => PROTOCOL_EVENT,
-            ComLine::Console(_) => CONSOLE_EVENT,
+            ComLine::Protocol(_) => Some(PROTOCOL_EVENT),
+            ComLine::Console(_) => Some(CONSOLE_EVENT),
+            ComLine::Auth(_) => None,
         }
     }
 
-    pub(crate) fn into_text(self) -> String {
+    /// The text to forward; `None` for backend-only lines.
+    pub(crate) fn into_text(self) -> Option<String> {
         match self {
-            ComLine::Protocol(text) | ComLine::Console(text) => text,
+            ComLine::Protocol(text) | ComLine::Console(text) => Some(text),
+            ComLine::Auth(_) => None,
         }
     }
 }
@@ -41,10 +51,10 @@ impl ComLine {
 /// before.
 pub(crate) fn classify(line: &[u8]) -> ComLine {
     let text = String::from_utf8_lossy(line).into_owned();
-    if serde_json::from_str::<ProtocolMessage>(text.trim()).is_ok() {
-        ComLine::Protocol(text)
-    } else {
-        ComLine::Console(text)
+    match serde_json::from_str::<ProtocolMessage>(text.trim()) {
+        Ok(ProtocolMessage::Auth(message)) => ComLine::Auth(message),
+        Ok(_) => ComLine::Protocol(text),
+        Err(_) => ComLine::Console(text),
     }
 }
 
@@ -65,8 +75,12 @@ mod tests {
             format!("  {LED_EVENT}  \n"),
         ] {
             let classified = classify(line.as_bytes());
-            assert_eq!(classified.event_name(), "espState");
-            assert_eq!(classified.into_text(), line, "text forwarded unchanged");
+            assert_eq!(classified.event_name(), Some("espState"));
+            assert_eq!(
+                classified.into_text().as_deref(),
+                Some(line.as_str()),
+                "text forwarded unchanged"
+            );
         }
     }
 
@@ -92,7 +106,7 @@ mod tests {
         ] {
             assert_eq!(
                 classify(line.as_bytes()).event_name(),
-                "espConsole",
+                Some("espConsole"),
                 "{line}"
             );
         }
@@ -101,8 +115,21 @@ mod tests {
     #[test]
     fn truncated_or_garbled_lines_go_to_esp_console() {
         let half = &LED_EVENT[..LED_EVENT.len() / 2];
-        assert_eq!(classify(half.as_bytes()).event_name(), "espConsole");
-        assert_eq!(classify(&[0xff, 0xfe, b'\n']).event_name(), "espConsole");
-        assert_eq!(classify(b"\n").event_name(), "espConsole");
+        assert_eq!(classify(half.as_bytes()).event_name(), Some("espConsole"));
+        assert_eq!(
+            classify(&[0xff, 0xfe, b'\n']).event_name(),
+            Some("espConsole")
+        );
+        assert_eq!(classify(b"\n").event_name(), Some("espConsole"));
+    }
+
+    #[test]
+    fn auth_lines_are_never_forwarded_to_the_webview() {
+        // Phase 2B: a key line must not reach `espState`, whatever the transport.
+        let key_line = r#"{"Auth":{"Key":{"device_id":"a1b2c3d4e5f6","key":"11"}}}"#;
+        let classified = classify(key_line.as_bytes());
+        assert!(matches!(classified, ComLine::Auth(AuthMessage::Key { .. })));
+        assert_eq!(classified.event_name(), None);
+        assert_eq!(classified.into_text(), None);
     }
 }

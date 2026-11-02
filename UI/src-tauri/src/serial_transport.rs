@@ -183,9 +183,11 @@ impl AppState {
                 while let Some(index) = line_buff.iter().position(|byte| *byte == b'\n') {
                     let line: Vec<u8> = line_buff.drain(..=index).collect();
                     let classified = classify(&line);
-                    let event = classified.event_name();
-                    if let Err(e) = app.emit(event, classified.into_text()) {
-                        log::error!("Failed to emit {event} event: {:?}", e);
+                    // Auth lines (protocol v2) are backend-only and never forwarded.
+                    if let Some(event) = classified.event_name() {
+                        if let Err(e) = app.emit(event, classified.into_text()) {
+                            log::error!("Failed to emit {event} event: {:?}", e);
+                        }
                     }
                 }
             }
