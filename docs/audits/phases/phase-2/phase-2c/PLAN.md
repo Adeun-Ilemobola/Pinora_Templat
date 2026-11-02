@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Phase | 2C |
-| Status | **Approved** 2026-11-02 (you authorized all remaining phases and on-device testing) |
+| Status | **Completed — Verified** 2026-11-02; see [RESULT.md](RESULT.md) |
 | Decisions (taken as defaults under that approval, recorded here) | **Scheduling:** a 1 ms fixed-rate loop that blocks on the command channel between ticks; this needs `CONFIG_FREERTOS_HZ=1000` (was 100: a blocking loop at 100 Hz would slow the stepper about 8×). **RFID card format:** "Pinora record v1", length-prefixed (magic `PN`, version, 16-bit length, payload); headerless cards still read as the legacy 16-byte UUID. **IR:** RMT hardware capture, polled from `tick()` |
 | Branch | `phase-2c/runtime-sensors`, cut from `phase-2b/transport-auth` @ `3bf9e4ce` (local, not pushed) |
 | Linked findings | PIN-TPL-009, PIN-TPL-019, PIN-TPL-027 (and the remaining part of PIN-TPL-008) |

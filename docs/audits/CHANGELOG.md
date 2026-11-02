@@ -2,6 +2,15 @@
 
 Newest entries first. Each entry is tagged **[AUDIT]** (documentation only, no source change) or **[SOURCE]** (template source, build or config changed).
 
+## 2026-11-02 — Phase 2C, Firmware runtime and sensor modules **[SOURCE]**
+
+- Authorized under your blanket approval; defaults recorded in the plan (1 kHz tick and blocking 1 ms loop, RFID record v1, RMT IR capture). Branch `phase-2c/runtime-sensors`, cut from the 2B tip.
+- `8d6c00f4` sensors: pure NEC decoder and RMT capture; RFID record format, bounded write buffer, reader-version check.
+- `2ce4dd2c` insertion-ordered module registry.
+- `49929faa` scheduler: 1 ms period, wait compensation for ESP-IDF's extra tick, loop statistics; `CONFIG_FREERTOS_HZ=1000`.
+- Measured on the board: the first version ran at 1.83 ms (ESP-IDF rounds timed waits up and adds a tick); after the fix, mean 1.000 ms, p99 ≤ 1.2 ms, 0 overruns. Registration order fixed across boots. hw-test 23/23 and 5/5.
+- Host tests 118. Register: 008, 009, 019, 027 **Resolved**. Totals 4 Open, 7 In Progress, 16 Resolved.
+
 ## 2026-11-02 — Phase 2B, Transport robustness and authentication **[SOURCE]**
 
 - Approved 2026-11-01 with decisions: RustCrypto in the protocol crate, pairing over USB, read-only enforcement. Branch `phase-2b/transport-auth` (local, not pushed), cut from the 2A tip.

@@ -44,7 +44,7 @@ sequenceDiagram
   end
   W->>W: buffer bytes until "\n", serde parse IncomingCommand
   W->>L: mpsc (sync_channel 128, blocking send)
-  L->>L: try_recv (≤1 per iteration); lookup by UUID
+  L->>L: try_recv (≤1 per iteration; 2C: ≤16 per 1 ms period, or wakes on arrival); lookup by UUID
   L->>M: dispatch → handle_command (Err ⇒ High SysLog, loop continues; Phase 1B)
   M->>M: clamp to 0–100 (+ Medium SysLog if clamped), set_duty (Phase 1B)
   M-->>L: emit Brightness{level: applied} (try_emit)

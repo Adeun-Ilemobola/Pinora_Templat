@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Approved** 2026-10-31 (scope and order). Progress: Phase 1 (1A–1D), 2A and 2B Completed — Verified. On 2026-11-02 you authorized the remaining phases without stopping between them, and on-device testing with the attached ESP32 |
+| Status | **Approved** 2026-10-31 (scope and order). Progress: Phase 1 (1A–1D), 2A, 2B and 2C Completed — Verified. On 2026-11-02 you authorized the remaining phases without stopping between them, and on-device testing with the attached ESP32 |
 | Written | 2026-10-31, after the [post-Phase-0 reassessment](../reports/post-phase-0-reassessment.md) |
 | Code basis | branch `phase-0/structural-reorganization` @ `a2204b33` |
 | Findings covered | all 27 (0 Critical, 6 High, 13 Medium, 8 Low) |
@@ -303,6 +303,8 @@ No new message types are added, so the golden file is unchanged.
 - Optional hardware check for the IR and RFID modules.
 
 **Completion criteria.** Measured jitter is within the target set in the 2C plan, and 009, 019 and 027 are Resolved.
+
+**Outcome (2026-11-02).** Completed — Verified ([result](phase-2/phase-2c/RESULT.md)). Defaults taken under your blanket approval: 1 kHz FreeRTOS tick with a blocking 1 ms loop, RFID "Pinora record v1", RMT IR capture. Measured on your board: mean period 1.000 ms, p99 ≤ 1.2 ms (target ≤ 2 ms). 008, 009, 019, 027 Resolved.
 
 **Recovery plan.** Revert the commits.
 

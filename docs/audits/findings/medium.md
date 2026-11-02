@@ -39,7 +39,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Affected files | Entire repository; no `#[test]`, `tests/`, `*.test.ts`, or CI configuration exists |
 | Current location (after Phase 0) | Characterization tests now exist in `protocol/tests/` and `UI/tests/`. Missing: firmware host tests, CI, and test scripts in `package.json`/`justfile`; `UI/tests` is outside `tsc`'s `include` |
 | Confidence | Confirmed (`git ls-files` and source search) |
-| Status | In Progress (Phase 0: characterization tests; Phase 1A: firmware host harness, `just test`, CI workflow; see phases/phase-1/phase-1a/RESULT.md) |
+| Status | **Resolved** (2026-11-02): 31 protocol, 118 firmware-host, 19 Tauri and 144 frontend tests, `just test`, a CI workflow, and on-device checks (`just hw-test`). The CI workflow has not run on GitHub yet (nothing pushed). See phases/phase-2/phase-2c/RESULT.md |
 | Proposed phase | 1A (roadmap, pending approval) |
 
 **What is wrong.** There are no unit tests, contract tests, integration tests or CI workflow. Firmware logic is entangled with ESP-IDF types, so none of it can run on a host. Examples are `TimerState` calling `esp_timer_get_time` and modules owning `PinDriver`/`LedcDriver` directly.
@@ -64,7 +64,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Affected files | `Firmware_Templates/src/main.rs:272-295` (`:291` yields 1 ms only every ≥650 ms); `Firmware_Templates/src/core/hardware.rs:103-145` (`now_us`, `TimerState`); `Firmware_Templates/src/module/remote_receiver.rs:121-140` (IR decode by polling) |
 | Current location (after Phase 0) | `Firmware_Templates/src/runtime/mod.rs:42-66` (yield rule `:62`); `Firmware_Templates/src/core/hardware/timing.rs`; `Firmware_Templates/src/modules/sensors/remote_receiver.rs:121-140` |
 | Confidence | Probable. The loop structure is confirmed. Idle-task starvation and IR timing failure are inferred, not measured |
-| Status | Open |
+| Status | **Resolved** in Phase 2C (2026-11-02): 1 ms fixed-rate loop that blocks between periods (`CONFIG_FREERTOS_HZ=1000`), IR capture moved to the RMT peripheral. **Verified on your board:** mean period 1000–1001 µs, p99 ≤ 1.2 ms, no overruns, no watchdog warnings. See phases/phase-2/phase-2c/RESULT.md |
 | Proposed phase | 2C (roadmap, pending approval) |
 
 **What is wrong.** The loop spins continuously. It ticks every module, then processes at most one command. It sleeps 1 ms only once at least 650 ms have elapsed. Every timed behavior is driven by `TimerState` deadlines checked from that loop: stepper steps every 1.25 ms, RFID every 20 ms, LiDAR every 30 ms. The NEC IR decoder samples a GPIO level each iteration and needs sub-350 µs resolution.
@@ -306,7 +306,7 @@ Re-rated **Medium → Low** in the post-Phase-0 reassessment (2026-10-31). The f
 | Affected files | `Firmware_Templates/src/module/rfid.rs:226-262` vs `:264-279` (read collects up to 47 blocks; send requires exactly 16 bytes), `:381` (`WritePayload` appends without bound), `:82-85` (chip-version check disabled); `Firmware_Templates/src/module/remote_receiver.rs:127` (`.unwrap()` on GPIO read), `:121-140` (polling decode, see PIN-TPL-009); `Firmware_Templates/src/module/range_finder.rs:177-195` (Critical SysLog every failed tick, plus nested error logs) |
 | Current location (after Phase 0) | `Firmware_Templates/src/modules/sensors/rfid.rs:222-275`, `:377`, `:78-81`; `Firmware_Templates/src/modules/sensors/remote_receiver.rs:127`; `Firmware_Templates/src/modules/sensors/rangefinder.rs:175-195` |
 | Confidence | Confirmed (static); not executed |
-| Status | Open |
+| Status | **Resolved** in Phase 2C (2026-11-02): RFID record format (legacy UUID cards still read), bounded write buffer, reader-version check; IR receiver on RMT without `unwrap`; rangefinder errors rate-limited (2B). Host-tested; not verified on hardware (modules not attached). See phases/phase-2/phase-2c/RESULT.md |
 | Proposed phase | 2C (roadmap, pending approval) |
 
 **What is wrong.** RFID `read_card` concatenates every readable block, up to 752 bytes. `send_card_data` then insists on exactly 16 bytes, so any card with more than one readable block never produces a `GetCard` event. Repeated `WritePayload` commands grow `temp_write_data` without limit. The MFRC522 version check is commented out, so a missing reader appears initialized. The rangefinder emits two Critical SysLogs per failed tick at loop rate, which floods the egress queues (PIN-TPL-010).

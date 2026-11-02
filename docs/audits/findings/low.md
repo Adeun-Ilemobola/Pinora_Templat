@@ -190,7 +190,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Affected files | `Firmware_Templates/src/core/module.rs:37` (`ModuleRegistry = HashMap<String, …>`); `Firmware_Templates/src/runtime/mod.rs:20-24` (`register_all` iterates the map), `:44-46` (tick loop iterates the map) |
 | Current location (after Phase 0) | Same as Affected files (found during the post-Phase-0 reassessment) |
 | Confidence | Probable. `std::collections::HashMap` uses a randomly seeded `RandomState`, and on ESP-IDF the seed comes from the hardware RNG. Module UUIDs are also random. Not observed on hardware |
-| Status | Open |
+| Status | **Resolved** in Phase 2C (2026-11-02): insertion-ordered `ModuleRegistry`. **Verified on your board:** registration order led1, led2, led3 on three boots. See phases/phase-2/phase-2c/RESULT.md |
 | Proposed phase | 2C (roadmap, pending approval) |
 
 **What is wrong.** The registry is a `HashMap` keyed by random UUIDs, using randomized hashing. Iteration order, which drives `register()`/`first_emit()` order and the per-iteration `tick()` order, is therefore effectively different on every boot.
