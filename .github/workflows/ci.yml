@@ -30,7 +30,7 @@ jobs:
     name: Rust (protocol, firmware host tests, formatting)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # No Wi-Fi config step: since audit Phase 2E the protocol's build script falls
       # back to the example's placeholders, as it does for any fresh clone.
@@ -79,7 +79,7 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: oven-sh/setup-bun@v2
         with:
