@@ -1,6 +1,7 @@
 import { RegisteredButtonView } from "@/lib/Modules/button";
 import { TransportForm } from "@/components/TransportForm";
 import { Esp32StatsCard } from "@/components/Esp32StatsCard";
+import { DeviceSecurityCard } from "@/components/DeviceSecurityCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { useModuleFront } from "@/lib/Modulefront";
 import { RegisteredLedView } from "@/lib/Modules/Led";
@@ -33,6 +34,7 @@ export default function Dashboard() {
         <TransportForm />
         <Esp32StatsCard />
       </div>
+      <DeviceSecurityCard />
       <section className="space-y-4" aria-labelledby="modules-heading">
         <div className="flex items-center justify-between">
           <h2 id="modules-heading" className="text-lg font-semibold">

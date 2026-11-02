@@ -14,6 +14,10 @@
 // Rediscovery (Phase 2A, PIN-TPL-012): state is cleared before a transport starts,
 // and a Rediscover system command is sent once it is connected, so the device
 // re-sends its snapshot, registrations and current state on every transport.
+//
+// Authentication (Phase 2B, PIN-TPL-003): the Tauri backend runs the handshake and
+// keeps the keys; this store only mirrors the `deviceAuth` status and asks the
+// backend to pair or unpair over USB serial.
 import {
   createButton,
   type ButtonModule,
@@ -45,6 +49,7 @@ import { SystemInfo } from "./protocol/system";
 import { EventPackage } from "./protocol/event";
 import { recordLogReceipt } from "./logs";
 import { requestRediscovery } from "./IncomingCommand";
+import { DeviceAuthSchema, type DeviceAuth } from "./auth";
 
 export { registrationHasParent } from "./registry/registration";
 import { registrationHasParent } from "./registry/registration";
@@ -101,6 +106,11 @@ interface ModuleCoreArchive {
   LookUpId: Record<string, string>;
   /** Lookup names registered by more than one module (PIN-TPL-017). */
   DuplicateLookUpIds: string[];
+  /** Latest `deviceAuth` status from the backend (Phase 2B). */
+  DeviceAuth: DeviceAuth | null;
+  PairingError: string | null;
+  PairDevice: () => Promise<void>;
+  UnpairDevice: () => Promise<void>;
   logs: ProtocolMessage[];
   systemInfo: SystemInfo | null;
   clearLogs: () => void;
@@ -114,6 +124,8 @@ function emptyDeviceState() {
     ModuleRegistry: {},
     LookUpId: {},
     DuplicateLookUpIds: [] as string[],
+    DeviceAuth: null as DeviceAuth | null,
+    PairingError: null as string | null,
   };
 }
 
@@ -330,9 +342,18 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
         });
       }
     });
+    const unlistenAuth = await listen<unknown>("deviceAuth", (event) => {
+      const parsed = DeviceAuthSchema.safeParse(event.payload);
+      if (!parsed.success) {
+        console.error("Unexpected deviceAuth payload:", event.payload, parsed.error.issues);
+        return;
+      }
+      set({ DeviceAuth: parsed.data, PairingError: null });
+    });
     set({
       UnlistenFnArr: [
         ...get().UnlistenFnArr,
+        unlistenAuth,
         unlisten,
         unlistenConsole,
         unlistenWifi,
@@ -437,6 +458,25 @@ export const useModuleFront = create<ModuleCoreArchive>((set, get) => ({
   ModuleRegistry: {},
   LookUpId: {},
   DuplicateLookUpIds: [],
+  DeviceAuth: null,
+  PairingError: null,
+  // The result arrives as a deviceAuth event (Paired / KeyCleared / PairingFailed).
+  PairDevice: async () => {
+    try {
+      set({ PairingError: null });
+      await invoke("provision_device_key");
+    } catch (error) {
+      set({ PairingError: String(error) });
+    }
+  },
+  UnpairDevice: async () => {
+    try {
+      set({ PairingError: null });
+      await invoke("clear_device_key");
+    } catch (error) {
+      set({ PairingError: String(error) });
+    }
+  },
   logs: [],
   systemInfo: null,
   clearLogs: () => set({ logs: [] }),
