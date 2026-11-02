@@ -17,7 +17,6 @@ dependencies = [
  "mfrc522",
  "pinora-protocol",
  "pwm-pca9685",
- "rand",
  "serde",
  "serde_json",
  "uuid",
@@ -224,17 +223,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f079e83a288787bcd14a6aea84cee5c87a67c5a3e660c30f557a3d24761b3527"
 
 [[package]]
-name = "chacha20"
-version = "0.10.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65c35e4b699c7e15ccbe7ee35c005e4fc0a278d22238a2857e6ce2dadeda1b06"
-dependencies = [
- "cfg-if",
- "cpufeatures 0.3.1",
- "rand_core",
-]
-
-[[package]]
 name = "chrono"
 version = "0.4.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -303,15 +291,6 @@ name = "cpufeatures"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59ed5838eebb26a2bb2e58f6d5b5316989ae9d08bab10e0e6d103e656d1b0280"
-dependencies = [
- "libc",
-]
-
-[[package]]
-name = "cpufeatures"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ca28b0ae3115b884660db4118d803791fd6756b6e88f39c0f3f7859060d7566"
 dependencies = [
  "libc",
 ]
@@ -704,7 +683,7 @@ dependencies = [
 [[package]]
 name = "esp-idf-hal"
 version = "0.46.2"
-source = "git+https://github.com/esp-rs/esp-idf-hal.git#846cff17f3701b836fe461b6751d9e5c42b4b278"
+source = "git+https://github.com/esp-rs/esp-idf-hal.git?rev=846cff17f3701b836fe461b6751d9e5c42b4b278#846cff17f3701b836fe461b6751d9e5c42b4b278"
 dependencies = [
  "atomic-waker",
  "critical-section",
@@ -727,7 +706,7 @@ dependencies = [
 [[package]]
 name = "esp-idf-svc"
 version = "0.52.1"
-source = "git+https://github.com/esp-rs/esp-idf-svc.git#81d64e2b23d8f1984e137e3b9760054e4d2e90e8"
+source = "git+https://github.com/esp-rs/esp-idf-svc.git?rev=81d64e2b23d8f1984e137e3b9760054e4d2e90e8#81d64e2b23d8f1984e137e3b9760054e4d2e90e8"
 dependencies = [
  "embassy-futures",
  "embassy-time-driver",
@@ -747,7 +726,7 @@ dependencies = [
 [[package]]
 name = "esp-idf-sys"
 version = "0.37.2"
-source = "git+https://github.com/esp-rs/esp-idf-sys.git#33045844f467fb8c66dfd78c3cacb0e218c3d26a"
+source = "git+https://github.com/esp-rs/esp-idf-sys.git?rev=33045844f467fb8c66dfd78c3cacb0e218c3d26a#33045844f467fb8c66dfd78c3cacb0e218c3d26a"
 dependencies = [
  "anyhow",
  "build-time",
@@ -862,7 +841,6 @@ dependencies = [
  "cfg-if",
  "libc",
  "r-efi",
- "rand_core",
 ]
 
 [[package]]
@@ -1332,23 +1310,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 
 [[package]]
-name = "rand"
-version = "0.10.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7f5fa3a058cd35567ef9bfa5e75732bee0f9e4c55fa90477bef2dfcdbc4be80"
-dependencies = [
- "chacha20",
- "getrandom",
- "rand_core",
-]
-
-[[package]]
-name = "rand_core"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "63b8176103e19a2643978565ca18b50549f6101881c443590420e4dc998a3c69"
-
-[[package]]
 name = "regex"
 version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1507,7 +1468,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283"
 dependencies = [
  "cfg-if",
- "cpufeatures 0.2.17",
+ "cpufeatures",
  "digest",
 ]
 

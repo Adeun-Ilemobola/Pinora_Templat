@@ -14,10 +14,12 @@ codegen-units = 1
 [profile.dev]
 debug = true    # Symbols are nice, and they don't increase the size on Flash
 opt-level = "z"
+# The ESP-IDF crates are patched to Git commits, pinned to the revisions already in
+# Cargo.lock (audit Phase 2E, PIN-TPL-015); before, `cargo update` followed `master`.
 [patch.crates-io]
-esp-idf-sys = { git = "https://github.com/esp-rs/esp-idf-sys.git" }
-esp-idf-hal = { git = "https://github.com/esp-rs/esp-idf-hal.git" }
-esp-idf-svc = { git = "https://github.com/esp-rs/esp-idf-svc.git" }
+esp-idf-sys = { git = "https://github.com/esp-rs/esp-idf-sys.git", rev = "33045844f467fb8c66dfd78c3cacb0e218c3d26a" }
+esp-idf-hal = { git = "https://github.com/esp-rs/esp-idf-hal.git", rev = "846cff17f3701b836fe461b6751d9e5c42b4b278" }
+esp-idf-svc = { git = "https://github.com/esp-rs/esp-idf-svc.git", rev = "81d64e2b23d8f1984e137e3b9760054e4d2e90e8" }
 
 
 [dependencies]
@@ -26,9 +28,11 @@ esp-idf-svc = { version = "0.52.1", features = ["critical-section", "embassy-tim
 embedded-hal-bus = { version = "0.3", features = ["std"] }
 uuid = { version = "1.24.0", features = ["v4"] }
 log = "0.4.33"
-rand = "0.10"
 embedded-hal-compat = "0.13"
 embedded-hal = "1.0.0"
+# Not used by our code, but required at link time: its generic timer queue provides
+# `__embassy_time_queue_item_from_waker` for esp-idf-svc's `embassy-time-driver`
+# (found in audit Phase 2E when removing it failed to link).
 embassy-time = { version = "0.5", features = ["generic-queue-8"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
