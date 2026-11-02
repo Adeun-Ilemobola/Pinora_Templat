@@ -73,3 +73,8 @@ Desktop.ini
 
 # Local development network credentials; copy the tracked example and edit locally.
 /protocol/src/wifi_config.rs
+
+# Cargo output when a build runs without --target-dir inside the Tauri crate (it can
+# contain a generated copy of the local wifi_config.rs).
+/UI/src-tauri/debug/
+/UI/src-tauri/release/
