@@ -1,8 +1,11 @@
 //! The firmware main loop: registration, then tick and dispatch forever.
 //!
-//! Scheduling is cooperative busy-polling. Each iteration ticks every module (in
-//! `HashMap` order), handles at most one command, and yields to FreeRTOS for 1 ms
-//! only after at least 650 ms without a yield (PIN-TPL-009).
+//! Scheduling (since Phase 2C, PIN-TPL-009): a fixed 1 ms period ([`schedule`]).
+//! Each iteration ticks every module in construction order (PIN-TPL-027), handles the
+//! pending commands, then blocks on the command channel until the next deadline, so
+//! the idle task runs and a command wakes the loop at once. Before 2C the loop
+//! busy-polled and yielded 1 ms only every 650 ms. Loop period and work time are
+//! logged on the console every 10 s.
 //!
 //! Error semantics (contract C-16, changed in Phase 1B, PIN-TPL-001):
 //! * `tick()` errors are reported as rate-limited `SysLog`s ([`tick_errors`]).
@@ -15,9 +18,11 @@
 //! Serial transport (which has no replay cache) is rediscovered.
 
 pub mod dispatch;
+pub mod schedule;
 pub mod tick_errors;
 
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::{Receiver, RecvTimeoutError, TryRecvError};
+use std::time::Duration;
 
 use pinora_protocol::IncomingCommand;
 
@@ -26,6 +31,9 @@ use pinora_protocol::{LogPriority, SysLogEvent};
 use crate::core::hardware::{now_us, print_esp_system_info, rtos_sleep_ms};
 use crate::core::module::{duplicate_lookup_names, ModuleRegistry};
 use crate::core::transport::emitter::TransportEmitter;
+use schedule::{
+    next_deadline, plan_wait, wait_us, LoopStats, Wait, MAX_COMMANDS_PER_PERIOD, PERIOD_US,
+};
 
 /// Sends every module's registration, then its `first_emit` events, in registry order.
 /// Modules sharing a lookup name are reported, because the desktop maps lookup names
@@ -54,38 +62,69 @@ pub fn register_all(modules: &mut ModuleRegistry<'_>) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Runs the main loop forever. `last_yield_us` is the timestamp taken in `main`
-/// before the hardware was set up.
+/// Runs the main loop forever (see the module docs for the schedule).
 ///
 /// `"SSI"` is reserved for system commands (contract C-05); `Rediscover` triggers
 /// [`rediscover`] and anything else sent there is ignored.
 pub fn run(
     modules: &mut ModuleRegistry<'_>,
     command_receiver: Receiver<IncomingCommand>,
-    mut last_yield_us: f64,
     emitter: TransportEmitter,
 ) -> ! {
     let mut tick_errors = tick_errors::TickErrorReporter::new();
+    let mut stats = LoopStats::default();
+    let clock = || now_us() as u64;
+    let mut deadline = clock() + PERIOD_US;
 
     loop {
+        let started = clock();
+        stats.iteration_started(started);
+
         for module in modules.values_mut() {
             if let Err(error) = module.tick() {
                 // The clock is read only when an error occurs.
                 tick_errors.record(module.as_ref(), error, now_us());
             }
         }
-
-        if let Ok(command) = command_receiver.try_recv() {
-            if dispatch::dispatch(modules, &command) == dispatch::DispatchOutcome::Rediscover {
-                rediscover(modules, &emitter);
+        for _ in 0..MAX_COMMANDS_PER_PERIOD {
+            match command_receiver.try_recv() {
+                Ok(command) => handle(modules, &command, &emitter),
+                Err(TryRecvError::Empty | TryRecvError::Disconnected) => break,
             }
         }
-        let now = now_us();
-
-        if now - last_yield_us >= 650_000.0 {
-            rtos_sleep_ms(1);
-            last_yield_us = now_us();
+        stats.work_done(clock().saturating_sub(started));
+        if let Some(report) = stats.take_report(clock()) {
+            log::info!("{report}");
         }
+
+        // Wait for the next period; while blocking, a command wakes the loop early.
+        loop {
+            match plan_wait(wait_us(deadline, clock())) {
+                Wait::None => break,
+                Wait::NextTick => {
+                    rtos_sleep_ms(1);
+                    break;
+                }
+                Wait::Block(micros) => {
+                    match command_receiver.recv_timeout(Duration::from_micros(micros)) {
+                        Ok(command) => handle(modules, &command, &emitter),
+                        Err(RecvTimeoutError::Timeout) => {}
+                        Err(RecvTimeoutError::Disconnected) => {
+                            // No command source left: just keep the period.
+                            rtos_sleep_ms(1);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        deadline = next_deadline(deadline, clock(), PERIOD_US);
+    }
+}
+
+fn handle(modules: &mut ModuleRegistry<'_>, command: &IncomingCommand, emitter: &TransportEmitter) {
+    if dispatch::dispatch(modules, command) == dispatch::DispatchOutcome::Rediscover {
+        rediscover(modules, emitter);
     }
 }
 

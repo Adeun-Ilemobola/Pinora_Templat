@@ -586,6 +586,28 @@ RESULT {} passed, {} failed",
     );
 }
 
+/// Prints the lookup names of the registrations in arrival order after a reset.
+fn order(usb_name: &str, bt_name: &str) {
+    {
+        let usb = Port::open(usb_name, true).unwrap();
+        usb.drain(3.0);
+    }
+    let mut bt = open_retry(bt_name, 20).unwrap();
+    thread::sleep(Duration::from_millis(300));
+    bt.send(&sys(SystemCommand::Rediscover {}));
+    let names: Vec<String> = bt
+        .drain(3.0)
+        .iter()
+        .filter_map(
+            |l| match serde_json::from_str::<ProtocolMessage>(l.trim()) {
+                Ok(ProtocolMessage::Registration(r)) => Some(r.lool_up_id),
+                _ => None,
+            },
+        )
+        .collect();
+    println!("ORDER {}", names.join(","));
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     match args.get(1).map(String::as_str) {
@@ -595,6 +617,7 @@ fn main() {
         ),
         Some("scenario") => scenario(&args[2], &args[3]),
         Some("persist") => persist(&args[2]),
+        Some("order") => order(&args[2], &args[3]),
         _ => eprintln!(
             "usage: pinora-hardware-probe boot <usb> [secs] | scenario <usb> <bt> | persist <usb>"
         ),

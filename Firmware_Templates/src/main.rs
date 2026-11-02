@@ -39,7 +39,6 @@ fn main() -> anyhow::Result<()> {
 
     print_esp_system_info(sync_sender.clone())?;
     let mut modules = ModuleRegistry::new();
-    let last_yield_us = now_us();
 
     let i2c = I2cDriver::new(
         p.i2c0,
@@ -70,5 +69,5 @@ fn main() -> anyhow::Result<()> {
 
     let command_receiver = transport.handle_incoming()?;
 
-    runtime::run(&mut modules, command_receiver, last_yield_us, sync_sender)
+    runtime::run(&mut modules, command_receiver, sync_sender)
 }

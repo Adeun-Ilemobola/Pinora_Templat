@@ -21,3 +21,7 @@ CONFIG_BT_CLASSIC_ENABLED=y
 CONFIG_BT_SPP_ENABLED=y
 CONFIG_BTDM_CTRL_MODE_BR_EDR_ONLY=y
 CONFIG_BT_BTC_TASK_STACK_SIZE=4096
+
+# 1 ms FreeRTOS tick (audit Phase 2C, PIN-TPL-009): the main loop blocks between
+# 1 ms periods, which needs millisecond timeouts (the default is 100 Hz).
+CONFIG_FREERTOS_HZ=1000
