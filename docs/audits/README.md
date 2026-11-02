@@ -10,8 +10,8 @@
 | **Baseline** | `main` @ `5b5c8ed4`, clean working tree |
 | **Current operation** | **Roadmap complete** (Phases 0, 1A–1D, 2A–2E, 3A) |
 | **Current stage** | Phase 3A **Completed — Verified** ([result](phases/phase-3/phase-3a/RESULT.md)); [final report](reports/final-report.md). Roadmap approved ([roadmap](phases/ROADMAP.md)) |
-| **Approval status** | ▶ You authorized the remaining phases (2C, 2D, 2E, 3A) without stopping between them, and on-device testing (2026-11-02). Next: **your review and merge decision**; then protocol v3 (017, 021) and the sibling-project audits |
-| **Source changes so far** | Phase 0 (structural), 1A (tests, scripts, CI), 1B (command safety), 1C (pairing window, COM validation, UI error containment), 1D (actuator and LiDAR safety), 2A (protocol v1, rediscovery, frontend contract), 2B (framing, drop accounting, Wi-Fi robustness, device authentication and USB pairing), 2C (1 ms scheduler, ordered registry, IR and RFID fixes), 2D (bounded logs, async commands, store slices), 2E (fresh-clone builds, pinned patches, pin map), 3A (zero warnings, CSP, UART0 ownership, docs) on chained local branches ending at `phase-3a/cleanup`. Not pushed; `main` unchanged at `5b5c8ed4` |
+| **Approval status** | ✅ Roadmap complete; **merged into `main`** on 2026-11-02 at your request (fast-forward to `aa80dffc`). Not pushed. Next: protocol v3 (017, 021) and the sibling-project audits |
+| **Source changes so far** | Phase 0 (structural), 1A (tests, scripts, CI), 1B (command safety), 1C (pairing window, COM validation, UI error containment), 1D (actuator and LiDAR safety), 2A (protocol v1, rediscovery, frontend contract), 2B (framing, drop accounting, Wi-Fi robustness, device authentication and USB pairing), 2C (1 ms scheduler, ordered registry, IR and RFID fixes), 2D (bounded logs, async commands, store slices), 2E (fresh-clone builds, pinned patches, pin map), 3A (zero warnings, CSP, UART0 ownership, docs) on chained local branches ending at `phase-3a/cleanup`, **fast-forwarded into `main`** (`aa80dffc`) on 2026-11-02. Not pushed |
 | **Last synchronization** | 2026-11-02: mirror verified by SHA-256 over all files (see the mirror's `SYNC-STATUS.md`) |
 
 ## Severity totals
@@ -81,7 +81,7 @@ Full records: [findings/](findings/README.md).
 - **Done:** **Phase 2D** ([result](phases/phase-2/phase-2d/RESULT.md)): bounded, batched log history with export; slow Tauri commands off the main thread; store split into slices with strict typing.
 - **Done:** **Phase 2E** ([result](phases/phase-2/phase-2e/RESULT.md)): fresh clones build without `wifi_config.rs`; ESP-IDF patches pinned; pin map with checks. **Phase 2 complete.**
 - **Done:** **Phase 3A** ([result](phases/phase-3/phase-3a/RESULT.md)): zero warnings enforced in CI, CSP, UART0 ownership, documentation fixed. **Roadmap complete.**
-- **Next:** your review; merging into `main` and pushing are your decisions ([final report](reports/final-report.md)).
+- **Merged:** `main` fast-forwarded to `phase-3a/cleanup` (`aa80dffc`) on 2026-11-02 at your request. Pushing is your decision ([final report](reports/final-report.md)).
 - **Validation gaps:** hardware checks done on 2026-11-02 for the Bluetooth image (B-V6 clamp, A-V6 reconnect replay, B2-V7). Still not run: Wi-Fi image, USB unplug, a second unbonded device, actuators (D-V5; none attached). Stepper and LiDAR decision logic is host-tested since 1D; sensor modules (2C) and the ESP-IDF I/O paths are verified by build and review only. CI has not executed on GitHub.
 
 ## Documents
@@ -100,7 +100,7 @@ Full records: [findings/](findings/README.md).
 
 ## Version control
 
-- `docs/audits/` is committed on the local branches (`phase-0/structural-reorganization`, then `phase-1a/host-test-harness`, then `phase-1b/command-safety`, then `phase-1c/trust-boundaries`, then `phase-1d/actuator-safety`, then `phase-2a/protocol-v1`, then `phase-2b/transport-auth`, then `phase-2c/runtime-sensors`, then `phase-2d/desktop`, then `phase-2e/reproducible-builds`, then `phase-3a/cleanup`, which contains everything). It is not on `main` until you merge.
+- `docs/audits/` is committed on the local branches (`phase-0/structural-reorganization`, then `phase-1a/host-test-harness`, then `phase-1b/command-safety`, then `phase-1c/trust-boundaries`, then `phase-1d/actuator-safety`, then `phase-2a/protocol-v1`, then `phase-2b/transport-auth`, then `phase-2c/runtime-sensors`, then `phase-2d/desktop`, then `phase-2e/reproducible-builds`, then `phase-3a/cleanup`, which contains everything). Since 2026-11-02 it is also on `main` (fast-forward, not pushed).
 - The workspace mirror `C:\Dev\Pinora\Audits\` is **not under version control**: `C:\Dev\Pinora` is not a Git repository, and no repository was created.
 - Pre-existing `docs/architecture-audit.md` (an earlier review) was left unchanged.
 

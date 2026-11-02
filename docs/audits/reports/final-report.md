@@ -48,11 +48,10 @@ Pairing over USB, read-only enforcement and RustCrypto were your explicit choice
 
 ## Git state and your next steps
 
-All work is on **11 chained local branches** (66 commits after `main`), each cut from the previous one. **`phase-3a/cleanup` contains everything.** `main` is unchanged at `5b5c8ed4`, nothing was pushed, and no history was rewritten.
+All work was done on **11 chained local branches**, each cut from the previous one. **On 2026-11-02, at your request, `main` was fast-forwarded to `phase-3a/cleanup` (`aa80dffc`)**: 67 commits on top of the baseline `5b5c8ed4`, with no merge commit and no rewritten history. The phase branches are kept. Nothing was pushed.
 
-1. Review `git log main..phase-3a/cleanup` and the RESULT file of each phase.
-2. When you are satisfied, merge `phase-3a/cleanup` into `main` (it is a fast-forward), then push if you want CI to run. Both are your decisions.
-3. Later work:
+1. Push `main` when you want CI to run on GitHub (your decision; not done).
+2. Later work:
    - Protocol v3, which removes the 2 Blocked findings (`parent_id` `""` → `null`; output spellings). Do it together with the sibling projects.
    - Audits of `pinora_cli`, `pinora_studio`, `2dLidar` and `UI`. These are out of scope here; contract C-10 waits on them.
    - Desktop stores for the latent module families.

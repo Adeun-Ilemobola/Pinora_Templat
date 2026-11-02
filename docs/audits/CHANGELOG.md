@@ -2,6 +2,10 @@
 
 Newest entries first. Each entry is tagged **[AUDIT]** (documentation only, no source change) or **[SOURCE]** (template source, build or config changed).
 
+## 2026-11-02 — Merged into `main` **[AUDIT]**
+
+- At your request, `main` was fast-forwarded from `5b5c8ed4` to `phase-3a/cleanup` (`aa80dffc`): 67 commits, no merge commit, no rewritten history. Phase branches kept. Not pushed.
+
 ## 2026-11-02 — Phase 3A, Low-severity cleanup and hardening **[SOURCE]** — roadmap complete
 
 - Branch `phase-3a/cleanup`, cut from the 2E tip. Identifier kept; `.espConfig` and `pre-script.rhai` untouched (C-10).
