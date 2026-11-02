@@ -8,7 +8,7 @@
 
 use crate::core::hardware::SharedPwm;
 use crate::core::module::{Module, ModuleCore, ModuleError};
-use crate::core::transport::emitter::{EmitterError, TransportEmitter};
+use crate::core::transport::emitter::TransportEmitter;
 use crate::utilities::math::{pulse_us_to_tick, range_i32};
 
 use pinora_protocol::{

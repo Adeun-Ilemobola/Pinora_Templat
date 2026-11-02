@@ -8,7 +8,7 @@
 use crate::core::{
     hardware::{OutputPinCore, TimerState},
     module::{Module, ModuleCore, ModuleError},
-    transport::emitter::{EmitterError, TransportEmitter},
+    transport::emitter::TransportEmitter,
 };
 use crate::modules::sensors::rfid_record::{self, Block, WriteBuffer, USABLE_BLOCKS};
 use pinora_protocol::{
@@ -56,7 +56,8 @@ pub struct Rfid<'d> {
 
     mf: RfidReader<'d>,
     rgb_pins: RGB<'d>,
-    buzzer_pin: OutputPinCore<'d>,
+    /// Owned so no other module can drive the pin; the buzzer is not used yet.
+    _buzzer_pin: OutputPinCore<'d>,
     pub rgb_mode: RGBMode,
 }
 
@@ -93,7 +94,7 @@ impl<'d> Rfid<'d> {
             mf: reader,
             rgb_pins,
             rgb_mode: RGBMode::Off,
-            buzzer_pin,
+            _buzzer_pin: buzzer_pin,
             write_chunk: 1,
             write_state: WriteState::Good,
             write_state_msg: "All Good".to_string(),

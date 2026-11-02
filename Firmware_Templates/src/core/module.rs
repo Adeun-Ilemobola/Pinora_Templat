@@ -146,7 +146,7 @@ impl ModuleCore {
     ) -> Self {
         Self {
             id: Uuid::new_v4().to_string(),
-            module_type: module_type,
+            module_type,
             lookup_name: lookup_name.to_string(),
             parent_id: parent_id.unwrap_or_default(),
             emitter,

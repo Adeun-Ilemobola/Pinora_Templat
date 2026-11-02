@@ -15,6 +15,8 @@ pub struct Axes {
 }
 
 impl Axes {
+    // Public API (contract C-08), so it keeps its name instead of implementing `Add`.
+    #[allow(clippy::should_implement_trait)]
     pub fn add(self, axes: &Axes) -> Axes {
         Axes {
             x: self.x + axes.x,

@@ -1,4 +1,4 @@
-use std::{rc::Rc, sync::mpsc::SyncSender};
+use std::rc::Rc;
 
 use crate::core::transport::emitter::{EmitterError, TransportEmitter};
 use esp_idf_svc::hal::adc::{
@@ -12,9 +12,7 @@ use crate::core::hardware::InputPin;
 use crate::core::module::{Module, ModuleCore, ModuleError};
 use crate::modules::sensors::button::ButtonModule;
 use crate::utilities::math::range_i16;
-use pinora_protocol::{
-    command::ModuleCommand, global_definitions::ModuleType, registration::ProtocolMessage,
-};
+use pinora_protocol::{command::ModuleCommand, global_definitions::ModuleType};
 
 pub struct JoyStick<'d, U, X, Y>
 where

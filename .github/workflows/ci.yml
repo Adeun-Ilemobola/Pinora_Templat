@@ -23,6 +23,9 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
 
+# Since audit Phase 3A every clippy step denies warnings (PIN-TPL-022). The firmware
+# image itself is not built here (it needs the ESP toolchain); keep it warning-free
+# locally with `cargo +esp-1.93 build`.
 jobs:
   rust:
     name: Rust (protocol, firmware host tests, formatting)
@@ -56,7 +59,7 @@ jobs:
 
       - name: Protocol clippy
         working-directory: protocol
-        run: cargo +stable clippy --all-targets --all-features
+        run: cargo +stable clippy --all-targets --all-features -- -D warnings
 
       - name: Firmware host tests (debug)
         working-directory: tests/firmware-host
@@ -68,7 +71,7 @@ jobs:
 
       - name: Firmware host clippy
         working-directory: tests/firmware-host
-        run: cargo +stable clippy --locked --all-targets
+        run: cargo +stable clippy --locked --all-targets -- -D warnings
 
   desktop:
     name: Desktop (frontend build and tests, Tauri backend)
@@ -106,4 +109,4 @@ jobs:
 
       - name: Tauri backend clippy
         working-directory: UI/src-tauri
-        run: cargo +stable clippy --locked
+        run: cargo +stable clippy --locked --all-targets -- -D warnings

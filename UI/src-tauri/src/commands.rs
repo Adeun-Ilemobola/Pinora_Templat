@@ -24,11 +24,6 @@ use crate::serial_transport::{AppState, ConnectionType, TransportType};
 use crate::wifi_transport::{WifiListenerStatus, WifiTransport};
 use pinora_protocol::auth::AuthStatus;
 
-#[tauri::command]
-pub fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
 /// Runs blocking work off the main thread.
 async fn blocking<T: Send + 'static>(
     work: impl FnOnce() -> T + Send + 'static,
@@ -244,26 +239,16 @@ pub fn stop_wifi_listener(state: State<'_, Mutex<Option<WifiTransport>>>) -> Res
     Ok(())
 }
 
-/// Opens a USB serial port. Note: every failure is reported only as
-/// `ConnectionType::Error`; the detail goes to the log (PIN-TPL-023).
+/// Opens a USB serial port. Since audit Phase 3A a failure returns its message (it
+/// used to be a bare `"Error"`, with the detail only in the log; PIN-TPL-023).
 #[tauri::command]
-pub async fn start_port(
-    app: AppHandle,
-    name: String,
-    rate: u32,
-) -> Result<ConnectionType, ConnectionType> {
-    blocking(move || start_port_blocking(app, name, rate))
-        .await
-        .unwrap_or(Err(ConnectionType::Error))
+pub async fn start_port(app: AppHandle, name: String, rate: u32) -> Result<ConnectionType, String> {
+    blocking(move || start_port_blocking(app, name, rate)).await?
 }
 
-fn start_port_blocking(
-    app: AppHandle,
-    name: String,
-    rate: u32,
-) -> Result<ConnectionType, ConnectionType> {
+fn start_port_blocking(app: AppHandle, name: String, rate: u32) -> Result<ConnectionType, String> {
     let state = app.state::<Mutex<AppState>>();
-    let mut state = state.lock().map_err(|_| ConnectionType::Error)?;
+    let mut state = state.lock().map_err(|error| error.to_string())?;
     let app_handle = Arc::new(app.clone());
 
     state.name = name;
@@ -277,7 +262,7 @@ fn start_port_blocking(
 
     if let Err(e) = state.connect(app_handle, TransportType::Serial) {
         log::error!("Failed to connect: {:?}", e);
-        return Err(ConnectionType::Error);
+        return Err(format!("Serial connection failed: {e:?}"));
     }
 
     log::info!(

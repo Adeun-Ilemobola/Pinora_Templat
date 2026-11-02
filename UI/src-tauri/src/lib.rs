@@ -67,7 +67,6 @@ pub fn run() {
         })
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            commands::greet,
             commands::start_port,
             commands::get_available_ports,
             commands::get_available_bluetooth_ports,

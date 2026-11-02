@@ -88,8 +88,8 @@ impl TransportEmitter {
             id: "log".to_string(),
             event: ModuleEvent::SysLog(SysLogEvent {
                 text: message,
-                priority: priority,
-                raw_err: raw_err,
+                priority,
+                raw_err,
             }),
         }));
     }

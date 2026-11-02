@@ -39,18 +39,11 @@ pub(crate) enum TransportError {
     },
 }
 
-pub(crate) struct ConnectionState {
-    connection_type: ConnectionType,
-    transport_type: Option<TransportType>,
-    error: Option<String>,
-}
-
-/// Returned to the frontend by `start_port` (serialized as `"Connected"`/`"Error"`).
+/// Returned to the frontend by `start_port` on success (serialized as `"Connected"`;
+/// failures return the error message since Phase 3A).
 #[derive(Debug, Clone, Copy, Serialize)]
 pub(crate) enum ConnectionType {
     Connected,
-    Disconnected,
-    Error,
 }
 
 /// Which kind of COM port is open; only USB serial gets the DTR/RTS reset pulse.
@@ -146,7 +139,7 @@ impl AppState {
         &mut self,
         app: Arc<AppHandle>,
         transport: TransportType,
-    ) -> Result<ConnectionState, TransportError> {
+    ) -> Result<(), TransportError> {
         self.shutdown();
 
         if self.name.is_empty() || self.rate == 0 {
@@ -260,11 +253,7 @@ impl AppState {
         }
         drop(guard);
 
-        Ok(ConnectionState {
-            connection_type: ConnectionType::Connected,
-            transport_type: Some(transport),
-            error: None,
-        })
+        Ok(())
     }
 }
 
