@@ -4,8 +4,7 @@
 # cross-build (esp-1.93 + ESP-IDF) is not run here because of the toolchain size;
 # its hardware-free logic is covered by tests/firmware-host instead.
 #
-# Lint warnings do not fail the build yet (pre-existing, tracked as PIN-TPL-022 and
-# planned for Phase 3A).
+# Clippy warnings fail the build since audit Phase 3A (PIN-TPL-022).
 name: CI
 
 on:
