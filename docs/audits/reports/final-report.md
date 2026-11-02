@@ -8,7 +8,7 @@
 | Critical watch-list | 4 High findings that became Critical once actuators were enabled | Empty, on condition that actuators run only on a paired device |
 | Tests | None | protocol 31, firmware host 122, Tauri 21, frontend 167, on-device `just hw-test` 23 + 5; mutation-checked at every phase |
 | Warnings | 17 firmware, 3 clippy | 0 everywhere; CI denies clippy warnings |
-| CI | None | `.github/workflows/ci.yml` (not run on GitHub yet: nothing is pushed) |
+| CI | None | `.github/workflows/ci.yml`, **green on GitHub** (run 41532290661, 2026-11-02) |
 | Fresh clone | Every Rust build failed without a hand-made `wifi_config.rs` | Builds and passes all host suites as is |
 
 ## What changed, by area
@@ -31,7 +31,6 @@ It currently runs the **Phase 3A image**, flashed with the project's bootloader 
 - **Actuators.** None is attached.
 - **The desktop app's window.** Not launched; the store tests mock the Tauri IPC, and the CSP was not checked in the running app.
 - **Bluetooth edge cases.** Rejection of a second, unbonded device, and USB unplug.
-- **The CI workflow on GitHub.** It started with the push on 2026-11-02; its result is not recorded here.
 
 ## Decisions taken as defaults under your approval (2026-11-02)
 
@@ -48,10 +47,20 @@ Pairing over USB, read-only enforcement and RustCrypto were your explicit choice
 
 ## Git state and your next steps
 
-All work was done on **11 chained local branches**, each cut from the previous one. **On 2026-11-02, at your request, `main` was fast-forwarded to `phase-3a/cleanup` (`cf61f79b`, after the history fix below)**: 67 commits on top of the baseline `5b5c8ed4`, with no merge commit and no rewritten history. The phase branches are kept. **`main` was pushed to GitHub on 2026-11-02** (fast-forward from `5b5c8ed4`), which started the CI workflow.
+All work was done on **11 chained local branches**, each cut from the previous one. **On 2026-11-02, at your request, `main` was fast-forwarded to `phase-3a/cleanup` (`cf61f79b`, after the history fix below)**: 67 commits on top of the baseline `5b5c8ed4`, with no merge commit and no rewritten history. The phase branches are kept. **`main` was pushed to GitHub on 2026-11-02** (fast-forward from `5b5c8ed4`).
 
-1. Check the CI run on GitHub (it started with the push).
+1. Nothing pending from this programme. CI is green on `main`.
 2. Later work:
    - Protocol v3, which removes the 2 Blocked findings (`parent_id` `""` → `null`; output spellings). Do it together with the sibling projects.
    - Audits of `pinora_cli`, `pinora_studio`, `2dLidar` and `UI`. These are out of scope here; contract C-10 waits on them.
    - Desktop stores for the latent module families.
+
+## After the push (2026-11-02)
+
+The first CI runs found two problems that the Windows machine could not show. Both are fixed, and CI is now green on both jobs:
+
+- **The host-test crate did not build on Linux.** Its `#[path]` includes went through directories that do not exist (`src/core/transport/..`). Windows normalizes such paths as text, while Linux resolves them through the filesystem. The crate now includes each firmware file as a flat, hidden module and mirrors the tree with re-exports.
+- **CI's stable Rust (1.99) has newer clippy lints** than the local 1.97: `chunks_exact` should become `as_chunks`, and `fetch_update` is deprecated. Both are fixed in a way that still builds on the firmware's `esp-1.93`. The local stable toolchain was updated to 1.99. `actions/checkout` moved to v5 (Node 20 deprecation).
+
+Before the first push, 6 399 Cargo build files committed by mistake in Phase 3A, including a generated copy of the local `wifi_config.rs`, were removed from the six unpushed commits. After the push, the local backups, `refs/original` and the affected reflogs were deleted and the objects pruned, so no copy of that file remains in the local repository either. Your pre-existing stash was left untouched. The build folder is now ignored.
+

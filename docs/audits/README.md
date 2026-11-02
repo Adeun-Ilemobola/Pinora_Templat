@@ -10,7 +10,7 @@
 | **Baseline** | `main` @ `5b5c8ed4`, clean working tree |
 | **Current operation** | **Roadmap complete** (Phases 0, 1A–1D, 2A–2E, 3A) |
 | **Current stage** | Phase 3A **Completed — Verified** ([result](phases/phase-3/phase-3a/RESULT.md)); [final report](reports/final-report.md). Roadmap approved ([roadmap](phases/ROADMAP.md)) |
-| **Approval status** | ✅ Roadmap complete; **merged into `main`** and **pushed** on 2026-11-02 at your request. Next: protocol v3 (017, 021) and the sibling-project audits |
+| **Approval status** | ✅ Roadmap complete; **merged into `main`** and **pushed** on 2026-11-02 at your request; **CI green**. Next: protocol v3 (017, 021) and the sibling-project audits |
 | **Source changes so far** | Phase 0 (structural), 1A (tests, scripts, CI), 1B (command safety), 1C (pairing window, COM validation, UI error containment), 1D (actuator and LiDAR safety), 2A (protocol v1, rediscovery, frontend contract), 2B (framing, drop accounting, Wi-Fi robustness, device authentication and USB pairing), 2C (1 ms scheduler, ordered registry, IR and RFID fixes), 2D (bounded logs, async commands, store slices), 2E (fresh-clone builds, pinned patches, pin map), 3A (zero warnings, CSP, UART0 ownership, docs) on chained local branches ending at `phase-3a/cleanup`, **fast-forwarded into `main`** and pushed on 2026-11-02 |
 | **Last synchronization** | 2026-11-02: mirror verified by SHA-256 over all files (see the mirror's `SYNC-STATUS.md`) |
 

@@ -2,6 +2,12 @@
 
 Newest entries first. Each entry is tagged **[AUDIT]** (documentation only, no source change) or **[SOURCE]** (template source, build or config changed).
 
+## 2026-11-02 — CI green **[SOURCE]**
+
+- `c7d6ae55`: host-test crate builds on Linux (flat `#[path]` includes); `actions/checkout` v5.
+- `f2f82d9`: clippy-clean on Rust 1.99 (`as_chunks`; compare-exchange instead of the deprecated `fetch_update`).
+- CI run 41532290661: both jobs pass. Local backups, `refs/original` and the affected reflogs removed and objects pruned; the stash was kept.
+
 ## 2026-11-02 — Pushed **[AUDIT]**
 
 - Before the first push, 6 399 Cargo build files under `UI/src-tauri/debug/` (committed by mistake in Phase 3A, including a generated copy of the local `wifi_config.rs`) were removed from the six unpushed commits with your approval. Contents are otherwise identical; backups were kept locally. The folder is now ignored.
