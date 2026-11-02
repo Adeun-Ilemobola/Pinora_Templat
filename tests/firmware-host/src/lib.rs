@@ -36,6 +36,14 @@ pub mod modules {
         pub mod stepper_motion;
     }
 
+    pub mod sensors {
+        #[path = "../../../../../Firmware_Templates/src/modules/sensors/nec.rs"]
+        pub mod nec;
+
+        #[path = "../../../../../Firmware_Templates/src/modules/sensors/rfid_record.rs"]
+        pub mod rfid_record;
+    }
+
     pub mod composite {
         #[path = "../../../../../Firmware_Templates/src/modules/composite/lidar_scan.rs"]
         pub mod lidar_scan;

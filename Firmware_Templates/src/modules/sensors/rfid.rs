@@ -1,14 +1,21 @@
+//! MFRC522 RFID reader/writer with a status RGB LED.
+//!
+//! Since audit Phase 2C (PIN-TPL-019): cards use the length-prefixed
+//! [`super::rfid_record`] format (legacy 16-byte UUID cards still read), the write
+//! buffer is bounded, and start-up fails when no known MFRC522 answers. Not
+//! instantiated in the current image and not verified on hardware.
+
 use crate::core::{
     hardware::{OutputPinCore, TimerState},
     module::{Module, ModuleCore, ModuleError},
     transport::emitter::{EmitterError, TransportEmitter},
 };
+use crate::modules::sensors::rfid_record::{self, Block, WriteBuffer, USABLE_BLOCKS};
 use pinora_protocol::{
     command::ModuleCommand,
     global_definitions::ModuleType,
     module_event::{LogPriority, ModuleEvent, SysLogEvent},
 };
-use uuid::Uuid;
 
 use esp_idf_svc::hal::{delay::Ets, spi::SpiSingleDeviceDriver};
 use mfrc522::{comm::blocking::spi::SpiInterface, Initialized, Mfrc522, MifareKey};
@@ -37,14 +44,10 @@ type RfidDelay = fn();
 type RfidReader<'d> = Mfrc522<RfidSpiInterface<'d>, Initialized>;
 type RfidSpiInterface<'d> = SpiInterface<SpiSingleDeviceDriver<'d>, RfidDelay>;
 
-const USABLE_BLOCKS: [u8; 47] = [
-    1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 21, 22, 24, 25, 26, 28, 29, 30, 32, 33,
-    34, 36, 37, 38, 40, 41, 42, 44, 45, 46, 48, 49, 50, 52, 53, 54, 56, 57, 58, 60, 61, 62,
-];
 pub struct Rfid<'d> {
     pub core: ModuleCore,
-    pub temp_read_data: Vec<u8>,
-    pub temp_write_data: Vec<u8>,
+    pub temp_read_data: Vec<Block>,
+    pub temp_write_data: WriteBuffer,
     write_state: WriteState,
     write_state_msg: String,
     pub write_chunk: u32,
@@ -75,16 +78,16 @@ impl<'d> Rfid<'d> {
         let version = reader
             .version()
             .map_err(|error| anyhow::anyhow!("failed to read MFRC522 version: {error:?}"))?;
-        // anyhow::ensure!(
-        //     matches!(version, 0x91 | 0x92),
-        //     "MFRC522 did not respond with a valid version (got 0x{version:02X}); check 3.3 V, GND, RST, SCK, MOSI, MISO, and CS wiring"
-        // );
+        anyhow::ensure!(
+            rfid_record::is_known_reader_version(version),
+            "MFRC522 did not respond with a valid version (got 0x{version:02X}); check 3.3 V, GND, RST, SCK, MOSI, MISO, and CS wiring"
+        );
         log::info!("MFRC522 detected (version 0x{version:02X})");
 
         let dor = Self {
             core: ModuleCore::new(ModuleType::Rfid, core_id, parent_id, sender),
             temp_read_data: vec![],
-            temp_write_data: vec![],
+            temp_write_data: WriteBuffer::default(),
             next_acc: TimerState::from_ms(20.0),
             mode: MddeRfid::Read,
             mf: reader,
@@ -221,11 +224,14 @@ impl<'d> Rfid<'d> {
 
     fn read_card(&mut self, uid: &mfrc522::Uid) -> Result<(), ()> {
         let key: MifareKey = [0xFF; 6];
-        if !self.temp_read_data.is_empty() {
-            self.temp_read_data.clear();
-        }
+        self.temp_read_data.clear();
+        // The first block says how many blocks the record spans.
+        let mut wanted = 1;
 
         for block in USABLE_BLOCKS.iter() {
+            if self.temp_read_data.len() >= wanted {
+                break;
+            }
             match self.mf.mf_authenticate(&uid, *block, &key) {
                 Ok(_) => {
                     let data: [u8; 16] = self.mf.mf_read(*block).map_err(|err| -> () {
@@ -236,7 +242,10 @@ impl<'d> Rfid<'d> {
                         }));
                     })?;
 
-                    self.temp_read_data.extend(data);
+                    if self.temp_read_data.is_empty() {
+                        wanted = rfid_record::blocks_to_read(&data);
+                    }
+                    self.temp_read_data.push(data);
 
                     self.mf.stop_crypto1().map_err(|err| -> () {
                         self.emit(ModuleEvent::SysLog(SysLogEvent {
@@ -258,17 +267,21 @@ impl<'d> Rfid<'d> {
         Ok(())
     }
     fn send_card_data(&mut self, uid: &mfrc522::Uid) -> Result<(), ()> {
-        let bytes: [u8; 16] = self
-            .temp_read_data
-            .as_slice()
-            .try_into()
-            .map_err(|_| -> () { println!("Expected exactly 16 UUID bytes") })?;
-
-        let uuid = Uuid::from_bytes(bytes);
+        let data = match rfid_record::decode(&self.temp_read_data) {
+            Ok(data) => data,
+            Err(error) => {
+                self.emit(ModuleEvent::SysLog(SysLogEvent {
+                    text: format!("Unreadable card data: {error}"),
+                    priority: LogPriority::High,
+                    raw_err: None,
+                }));
+                return Err(());
+            }
+        };
 
         self.emit(ModuleEvent::Rfid(RfidEvent::GetCard {
             card_uid: format!("{:02X?}", uid.as_bytes()),
-            card_data: uuid.to_string(),
+            card_data: rfid_record::render(&data),
         }));
 
         Ok(())
@@ -276,17 +289,23 @@ impl<'d> Rfid<'d> {
     fn write_card(&mut self, uid: &mfrc522::Uid) -> Result<(), ()> {
         let key: MifareKey = [0xFF; 6];
 
-        let max_chuck = self.temp_write_data.len().div_ceil(16);
-        let mut max_chuck_data = self.temp_write_data.chunks(16);
+        let blocks = match rfid_record::encode(self.temp_write_data.as_slice()) {
+            Ok(blocks) => blocks,
+            Err(error) => {
+                self.write_state = WriteState::Bad;
+                self.write_state_msg = error.to_string();
+                return Ok(());
+            }
+        };
+        let max_chuck = blocks.len();
+        let mut max_chuck_data = blocks.iter();
 
         for (i, block) in USABLE_BLOCKS.iter().enumerate() {
             match self.mf.mf_authenticate(&uid, *block, &key) {
                 Ok(_) => {
                     match max_chuck_data.next() {
-                        Some(data) => {
-                            let mut block_data = [0u8; 16];
-                            block_data[..data.len()].copy_from_slice(data);
-                            match self.mf.mf_write(*block, block_data) {
+                        Some(block_data) => {
+                            match self.mf.mf_write(*block, *block_data) {
                                 Ok(_) => {}
                                 Err(e) => {
                                     // println!("mf_write  Err: {:?} ", e)
@@ -374,7 +393,9 @@ impl<'d> Module for Rfid<'d> {
                     self.mode = MddeRfid::Write;
                 }
                 RfidCommand::WritePayload { data } => {
-                    self.temp_write_data.extend(data);
+                    // Bounded (PIN-TPL-019): an oversized payload is rejected, and the
+                    // dispatcher reports the error.
+                    self.temp_write_data.append(data)?;
                     self.mode = MddeRfid::Write;
                     self.emit(ModuleEvent::Rfid(RfidEvent::GetMode {
                         mode: self.mode.clone(),
