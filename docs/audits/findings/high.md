@@ -94,7 +94,7 @@ release: range_u32(524353) = 81        range_u32(4000000000) = 19894661
 | Affected files | `Firmware_Templates/src/core/transport/bluetooth.rs:85-92` (auto-confirm SSP), `:128-136` (IO capability `NONE`), `:138` (server start), `:208` (discoverable, never reverted) |
 | Current location (after Phase 0) | `Firmware_Templates/src/core/transport/bluetooth.rs:104-110` (auto-confirm), `:162-171` (IO capability), `:173` (server), `:243` (discoverable) |
 | Confidence | Confirmed (static). Exploitation not attempted; no radio testing was performed |
-| Status | In Progress: Phase 1C added the 120 s pairing window (phases/phase-1/phase-1c/RESULT.md); application-level authentication remains (2B) |
+| Status | **Resolved** in Phase 2B (2026-11-02) for paired devices: mutual HMAC-SHA256 handshake, read-only until authenticated, signed commands with replay protection, pairing over USB only. Residual by decision: a device that was never paired stays open and the UI warns. Verified after the hardware check in phases/phase-2/phase-2b/RESULT.md (B2-V7) |
 | Proposed phase | 1C (+2B) (roadmap, pending approval) |
 
 **What is wrong.** The firmware advertises itself as discoverable for its whole uptime and declares no input/output capability, so Secure Simple Pairing uses Just Works. It then answers every `PairingUserConfirmationRequest` with `true`. The SPP link is encrypted, but encryption comes from that unauthenticated pairing. After connection, any well-formed `IncomingCommand` is executed: there is no token, allow-list or bonding check. Wi-Fi by contrast requires a shared token, though a weak one (PIN-TPL-013).

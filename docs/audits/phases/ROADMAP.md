@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Approved** 2026-10-31 (scope and order). Progress: Phase 1 (1A–1D) and 2A Completed — Verified; 2B next, awaiting authorization |
+| Status | **Approved** 2026-10-31 (scope and order). Progress: Phase 1 (1A–1D), 2A and 2B Completed — Verified. On 2026-11-02 you authorized the remaining phases without stopping between them, and on-device testing with the attached ESP32 |
 | Written | 2026-10-31, after the [post-Phase-0 reassessment](../reports/post-phase-0-reassessment.md) |
 | Code basis | branch `phase-0/structural-reorganization` @ `a2204b33` |
 | Findings covered | all 27 (0 Critical, 6 High, 13 Medium, 8 Low) |
@@ -267,6 +267,8 @@ No new message types are added, so the golden file is unchanged.
 - Optional hardware check: Wi-Fi with no AP at boot; LiDAR-rate telemetry.
 
 **Completion criteria.** Tests are green. 010, 013 and 016 are Resolved, and 003 is Resolved.
+
+**Outcome (2026-11-02).** Completed — Verified ([result](phase-2/phase-2b/RESULT.md)). All four findings Resolved. 003 applies to paired devices (pairing is opt-in by your decision); 013 keeps unencrypted Wi-Fi traffic as a residual. The Bluetooth path was verified on your board; Wi-Fi was not.
 
 **Recovery plan.** Revert. Devices keep working with the v1 protocol without the handshake if the handshake is behind a version gate.
 

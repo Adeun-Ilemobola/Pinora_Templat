@@ -560,28 +560,30 @@ mod tests {
     #[test]
     fn a_trickling_peer_is_cut_off_at_the_overall_deadline() {
         let (_transport, _recorder, port) = listener(DeviceKeys::default());
-        let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
-        stream
-            .set_read_timeout(Some(Duration::from_secs(3)))
-            .unwrap();
+        let stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
+        let mut writer = stream.try_clone().unwrap();
+        // One byte every 50 ms for five deadlines never completes a line. Before 2B
+        // each byte reset a per-read timeout, so the peer was never cut off.
+        let trickle = thread::spawn(move || {
+            for byte in b"PINORA-AUTH 1 slowly-slowly-slowly-slowly-slowly" {
+                if writer.write_all(&[*byte]).is_err() {
+                    break;
+                }
+                thread::sleep(Duration::from_millis(50));
+            }
+        });
         let started = Instant::now();
-        // One byte every 50 ms never completes a line; each byte would have reset a
-        // per-read timeout before 2B.
-        for byte in b"PINORA-AUTH 1 slowly-slowly-slowly" {
-            if stream.write_all(&[*byte]).is_err() {
-                break;
-            }
-            thread::sleep(Duration::from_millis(50));
-            if started.elapsed() > AUTH_DEADLINE * 3 {
-                break;
-            }
-        }
+        let mut reader = stream;
+        reader
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
         let mut rest = Vec::new();
-        let _ = stream.read_to_end(&mut rest);
+        let _ = reader.read_to_end(&mut rest);
+        let closed_after = started.elapsed();
+        trickle.join().unwrap();
         assert!(
-            started.elapsed() < AUTH_DEADLINE * 4,
-            "closed after {:?}",
-            started.elapsed()
+            closed_after < AUTH_DEADLINE * 2,
+            "closed after {closed_after:?}"
         );
         assert!(rest.is_empty(), "no OK for a trickling peer");
     }

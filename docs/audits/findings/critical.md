@@ -27,4 +27,6 @@ These findings must be re-rated **Critical** when the named condition becomes tr
 
 **Phase 2A 2026-11-01:** no entry added or removed. Note for PIN-TPL-003: child routing now lets a connected peer address a composite's children directly (for example the LiDAR servos). The LiDAR is still not instantiated, so this stays latent, and the 2B authentication covers it.
 
+**Phase 2B 2026-11-02:** PIN-TPL-003 resolved for paired devices, so its entry no longer applies to a device that has been paired over USB: a peer that cannot authenticate is read-only, and commands are signed. The list is now empty. Condition for enabling actuators: **pair the device first**. An unpaired device is still open by design, and the UI warns about it.
+
 Any future Critical finding is recorded here with its full template, and its history is kept after resolution.

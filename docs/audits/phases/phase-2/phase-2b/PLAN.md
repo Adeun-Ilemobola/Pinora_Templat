@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Phase | 2B |
-| Status | **Approved** 2026-11-01 |
+| Status | **Completed — Verified** 2026-11-02 (approved 2026-11-01); see [RESULT.md](RESULT.md) |
 | Decisions | **Crypto:** RustCrypto `hmac 0.12` + `sha2 0.10` in the shared protocol crate behind an `auth` feature (one implementation for firmware and Tauri). **Provisioning:** pair over USB: the device creates a random key on request and stores it in NVS; the desktop fetches it over the USB serial console only and stores it in the app data directory. **Enforcement:** a keyed device is **read-only** to unauthenticated Bluetooth/Wi-Fi peers (discovery and telemetry flow; commands are rejected with a SysLog). Devices without a key behave as today, with a warning |
 | Branch | `phase-2b/transport-auth`, cut from `phase-2a/protocol-v1` @ `b7dfe3a2` (local, not pushed) |
 | Linked findings | PIN-TPL-003 (authentication part), PIN-TPL-010, PIN-TPL-013, PIN-TPL-016 |

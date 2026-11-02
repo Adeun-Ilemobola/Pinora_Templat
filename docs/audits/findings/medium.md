@@ -89,7 +89,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Affected files | `Firmware_Templates/src/core/transport/transport_emiter.rs:34`, `:45-62`; `Firmware_Templates/src/core/transport/transport_core.rs:61-100`; `Firmware_Templates/src/core/transport/bluetooth.rs:155-169`, `:315-328`; `Firmware_Templates/src/core/transport/wifi.rs:69-81`, `:173-182`; `Firmware_Templates/src/module/imu/mpu_impl.rs:198-220`; `Firmware_Templates/src/module/range_finder.rs:177-195`; `Firmware_Templates/src/module/lidar.rs:267-317` |
 | Current location (after Phase 0) | `Firmware_Templates/src/core/transport/emitter.rs:38`, `:49-66`; `Firmware_Templates/src/core/transport/manager.rs`; `Firmware_Templates/src/core/transport/bluetooth.rs`; `Firmware_Templates/src/core/transport/wifi.rs:174-234` (`:139` timeout); `Firmware_Templates/src/modules/sensors/imu/mpu.rs:198-220`; `Firmware_Templates/src/modules/sensors/rangefinder.rs:175-195`; `Firmware_Templates/src/modules/composite/lidar.rs:209-333` |
 | Confidence | Confirmed (structure). Wi-Fi throughput ceiling derived from code: ≤ 1 outbound frame per ≥ 50 ms read timeout when the desktop is silent |
-| Status | Open |
+| Status | **Resolved** in Phase 2B (2026-11-02): per-stage drop counters reported as one SysLog every 5 s, rate limiting and coalescing for IMU, rangefinder errors and LiDAR step logs, Wi-Fi reader/writer split. The bench flood measurement is part of phases/phase-2/phase-2b/RESULT.md (B2-V7) |
 | Proposed phase | 2B (roadmap, pending approval) |
 
 **What is wrong.**
@@ -172,7 +172,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Affected files | `Firmware_Templates/src/core/transport/wifi.rs:50-52` (blocking connect at boot), `:88-110` (plaintext token); `Firmware_Templates/src/main.rs:69` (`?` on transport creation); `UI/src-tauri/src/wifi_transport.rs:50` (bind `0.0.0.0`), `:134-164` (per-byte reads with 3 s timeout), `:166-216` (single-threaded accept); `protocol/src/lib.rs:6` (secrets module compiled into both binaries) |
 | Current location (after Phase 0) | `Firmware_Templates/src/core/transport/wifi.rs:40-77` (blocking connect `:61-63`), `:99-121`; `Firmware_Templates/src/main.rs` (`TransportCore::new(...)?`); `UI/src-tauri/src/wifi_transport.rs:50`, `:134-164`, `:166-216` |
 | Confidence | Confirmed (static). Embedding of secrets in the Bluetooth-selected firmware image is Probable, because the Wi-Fi code is compiled even when not selected |
-| Status | Open |
+| Status | **Resolved** in Phase 2B (2026-11-02): Wi-Fi bring-up and reassociation in the background, listener with per-peer 5 s deadline and replacement, optional bind address, constant-time token check, and protocol v2 authentication with signed commands. Residual (out of scope): traffic is unencrypted and the token and credentials are compiled in (PIN-TPL-015). Verified after phases/phase-2/phase-2b/RESULT.md (B2-V7) |
 | Proposed phase | 2B (roadmap, pending approval) |
 
 **What is wrong.**

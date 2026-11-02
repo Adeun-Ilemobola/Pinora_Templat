@@ -2,6 +2,19 @@
 
 Newest entries first. Each entry is tagged **[AUDIT]** (documentation only, no source change) or **[SOURCE]** (template source, build or config changed).
 
+## 2026-11-02 — Phase 2B, Transport robustness and authentication **[SOURCE]**
+
+- Approved 2026-11-01 with decisions: RustCrypto in the protocol crate, pairing over USB, read-only enforcement. Branch `phase-2b/transport-auth` (local, not pushed), cut from the 2A tip.
+- `b126a1d7` protocol v2: one line framer and limit table; HMAC handshake and session state machines; signed commands; golden gains 11 backend-only lines.
+- `dcde0423` firmware: shared framing, counted drops with a 5 s report, rate limits, Wi-Fi background bring-up and reader/writer split.
+- `e07262e9` firmware authentication: NVS key, USB console in every image, per-connection sessions.
+- `353de798`, `d221b6df` desktop: Auth lines never reach the WebView; key file; authenticated, signing COM and Wi-Fi transports; listener deadline and replacement; new IPC commands and `deviceAuth`.
+- `3b616771` frontend: Device security card with USB pairing.
+- Docs: contracts C-01…C-03, C-05…C-08, C-15, C-17, C-19; communication flow; guides; `tests/hardware-probe` and `just hw-test`.
+- On 2026-11-02 you authorized on-device testing and the remaining phases. The board was flashed (project bootloader and partitions) and passed 23/23 protocol checks and 5/5 key-persistence checks over USB and Bluetooth, including the 1B clamp and the 2A reconnect replay.
+- Verification B2-V1…B2-V6 pass: 31 protocol, 97 host, 19 Tauri, 144 frontend tests; five mutations caught (one after strengthening a test). Release image −101 KB text (unused Wi-Fi stack now removed by LTO, probable).
+- Register: PIN-TPL-003, -010, -013, -016 **Resolved**. Totals 7 Open, 8 In Progress, 12 Resolved. Critical watch-list empty.
+
 ## 2026-11-01 — Phase 2A, Protocol contract v1 **[SOURCE]**
 
 - Approved; no choice made on misspelled wire names, so the conservative default applied (output kept, corrected spellings accepted as input aliases). Branch `phase-2a/protocol-v1` (local, not pushed), cut from the 1D tip.

@@ -1,0 +1,18 @@
+# On-device checks for the Pinora firmware (audit Phase 2B). Needs a board on USB and
+# a paired Bluetooth SPP port, so it is not part of `just test` or CI. Run it with
+# `just hw-test <usb-port> <bluetooth-port>`; it never prints a device key and leaves
+# the device unprovisioned.
+[package]
+name = "pinora-hardware-probe"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+pinora-protocol = { path = "../../protocol", features = ["auth"] }
+serialport = "=4.10.1"
+serde = "1"
+serde_json = "1"
+getrandom = "=0.2.17"

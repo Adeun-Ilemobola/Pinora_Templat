@@ -26,20 +26,20 @@ Baseline: commit `5b5c8ed4` (branch `main`), audited 2026-10-31. Line references
 |---|---|---|---|---|---|---|---|
 | PIN-TPL-001 | High | A single failed command stops the firmware main loop | Firmware runtime | Yes | Confirmed / Probable (aftermath) | Resolved | 1B |
 | PIN-TPL-002 | High | LED brightness not range-checked; overflow corrupts output or reboots | Firmware module | Yes | Confirmed (probe) | Resolved | 1B |
-| PIN-TPL-003 | High | Bluetooth accepts any nearby device; no application authorization | Security / transport | Yes | Confirmed (static) | In Progress | 1C (+2B) |
+| PIN-TPL-003 | High | Bluetooth accepts any nearby device; no application authorization | Security / transport | Yes | Confirmed (static) | Resolved | 1C (+2B) |
 | PIN-TPL-004 | High | Actuators move uncommanded at construction; unbounded targets | Firmware modules (hardware safety) | No (latent) | Confirmed (static) | Resolved | 1D |
 | PIN-TPL-005 | High | LiDAR scan never terminates; unbounded memory growth | Firmware module | No (latent) | Confirmed (reasoning) | Resolved | 1D |
 | PIN-TPL-006 | High | Malformed device input crashes the desktop log view | Desktop receive boundary | Yes | Confirmed (probe) / Probable (UI) | Resolved | 1C |
 | PIN-TPL-007 | Medium | Rust↔TS contract handwritten, partial, unversioned, inconsistently validated | Communication | Yes | Confirmed | Resolved | 2A |
 | PIN-TPL-008 | Medium | Firmware module logic not yet host-testable (harness + CI added in 1A) | Testing | Yes | Confirmed | In Progress | 1A |
 | PIN-TPL-009 | Medium | Main loop busy-polls; no timing guarantees | Firmware runtime | Yes | Probable | Open | 2C |
-| PIN-TPL-010 | Medium | Telemetry backpressure: stacked queues, silent drops, no rate limits | Communication | Partly | Confirmed | Open | 2B |
+| PIN-TPL-010 | Medium | Telemetry backpressure: stacked queues, silent drops, no rate limits | Communication | Partly | Confirmed | Resolved | 2B |
 | PIN-TPL-011 | Medium | Frontend log history unbounded and copied per message | Desktop performance | Yes | Confirmed (static) | Open | 2D |
 | PIN-TPL-012 | Medium | Connection state desync; timing-dependent discovery; no state replay | Communication / UI | Yes | Confirmed | Resolved | 2A |
-| PIN-TPL-013 | Medium | Wi-Fi: dev-grade auth, single-thread listener, fatal boot dependency | Security / transport | No (selectable) | Confirmed / Probable | Open | 2B |
+| PIN-TPL-013 | Medium | Wi-Fi: dev-grade auth, single-thread listener, fatal boot dependency | Security / transport | No (selectable) | Confirmed / Probable | Resolved | 2B |
 | PIN-TPL-014 | Medium | Tauri commands block the UI-facing thread | Desktop backend | Yes | Probable | Open | 2D |
 | PIN-TPL-015 | Medium | Builds machine-specific; fresh clone does not build | Build | Yes | Confirmed / Probable | In Progress | 2E |
-| PIN-TPL-016 | Low (was Medium) | Duplicated framing with divergent limits (dead code removed in Phase 0) | Structure | Yes | Confirmed | In Progress | 2B |
+| PIN-TPL-016 | Low (was Medium) | Duplicated framing with divergent limits (dead code removed in Phase 0) | Structure | Yes | Confirmed | Resolved | 2B |
 | PIN-TPL-017 | Medium | Module identity and hierarchy partially implemented | Architecture | Partly | Confirmed | In Progress | 2A |
 | PIN-TPL-018 | Medium | Hard-coded pins; LED on strapping pin GPIO12; latent conflicts | Hardware config | Yes | Probable | In Progress | 2E |
 | PIN-TPL-019 | Medium | Defects in inactive RFID, IR receiver and rangefinder modules | Firmware modules | No (latent) | Confirmed (static) | Open | 2C |
@@ -73,3 +73,4 @@ Baseline: commit `5b5c8ed4` (branch `main`), audited 2026-10-31. Line references
 | 2026-10-31 | Phase 1C completed: PIN-TPL-006 **Resolved**; PIN-TPL-003 In Progress (pairing window done, application-level authentication remains for 2B). Totals: 15 Open, 9 In Progress, 4 Resolved. |
 | 2026-10-31 | Phase 1D completed: PIN-TPL-004 and -005 **Resolved**. Phase 1 complete. Totals: 13 Open, 9 In Progress, 6 Resolved. |
 | 2026-11-01 | Phase 2A (protocol v1): PIN-TPL-007 and -012 **Resolved**; PIN-TPL-017 Open → In Progress; -020 and -021 stay In Progress with 2A progress noted. Totals 9 Open, 10 In Progress, 8 Resolved. |
+| 2026-11-02 | Phase 2B (protocol v2, transport robustness and authentication): PIN-TPL-003, -010, -013 and -016 **Resolved**. Totals 7 Open, 8 In Progress, 12 Resolved. |
