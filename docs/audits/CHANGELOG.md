@@ -2,6 +2,14 @@
 
 Newest entries first. Each entry is tagged **[AUDIT]** (documentation only, no source change) or **[SOURCE]** (template source, build or config changed).
 
+## 2026-11-02 — Phase 3A, Low-severity cleanup and hardening **[SOURCE]** — roadmap complete
+
+- Branch `phase-3a/cleanup`, cut from the 2E tip. Identifier kept; `.espConfig` and `pre-script.rhai` untouched (C-10).
+- `726e499f`, `ef6a2bc3`: zero warnings; clippy `-D warnings` in CI; CSP; product name; `greet` removed; `start_port` error detail.
+- `e6a62d9c`: `p.uart0` consumed; `"log"` SysLogs handled; documentation drift fixed. `e9d772bd`: probe clippy.
+- Verified: all suites, zero warnings, hw-test 23/23 + 5/5 on the 3A image.
+- Register: 022, 023, 024, 026 **Resolved**; 017, 021 **Blocked** (wire-breaking). Final totals 0 Open, 0 In Progress, 2 Blocked, 25 Resolved.
+
 ## 2026-11-02 — Phase 2E, Build reproducibility and hardware configuration **[SOURCE]**
 
 - Branch `phase-2e/reproducible-builds`, cut from the 2D tip. GPIO12 kept (your wiring); `C:/t` kept with a `CARGO_TARGET_DIR` override.

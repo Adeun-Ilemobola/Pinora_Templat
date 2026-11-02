@@ -12,7 +12,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Affected files | Wire-visible (**must not change without a protocol version**): `lool_up_id` (`protocol/src/registration.rs:11`), `Ckick` (`protocol/src/module/buttonmodule.rs:5`), `Idol` (`protocol/src/module/lidar.rs:18`), `distant` (`protocol/src/module/lidar.rs:7`). Internal only (safe in Phase 0): `manuel_id` (field, `Firmware_Templates/src/core/modulecore.rs`), `TransportEmiter` / `transport_emiter.rs`, local `tansport` (`main.rs:69`), `buzer_pin`, `write_chuck` (`module/rfid.rs`), `testrang`, `UI/src/lib/ModuleGeter.ts`. Protocol-crate public type names `RangPoint`, `MddeRfid` do not appear on the wire but are public crate API, so they are frozen in Phase 0 (see contract C-08 in [compatibility contracts](../architecture/compatibility-contracts.md)) |
 | Current location (after Phase 0) | Wire names unchanged in `protocol/src/**` (frozen). Internal misspellings were fixed in Phase 0 |
 | Confidence | Confirmed (wire visibility checked by serialization probe) |
-| Status | In Progress (Phase 0 fixed the internal names). Phase 2A accepts the corrected wire spellings `lookup_id`, `Click`, `Idle`, `distance` as input aliases; output names are unchanged until a future major protocol version. See phases/phase-2/phase-2a/RESULT.md |
+| Status | **Blocked** (2026-11-02) on a major protocol version: internal names fixed (Phase 0), corrected spellings accepted as input (2A); renaming the output names is wire-breaking. See phases/phase-3/phase-3a/RESULT.md |
 | Proposed phase | 2A (roadmap, pending approval) |
 
 **What is wrong.** Spelling errors appear across identifiers. Some are serialized JSON keys or enum tags. Others are only Rust or TypeScript symbols.
@@ -37,7 +37,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Affected files | All three Rust packages: `cargo fmt --check` reports 78 diff hunks in `Firmware_Templates`, 21 in `protocol` and 6 in `UI/src-tauri`. Clippy: one warning in `protocol` (`Axes::add` shadows `std::ops::Add::add`) and two in `UI/src-tauri` (unused `ConnectionState` fields, unused `ConnectionType::Disconnected`). No ESLint or Prettier configuration in `UI` |
 | Current location (after Phase 0) | rustfmt clean. Remaining: clippy (protocol 1, Tauri 2), firmware compiler warnings (11), no TypeScript lint/format config, no enforcement |
 | Confidence | Confirmed (see [validation baseline](../evidence/validation-baseline.md)) |
-| Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
+| Status | **Resolved** in Phase 3A (2026-11-02): zero warnings in every build; every clippy step in CI denies warnings; rustfmt clean. TypeScript is gated by strict `tsc` (no separate linter: new dependency). See phases/phase-3/phase-3a/RESULT.md |
 | Proposed phase | 3A (roadmap, pending approval) |
 
 **What is wrong.** Code style is inconsistent (indentation, spacing, import grouping). Lints are not run.
@@ -62,7 +62,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Affected files | `UI/src-tauri/tauri.conf.json:3`, `:5`, `:21` (`productName: "ui"`, `identifier: "com.owner.ui"`, `csp: null`), window title `"ui"`; `UI/src-tauri/Cargo.toml` (`description = "A Tauri App"`, `authors = ["you"]`); `UI/src-tauri/src/lib.rs:46` (`greet` command), `:27-31` (unused `ConnectionState` fields), `:312-342` (`start_port` maps every error to `ConnectionType::Error`, losing the message) |
 | Current location (after Phase 0) | `UI/src-tauri/tauri.conf.json:3`, `:5`, `:21`; `UI/src-tauri/src/commands.rs:17` (`greet`), `:171`; `UI/src-tauri/src/serial_transport.rs:29-33` (unused `ConnectionState` fields) |
 | Confidence | Confirmed |
-| Status | Open |
+| Status | **Resolved** in Phase 3A (2026-11-02): CSP and devCsp, product name and title "Pinora", `greet` removed, `start_port` returns error detail. Identifier kept on purpose (app-data directory). CSP not checked in the running window. See phases/phase-3/phase-3a/RESULT.md |
 | Proposed phase | 3A (roadmap, pending approval) |
 
 **What is wrong.** Scaffold metadata was never customized. The Content Security Policy is disabled. One sample command is still exposed over IPC. `start_port` hides error detail, unlike `start_bluetooth_port`.
@@ -87,7 +87,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Affected files | `README.md:174` (says TypeScript LiDAR start/stop/test are strings; `UI/src/lib/Modules/lidar.tsx:75-77` now uses objects); `.espConfig/esp_config.json:6-7` (`source ~/export-esp.sh && cargo build`, `cargo flash … /dev/ttyUSB0`, project name `template`); `Firmware_Templates/pre-script.rhai` (lists ten chip targets; only classic ESP32 is configured); `README.md`, `docs/architecture-audit.md`, `Firmware_Templates/BLUETOOTH_TRANSPORT.md` refer to verification by a named external agent (“Codex”) whose records are not in the repository |
 | Current location (after Phase 0) | `README.md` (states the LiDAR route inserts a `fake-lidar` module; no such code exists); `.espConfig/esp_config.json`; `Firmware_Templates/pre-script.rhai`; external-agent references in `README.md`, `docs/architecture-audit.md`, `Firmware_Templates/BLUETOOTH_TRANSPORT.md` |
 | Confidence | Confirmed |
-| Status | In Progress (Phase 0 partial; see phases/phase-0/RESULT.md §7) |
+| Status | **Resolved** in Phase 3A (2026-11-02): README, architecture review and guides corrected. `.espConfig` and `pre-script.rhai` left untouched until the sibling audits (C-10). See phases/phase-3/phase-3a/RESULT.md |
 | Proposed phase | 3A (roadmap, pending approval) |
 
 **What is wrong.** Some statements are out of date, and legacy generator metadata contains commands that would not work on this project.
@@ -137,7 +137,7 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 | Affected files | `Firmware_Templates/src/main.rs:30-56`, `:64` |
 | Current location (after Phase 0) | `Firmware_Templates/src/core/hardware/console.rs:9-37` (invariant now documented in the doc comment) |
 | Confidence | Confirmed (static) |
-| Status | Open (ownership invariant documented in code during Phase 0) |
+| Status | **Resolved** in Phase 3A (2026-11-02): `configure_console_uart` consumes `p.uart0`. Verified on your board (`just hw-test`). See phases/phase-3/phase-3a/RESULT.md |
 | Proposed phase | 3A (roadmap, pending approval) |
 
 **What is wrong.** `configure_console_uart` calls `uart_driver_install` and `uart_vfs_dev_use_driver` on UART0 through `unsafe` `sys` calls, while `Peripherals::take()` still hands out `p.uart0` as if it were free.

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | **Approved** 2026-10-31 (scope and order). Progress: Phase 1 (1A–1D) and Phase 2 (2A–2E) Completed — Verified. On 2026-11-02 you authorized the remaining phases without stopping between them, and on-device testing with the attached ESP32 |
+| Status | **Approved** 2026-10-31 (scope and order). Progress: **all phases Completed — Verified** (1A–1D, 2A–2E, 3A); see the [final report](../reports/final-report.md). On 2026-11-02 you authorized the remaining phases without stopping between them, and on-device testing with the attached ESP32 |
 | Written | 2026-10-31, after the [post-Phase-0 reassessment](../reports/post-phase-0-reassessment.md) |
 | Code basis | branch `phase-0/structural-reorganization` @ `a2204b33` |
 | Findings covered | all 27 (0 Critical, 6 High, 13 Medium, 8 Low) |
@@ -406,6 +406,8 @@ No new message types are added, so the golden file is unchanged.
 **Verification strategy.** Builds have zero warnings. Packaged-app inspection. A CSP violation check in devtools. A Serial transport smoke test after the UART change (optional, on hardware).
 
 **Completion criteria.** 022, 023, 024 and 026 are Resolved.
+
+**Outcome (2026-11-02).** Completed — Verified ([result](phase-3/phase-3a/RESULT.md)). All four Resolved; 017 and 021 are Blocked on a major protocol version.
 
 **Recovery plan.** Revert the commits.
 

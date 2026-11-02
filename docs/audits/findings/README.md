@@ -40,16 +40,16 @@ Baseline: commit `5b5c8ed4` (branch `main`), audited 2026-10-31. Line references
 | PIN-TPL-014 | Medium | Tauri commands block the UI-facing thread | Desktop backend | Yes | Probable | Resolved | 2D |
 | PIN-TPL-015 | Medium | Builds machine-specific; fresh clone does not build | Build | Yes | Confirmed / Probable | Resolved | 2E |
 | PIN-TPL-016 | Low (was Medium) | Duplicated framing with divergent limits (dead code removed in Phase 0) | Structure | Yes | Confirmed | Resolved | 2B |
-| PIN-TPL-017 | Medium | Module identity and hierarchy partially implemented | Architecture | Partly | Confirmed | In Progress | 2A |
+| PIN-TPL-017 | Medium | Module identity and hierarchy partially implemented | Architecture | Partly | Confirmed | Blocked | 2A |
 | PIN-TPL-018 | Medium | Hard-coded pins; LED on strapping pin GPIO12; latent conflicts | Hardware config | Yes | Probable | Resolved | 2E |
 | PIN-TPL-019 | Medium | Defects in inactive RFID, IR receiver and rangefinder modules | Firmware modules | No (latent) | Confirmed (static) | Resolved | 2C |
 | PIN-TPL-020 | Medium | Frontend god-store and `any` typing (file split done in Phase 0) | Desktop structure | Yes | Confirmed | Resolved | 2D |
-| PIN-TPL-021 | Low | Misspelled wire names (internal names fixed in Phase 0) | Naming | Yes | Confirmed | In Progress | 2A |
-| PIN-TPL-022 | Low | Lint not enforced (formatting fixed in Phase 0) | Tooling | Yes | Confirmed | In Progress | 3A |
-| PIN-TPL-023 | Low | Tauri scaffold metadata, CSP disabled, `greet`, lost error detail | Desktop packaging | Yes | Confirmed | Open | 3A |
-| PIN-TPL-024 | Low | Documentation and legacy metadata drift | Documentation | Yes | Confirmed | In Progress | 3A |
+| PIN-TPL-021 | Low | Misspelled wire names (internal names fixed in Phase 0) | Naming | Yes | Confirmed | Blocked | 2A |
+| PIN-TPL-022 | Low | Lint not enforced (formatting fixed in Phase 0) | Tooling | Yes | Confirmed | Resolved | 3A |
+| PIN-TPL-023 | Low | Tauri scaffold metadata, CSP disabled, `greet`, lost error detail | Desktop packaging | Yes | Confirmed | Resolved | 3A |
+| PIN-TPL-024 | Low | Documentation and legacy metadata drift | Documentation | Yes | Confirmed | Resolved | 3A |
 | PIN-TPL-025 | Low | Events report requested rather than applied values | Firmware modules | No (latent) | Confirmed | Resolved | 1B |
-| PIN-TPL-026 | Low | UART0 driver installed bypassing HAL ownership | Firmware | Yes | Confirmed | Open | 3A |
+| PIN-TPL-026 | Low | UART0 driver installed bypassing HAL ownership | Firmware | Yes | Confirmed | Resolved | 3A |
 | PIN-TPL-027 | Low | Module tick/registration order changes every boot (HashMap) | Firmware runtime | Yes | Probable | Resolved | 2C |
 
 "Active image?" means the defect is reachable in the firmware and desktop as currently built (LEDs over Bluetooth). "Latent" code is compiled but not instantiated by `main.rs`.
@@ -77,3 +77,4 @@ Baseline: commit `5b5c8ed4` (branch `main`), audited 2026-10-31. Line references
 | 2026-11-02 | Phase 2C (runtime and sensors): PIN-TPL-008, -009, -019 and -027 **Resolved** (009 and 027 verified on the board). Totals 4 Open, 7 In Progress, 16 Resolved. |
 | 2026-11-02 | Phase 2D (desktop performance and structure): PIN-TPL-011, -014 and -020 **Resolved**. Totals 2 Open, 6 In Progress, 19 Resolved. |
 | 2026-11-02 | Phase 2E (build reproducibility, hardware configuration): PIN-TPL-015 and -018 **Resolved**. Correction: `embassy-time`, recorded as unused since the initial audit, is required at link time. Totals 2 Open, 4 In Progress, 21 Resolved. |
+| 2026-11-02 | Phase 3A (cleanup and hardening): PIN-TPL-022, -023, -024, -026 **Resolved**; PIN-TPL-017 and -021 **Blocked** on a major protocol version. Final totals 0 Open, 0 In Progress, 2 Blocked, 25 Resolved. |
