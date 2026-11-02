@@ -14,7 +14,7 @@ type LedInstance = {
 export interface LedModule extends LedInstance {
   toggle: () => void;
   setBrightness: (v: number) => void;
-  handleEvent: (event: any) => void;
+  handleEvent: (event: LedEvent) => void;
 }
 
 export function createLed(

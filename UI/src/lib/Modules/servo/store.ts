@@ -19,7 +19,7 @@ export interface ServoModule extends ServoInstance {
   setAngle: (v: number) => void;
   setMinPivot: (v: number) => void;
   setMaxPivot: (v: number) => void;
-  handleEvent: (event: any) => void;
+  handleEvent: (event: ServoEvent) => void;
 }
 
 export function createServo(hasParent: boolean, id: string, look_up_id: string): StoreApi<ServoModule> {
