@@ -169,11 +169,8 @@ impl<'d> Lidar<'d> {
 
     fn note_moved_from(&mut self, from: &Point) {
         let travel = travel_degrees(from, &self.servo_position());
-        self.reading_usable_from_us = reading_usable_from_us(
-            now_us() as u64,
-            travel,
-            self.rangefinder.timing_budget_ms(),
-        );
+        self.reading_usable_from_us =
+            reading_usable_from_us(now_us() as u64, travel, self.rangefinder.timing_budget_ms());
     }
 
     /// Where the servos are, as far as can be known: hobby servos have no feedback, so
@@ -384,7 +381,10 @@ impl<'d> Module for Lidar<'d> {
                     }));
                 }
                 LidarCommandPayload::SetStep { step } => {
-                    anyhow::ensure!(self.scan.is_none(), "LiDAR step cannot change during a scan");
+                    anyhow::ensure!(
+                        self.scan.is_none(),
+                        "LiDAR step cannot change during a scan"
+                    );
                     validate_step(*step)?;
                     self.step = *step;
                 }

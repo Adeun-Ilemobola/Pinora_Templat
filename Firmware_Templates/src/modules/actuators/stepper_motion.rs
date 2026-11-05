@@ -308,9 +308,9 @@ impl StepperMotion {
                 if self.step == self.target {
                     self.pivot_point = Some(toward);
                     log::info!("Stepper homing reached {:.2}°", step_to_angle(self.step));
-                    output
-                        .events
-                        .push(StepperMotorEvent::GetPivotPoint { pivot_point: toward });
+                    output.events.push(StepperMotorEvent::GetPivotPoint {
+                        pivot_point: toward,
+                    });
                     output.events.push(self.angle_event());
                     output.events.push(self.mode_event());
                     self.mode = Mode::Homing {

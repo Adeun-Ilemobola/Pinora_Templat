@@ -103,7 +103,13 @@ pub fn centred_axis(raw: u16, centre: u16, deadzone: u16, raw_max: u16, output_m
     let value = if (raw - centre).abs() <= deadzone {
         0
     } else if raw > centre {
-        range_i32(raw, centre + deadzone, i32::from(raw_max), 0, output_max_i32)
+        range_i32(
+            raw,
+            centre + deadzone,
+            i32::from(raw_max),
+            0,
+            output_max_i32,
+        )
     } else {
         range_i32(raw, 0, centre - deadzone, -output_max_i32, 0)
     };
