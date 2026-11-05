@@ -78,3 +78,4 @@ Baseline: commit `5b5c8ed4` (branch `main`), audited 2026-10-31. Line references
 | 2026-11-02 | Phase 2D (desktop performance and structure): PIN-TPL-011, -014 and -020 **Resolved**. Totals 2 Open, 6 In Progress, 19 Resolved. |
 | 2026-11-02 | Phase 2E (build reproducibility, hardware configuration): PIN-TPL-015 and -018 **Resolved**. Correction: `embassy-time`, recorded as unused since the initial audit, is required at link time. Totals 2 Open, 4 In Progress, 21 Resolved. |
 | 2026-11-02 | Phase 3A (cleanup and hardening): PIN-TPL-022, -023, -024, -026 **Resolved**; PIN-TPL-017 and -021 **Blocked** on a major protocol version. Final totals 0 Open, 0 In Progress, 2 Blocked, 25 Resolved. |
+| 2026-11-05 | PIN-TPL-005 corrected: the scan planner now works from the position read back from the servos instead of its own copy (found by the maintainer). Status unchanged; totals unchanged. |

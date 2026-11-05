@@ -178,7 +178,7 @@ s.set_angle(0)?;
 | Affected files | `Firmware_Templates/src/module/lidar.rs:244-251` (exact-equality termination), `:279-281` (flush only at row end), `:339-341` (ROI arithmetic), `:348-350` (`SetStep` accepts 0) |
 | Current location (after Phase 0) | `Firmware_Templates/src/modules/composite/lidar.rs:254-261`, `:289`, `:349`, `:358` |
 | Confidence | Confirmed by code reasoning. Not executed: the module is not instantiated and has no test harness |
-| Status | **Resolved** in Phase 1D (2026-10-31); Verified after the supervised hardware check in phases/phase-1/phase-1d/RESULT.md (D-V5) |
+| Status | **Resolved** in Phase 1D (2026-10-31), **corrected 2026-11-05**: the 1D planner kept its own position and ignored the servos; it now works from the position read back from them (see the note below). Host-tested only: the LiDAR has never run on hardware since these changes (D-V5 not run) |
 | Proposed phase | 1D (roadmap, pending approval) |
 
 **What is wrong.** Rows and scans end only when `curr_point_bottom.x == limit_point.x` (and the same for `y`). The position moves by `step` per tick and is clamped by the servos. If `step` does not divide the ROI span exactly, the position passes the limit, gets clamped at the servo bound instead, and never equals the limit. `SetStep { step: 0 }` means it never moves at all. Every tick in `Scanning` pushes a point into `point_map`, which is flushed only at the end of a row. `Roi` computes `max.x.abs() as u32 * 2 * …`, where `i32::MIN.abs()` panics in debug, and it does not validate `min < max`.
@@ -203,6 +203,8 @@ Worked example: ROI x from 90 to −50 with step 3. That is 140/3 steps, which i
 
 **How we will verify the fix.** Host-side unit tests of the scan state machine across ROI and step combinations (requires PIN-TPL-008 infrastructure): the scan terminates within the expected number of ticks and buffer size stays bounded.
 
+
+**Correction (2026-11-05, found by the maintainer).** The Phase 1D fix for the non-terminating scan was wrong in one respect. `ScanPlan` kept a private `position` and `advance()` took no input, so the next step ignored the read-back that the original `move_to_point` design relies on. A clamped servo, or one moved during a scan, then disagreed with the plan. The 1D test of 3 240 combinations could not show this, because it checked the planner against itself with no servo. Now `advance(current)` takes the position read from the servos and the plan holds none of its own; a servo that stays put when asked to move ends the row (x) or the scan (y), which keeps every scan finite. Hobby servos have no feedback, so "position" still means the last commanded angle after limits, as in the original. The read in `Lidar::tick` itself is compiled but not host-tested, because `lidar.rs` needs ESP-IDF.
 ---
 
 ## PIN-TPL-006 — Malformed device input crashes the desktop UI's log view

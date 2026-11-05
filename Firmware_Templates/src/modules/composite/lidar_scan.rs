@@ -2,11 +2,19 @@
 //!
 //! A scan is a serpentine raster from the `start` corner (the ROI's `max` point) to
 //! the `end` corner (the `min` point). Each row runs across x; rows advance in y.
-//! Every move steps toward the current limit and is **clamped to it**, and a row (or
-//! the scan) ends when the limit is reached, so every scan terminates after exactly
-//! `cols × rows` positions. Before Phase 1D, termination required the position to
-//! land *exactly* on the limit, so steps that did not divide the span (or `step = 0`)
-//! scanned forever while the point buffer grew.
+//!
+//! The plan holds **no position of its own**: [`ScanPlan::advance`] is given the
+//! position read back from the servos and works out the next point from it. So a
+//! servo that is clamped, or moved by a command during a scan, is followed rather
+//! than ignored. (The servos have no feedback: the read-back is the last angle they
+//! were commanded to, after their limits.)
+//!
+//! Every scan terminates, for two reasons. A move steps toward the current limit and
+//! is **clamped to it**, so steps that do not divide the span still land on it (before
+//! Phase 1D such a scan ran forever while the point buffer grew). And a servo that
+//! stayed put although a move was requested cannot get any further, so that ends the
+//! row (x) or the scan (y). With servos that reach every target, a scan visits exactly
+//! `cols × rows` positions.
 //!
 //! No ESP-IDF types, so this is tested on the host (`tests/firmware-host`).
 
@@ -103,7 +111,10 @@ pub struct ScanPlan {
     start: Point,
     end: Point,
     step: u32,
-    position: Point,
+    /// Where the servos were when the last move was requested.
+    from: Point,
+    /// Where the last move was going.
+    target: Point,
     row_limit_x: i32,
 }
 
@@ -116,17 +127,19 @@ impl ScanPlan {
             start: start.clone(),
             end: end.clone(),
             step,
-            position: start.clone(),
+            from: start.clone(),
+            target: start.clone(),
             row_limit_x: end.x,
         })
     }
 
-    /// The position at which the next point should be recorded.
-    pub fn position(&self) -> Point {
-        self.position.clone()
+    /// Where the scan begins.
+    pub fn start(&self) -> Point {
+        self.start.clone()
     }
 
-    /// Total positions the scan visits (`cols × rows`).
+    /// Total positions the scan visits (`cols × rows`) when the servos reach every
+    /// target. Clamped servos change this: it can then be off in either direction.
     pub fn total_points(&self) -> u32 {
         positions(self.start.x, self.end.x, self.step).saturating_mul(positions(
             self.start.y,
@@ -135,12 +148,22 @@ impl ScanPlan {
         ))
     }
 
-    /// Advances after the point at [`ScanPlan::position`] was recorded.
-    pub fn advance(&mut self) -> ScanAdvance {
-        let row_finished = self.position.x == self.row_limit_x;
-        if row_finished && self.position.y == self.end.y {
+    /// Decides the next move, given `current`: the position read back from the servos,
+    /// where the last point was recorded.
+    pub fn advance(&mut self, current: &Point) -> ScanAdvance {
+        // It stayed where it was although a move was requested: it cannot go further.
+        let stalled = |now: i32, from: i32, target: i32| now == from && now != target;
+        if stalled(current.y, self.from.y, self.target.y) {
             return ScanAdvance::Done;
         }
+        let row_finished =
+            current.x == self.row_limit_x || stalled(current.x, self.from.x, self.target.x);
+        if row_finished && current.y == self.end.y {
+            return ScanAdvance::Done;
+        }
+
+        self.from = current.clone();
+        self.target = current.clone();
         if row_finished {
             // Serpentine: the next row runs back the other way.
             self.row_limit_x = if self.row_limit_x == self.end.x {
@@ -148,11 +171,11 @@ impl ScanPlan {
             } else {
                 self.end.x
             };
-            self.position.y = step_toward(self.position.y, self.end.y, self.step);
-            ScanAdvance::NextRow(self.position.clone())
+            self.target.y = step_toward(current.y, self.end.y, self.step);
+            ScanAdvance::NextRow(self.target.clone())
         } else {
-            self.position.x = step_toward(self.position.x, self.row_limit_x, self.step);
-            ScanAdvance::NextColumn(self.position.clone())
+            self.target.x = step_toward(current.x, self.row_limit_x, self.step);
+            ScanAdvance::NextColumn(self.target.clone())
         }
     }
 }

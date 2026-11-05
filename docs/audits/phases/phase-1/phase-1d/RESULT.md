@@ -1,3 +1,5 @@
+> **Correction (2026-11-05).** The LiDAR planner described here kept its own position and ignored the servos. That was a flaw in this phase, now fixed: see PIN-TPL-005 in [findings/high.md](../../../findings/high.md). The claim that scan positions stay inside the ROI held only for the plan, not for a clamped servo.
+
 # Phase 1D — Actuator and LiDAR safety (RESULT)
 
 | Field | Value |

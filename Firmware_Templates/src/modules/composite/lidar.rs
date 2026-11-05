@@ -7,11 +7,12 @@
 //!   ROI; the corner sweep is the explicit [`Lidar::run_self_test`].
 //! * The ROI must lie within the servo range and the step must be 1–180; invalid
 //!   values are rejected, and the dispatcher reports the error as a `SysLog`.
-//! * Scan positions come from the pure [`super::lidar_scan`] planner, so every scan
-//!   terminates, and the point buffer is flushed every 100 points.
+//! * Each next scan position is worked out by the pure [`super::lidar_scan`] planner
+//!   from the position read back from the servos, so a scan follows a clamped or moved
+//!   servo and always terminates. The point buffer is flushed every 100 points.
 //!
-//! Children are routable only through `ChangeMotorAngle` (PIN-TPL-017). Not
-//! instantiated in the current image.
+//! Children are routable directly by their ids (Phase 2A, PIN-TPL-017) and through
+//! `ChangeMotorAngle`. Not instantiated in the current image.
 
 use crate::core::hardware::{now_us, RangefinderI2c, TimerState};
 use crate::core::transport::emitter::{EmitterError, TransportEmitter};
@@ -162,10 +163,16 @@ impl<'d> Lidar<'d> {
         let _ = self
             .servo_y
             .set_angle_silent(self.curr_point_bottom.y.clone());
-        self.curr_point_bottom = Point {
+        self.curr_point_bottom = self.servo_position();
+    }
+
+    /// Where the servos are, as far as can be known: hobby servos have no feedback, so
+    /// this is the last angle each was commanded to, after its limits.
+    fn servo_position(&self) -> Point {
+        Point {
             x: self.servo_x.pivot_angle(),
             y: self.servo_y.pivot_angle(),
-        };
+        }
     }
     pub fn sync_all(&mut self) {
         self.servo_x.sync();
@@ -215,8 +222,8 @@ impl<'d> Module for Lidar<'d> {
         &self.core
     }
     /// Exposes the two servos and the rangefinder so commands addressed to them are
-    /// routed (Phase 2A, PIN-TPL-017). Note: moving a servo directly does not update
-    /// the scan position until the next scan or `ChangeMotorAngle`.
+    /// routed (Phase 2A, PIN-TPL-017). A running scan continues from wherever a servo
+    /// was moved to, because `tick` reads the position from the servos.
     fn child_mut(&mut self, id: &str) -> Option<&mut dyn Module> {
         if self.servo_x.id() == id {
             Some(&mut self.servo_x)
@@ -261,7 +268,8 @@ impl<'d> Module for Lidar<'d> {
             }
         };
 
-        // Record the position where the servos have been resting.
+        // Record the position where the servos have been resting, and continue from it.
+        self.curr_point_bottom = self.servo_position();
         self.point_map.push(RangPoint {
             x: self.curr_point_bottom.x,
             y: self.curr_point_bottom.y,
@@ -277,7 +285,7 @@ impl<'d> Module for Lidar<'d> {
             return Ok(());
         };
 
-        let (next, text) = match scan.advance() {
+        let (next, text) = match scan.advance(&self.curr_point_bottom) {
             ScanAdvance::Done => {
                 self.finish_scan();
                 return Ok(());
@@ -338,7 +346,7 @@ impl<'d> Module for Lidar<'d> {
                     self.current_chunk = 1;
                     self.total_chunks = chunk_count(plan.total_points());
 
-                    self.curr_point_bottom = plan.position();
+                    self.curr_point_bottom = plan.start();
                     self.scan = Some(plan);
                     self.step_timer.reset();
                     self.move_to_point();

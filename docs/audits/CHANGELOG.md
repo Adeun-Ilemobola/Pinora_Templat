@@ -2,6 +2,12 @@
 
 Newest entries first. Each entry is tagged **[AUDIT]** (documentation only, no source change) or **[SOURCE]** (template source, build or config changed).
 
+## 2026-11-05 — LiDAR scan follows the servos (PIN-TPL-005 corrected) **[SOURCE]**
+
+- Found by the maintainer: the 1D `ScanPlan` kept its own position and never read the servos, so a clamped or moved servo disagreed with the plan.
+- `advance(current)` now takes the position read from the servos and the plan holds none of its own; `Lidar::tick` reads it just before recording. A servo that stays put when asked to move ends the row (x) or the scan (y), so scans stay finite. A clamped x axis records its last position twice per row.
+- Host tests 128 (6 new, fake clamping, moved and stuck servos, 4 500 clamped combinations); three mutations caught; firmware builds with no warnings. Not run on hardware.
+
 ## 2026-11-02 — CI green **[SOURCE]**
 
 - `c7d6ae55`: host-test crate builds on Linux (flat `#[path]` includes); `actions/checkout` v5.

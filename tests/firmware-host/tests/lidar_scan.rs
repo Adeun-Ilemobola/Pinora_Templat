@@ -1,5 +1,6 @@
 //! Tests for `Firmware_Templates/src/modules/composite/lidar_scan.rs`
-//! (Phase 1D, PIN-TPL-005): every scan terminates with bounded memory.
+//! (Phase 1D, PIN-TPL-005): every scan terminates with bounded memory, and the next
+//! position always comes from the position read back from the servos.
 
 use pinora_firmware_host_tests::modules::composite::lidar_scan::*;
 use pinora_protocol::Point;
@@ -8,30 +9,75 @@ fn p(x: i32, y: i32) -> Point {
     Point { x, y }
 }
 
+/// Stands in for the two servos: the read-back after a move is the commanded angle
+/// after each axis's limits, as `ServoModule::pivot_angle` gives it.
+#[derive(Clone, Copy)]
+struct FakeServos {
+    x: (i32, i32),
+    y: (i32, i32),
+}
+
+const FULL_RANGE: FakeServos = FakeServos {
+    x: (-90, 90),
+    y: (-90, 90),
+};
+
+impl FakeServos {
+    fn move_to(&self, target: &Point) -> Point {
+        p(
+            target.x.clamp(self.x.0, self.x.1),
+            target.y.clamp(self.y.0, self.y.1),
+        )
+    }
+}
+
+/// Runs a scan on `servos` and returns every position recorded.
+fn scan_on(servos: FakeServos, start: Point, end: Point, step: u32) -> Vec<Point> {
+    let mut plan = ScanPlan::new(&start, &end, step).expect("valid plan");
+    let mut current = servos.move_to(&plan.start());
+    let mut visited = vec![];
+    for _ in 0..200_000 {
+        visited.push(current.clone());
+        match plan.advance(&current) {
+            ScanAdvance::Done => return visited,
+            ScanAdvance::NextColumn(next) | ScanAdvance::NextRow(next) => {
+                current = servos.move_to(&next)
+            }
+        }
+    }
+    panic!("scan {start:?} -> {end:?} step {step} did not terminate");
+}
+
 /// Runs a whole scan the way `Lidar::tick` does: record a point at the current
 /// position, flush every `POINTS_PER_CHUNK`, then advance. Returns the visited
 /// positions, the largest buffer size seen and the number of chunks emitted.
 fn simulate(start: Point, end: Point, step: u32) -> (Vec<Point>, usize, u32, u32) {
     let mut plan = ScanPlan::new(&start, &end, step).expect("valid plan");
     let expected = plan.total_points();
+    let mut current = FULL_RANGE.move_to(&plan.start());
     let mut visited = vec![];
     let mut buffer = 0usize;
     let mut max_buffer = 0usize;
     let mut chunks = 0u32;
     // Hard cap far above the bound, so a non-terminating plan fails instead of hanging.
     for _ in 0..(expected as usize + 10) {
-        visited.push(plan.position());
+        visited.push(current.clone());
         buffer += 1;
         max_buffer = max_buffer.max(buffer);
         if buffer >= POINTS_PER_CHUNK {
             buffer = 0;
             chunks += 1;
         }
-        if plan.advance() == ScanAdvance::Done {
-            if buffer > 0 {
-                chunks += 1;
+        match plan.advance(&current) {
+            ScanAdvance::Done => {
+                if buffer > 0 {
+                    chunks += 1;
+                }
+                return (visited, max_buffer, chunks, expected);
             }
-            return (visited, max_buffer, chunks, expected);
+            ScanAdvance::NextColumn(next) | ScanAdvance::NextRow(next) => {
+                current = FULL_RANGE.move_to(&next)
+            }
         }
     }
     panic!("scan {start:?} -> {end:?} step {step} did not terminate within {expected} points");
@@ -108,6 +154,104 @@ fn rows_alternate_direction() {
             (2, 0)
         ]
     );
+}
+
+#[test]
+fn the_next_position_comes_from_the_position_it_is_given() {
+    let mut plan = ScanPlan::new(&p(0, 5), &p(10, 0), 2).unwrap();
+    assert_eq!(plan.advance(&p(0, 5)), ScanAdvance::NextColumn(p(2, 5)));
+    // Not where the plan sent it: a command moved the servo to (7, 3) during the scan.
+    assert_eq!(plan.advance(&p(7, 3)), ScanAdvance::NextColumn(p(9, 3)));
+    assert_eq!(plan.advance(&p(9, 3)), ScanAdvance::NextColumn(p(10, 3)));
+    assert_eq!(plan.advance(&p(10, 3)), ScanAdvance::NextRow(p(10, 1)));
+}
+
+#[test]
+fn a_servo_moved_during_a_scan_is_followed_to_the_end() {
+    // Moved past the end row and outside the ROI: the scan still comes back and ends.
+    let mut plan = ScanPlan::new(&p(0, 2), &p(2, 0), 1).unwrap();
+    let _ = plan.advance(&p(0, 2));
+    let mut current = p(-5, -3);
+    for _ in 0..50 {
+        match plan.advance(&current) {
+            ScanAdvance::Done => {
+                assert_eq!(current.y, 0);
+                return;
+            }
+            ScanAdvance::NextColumn(next) | ScanAdvance::NextRow(next) => current = next,
+        }
+    }
+    panic!("did not terminate");
+}
+
+#[test]
+fn a_clamped_x_servo_ends_each_row_at_its_limit() {
+    let servos = FakeServos {
+        x: (-3, 90),
+        ..FULL_RANGE
+    };
+    let visited = scan_on(servos, p(0, 1), p(-5, 0), 2);
+    // -2, then -4 is clamped to -3, then a move to -5 leaves it at -3: end of the row.
+    // That last attempt records (-3, 1) a second time.
+    assert_eq!(
+        visited,
+        vec![
+            p(0, 1),
+            p(-2, 1),
+            p(-3, 1),
+            p(-3, 1),
+            p(-3, 0),
+            p(-1, 0),
+            p(0, 0)
+        ]
+    );
+}
+
+#[test]
+fn a_clamped_y_servo_ends_the_scan() {
+    let servos = FakeServos {
+        y: (1, 90),
+        ..FULL_RANGE
+    };
+    let visited = scan_on(servos, p(0, 2), p(1, 0), 1);
+    // The move from row 1 to row 0 leaves y at 1: the scan ends instead of repeating.
+    assert_eq!(visited.last().map(|v| v.y), Some(1));
+    assert!(visited.len() <= 6, "{visited:?}");
+}
+
+#[test]
+fn a_servo_that_never_moves_ends_the_scan_quickly() {
+    let stuck = FakeServos {
+        x: (5, 5),
+        y: (5, 5),
+    };
+    let visited = scan_on(stuck, p(-90, 90), p(90, -90), 1);
+    assert!(visited.iter().all(|v| *v == p(5, 5)));
+    assert!(visited.len() <= 3, "{visited:?}");
+}
+
+#[test]
+fn every_clamped_scan_terminates_and_records_only_reachable_positions() {
+    let corners = [(-90, 90), (90, -90), (-50, 7), (3, 3), (0, -77)];
+    let limits = [(-90, 90), (-30, 30), (0, 90), (-90, 0), (5, 5), (-1, 1)];
+    let steps = [1, 3, 7, 45, 180];
+    let mut scans = 0;
+    for &(sx, sy) in &corners {
+        for &(ex, ey) in &corners {
+            for &x in &limits {
+                for &y in &limits {
+                    for &step in &steps {
+                        let visited = scan_on(FakeServos { x, y }, p(sx, sy), p(ex, ey), step);
+                        assert!(visited
+                            .iter()
+                            .all(|v| { (x.0..=x.1).contains(&v.x) && (y.0..=y.1).contains(&v.y) }));
+                        scans += 1;
+                    }
+                }
+            }
+        }
+    }
+    assert_eq!(scans, 5 * 5 * 6 * 6 * 5);
 }
 
 #[test]
