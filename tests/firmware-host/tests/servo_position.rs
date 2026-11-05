@@ -76,7 +76,11 @@ fn an_off_centre_offset_reports_the_angle_after_the_hardware_limit() {
     });
     servo.move_to(90, ok).unwrap();
     assert_eq!(servo.angle(), 180);
-    assert_eq!(servo.pivot(), 30, "where it is, not the 90 that was asked for");
+    assert_eq!(
+        servo.pivot(),
+        30,
+        "where it is, not the 90 that was asked for"
+    );
 }
 
 #[test]
