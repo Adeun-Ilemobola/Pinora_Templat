@@ -11,7 +11,7 @@ use esp_idf_svc::hal::gpio::ADCPin;
 use crate::core::hardware::InputPin;
 use crate::core::module::{Module, ModuleCore, ModuleError};
 use crate::modules::sensors::button::ButtonModule;
-use crate::utilities::math::range_i16;
+use crate::utilities::math::centred_axis;
 use pinora_protocol::{command::ModuleCommand, global_definitions::ModuleType};
 
 pub struct JoyStick<'d, U, X, Y>
@@ -73,11 +73,7 @@ where
     }
 
     fn axis_value(raw: u16, centre: u16) -> i16 {
-        if raw.abs_diff(centre) <= DEADZONE {
-            0
-        } else {
-            range_i16(raw as i16, 0, 4095, -30, 30)
-        }
+        centred_axis(raw, centre, DEADZONE, 4095, 30)
     }
 
     fn read_x(&mut self) -> anyhow::Result<i16> {

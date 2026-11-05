@@ -310,7 +310,7 @@ function StepperControls({
                 </dd>
               </div>
               <div>
-                <dt className="text-muted-foreground">Reported pivot point</dt>
+                <dt className="text-muted-foreground">Last pivot point reached</dt>
                 <dd className="mt-1">
                   {state.GetPivotPoint?.pivot_point ?? "Not reported"}
                 </dd>

@@ -1,6 +1,6 @@
 import { Collapsible } from "@base-ui/react/collapsible";
 import { NavLink, Outlet, useMatch } from "react-router";
-import { ChevronDown, CircuitBoard, LayoutDashboard, Moon, Sun, Terminal } from "lucide-react";
+import { ChevronDown, CircuitBoard, LayoutDashboard, Moon, Radar, Sun, Terminal } from "lucide-react";
 
 import {
   Sidebar,
@@ -67,9 +67,9 @@ export function AppLayout() {
                     <Collapsible.Panel>
                       <SidebarMenu className="mt-1 pl-3 group-data-[collapsible=icon]:pl-0">
                         <SidebarMenuItem>
-                         {/* 
-                          custom module stays here
-                         */}
+                          <SidebarMenuButton isActive={lidarActive} tooltip="LiDAR" render={<NavLink to="/lidar" />}>
+                            <Radar /><span>LiDAR</span>
+                          </SidebarMenuButton>
                         </SidebarMenuItem>
                       </SidebarMenu>
                     </Collapsible.Panel>

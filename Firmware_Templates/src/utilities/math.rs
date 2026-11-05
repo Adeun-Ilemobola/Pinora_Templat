@@ -94,6 +94,22 @@ pub fn range_i16(
     .clamp(i128::from(i16::MIN), i128::from(i16::MAX)) as i16
 }
 
+/// Maps a raw axis reading to `-output_max..=output_max` around its measured `centre`:
+/// 0 inside the dead zone, and each side scaled separately, because the centre is
+/// rarely in the middle of the raw range. The sign always follows the side of the centre.
+pub fn centred_axis(raw: u16, centre: u16, deadzone: u16, raw_max: u16, output_max: i16) -> i16 {
+    let (raw, centre, deadzone) = (i32::from(raw), i32::from(centre), i32::from(deadzone));
+    let output_max_i32 = i32::from(output_max);
+    let value = if (raw - centre).abs() <= deadzone {
+        0
+    } else if raw > centre {
+        range_i32(raw, centre + deadzone, i32::from(raw_max), 0, output_max_i32)
+    } else {
+        range_i32(raw, 0, centre - deadzone, -output_max_i32, 0)
+    };
+    value.clamp(-output_max_i32, output_max_i32) as i16
+}
+
 pub fn constrain_f32(value: f32, min: f32, max: f32) -> f32 {
     value.clamp(min, max)
 }

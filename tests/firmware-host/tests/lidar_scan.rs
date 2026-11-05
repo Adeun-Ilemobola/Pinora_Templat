@@ -292,3 +292,26 @@ fn error_messages_are_readable() {
         "LiDAR ROI corner (95, 0) is outside the servo range ±90°"
     );
 }
+
+#[test]
+fn a_measurement_counts_only_if_it_began_after_the_servos_arrived() {
+    // A 1 degree step with a 50 ms budget: 4 ms to arrive, then a whole measurement.
+    assert_eq!(reading_usable_from_us(1_000, 1, 50), 1_000 + 54_000);
+    // A long move waits for the travel as well.
+    assert_eq!(reading_usable_from_us(0, 180, 50), 770_000);
+    // No move still needs a whole measurement.
+    assert_eq!(reading_usable_from_us(5, 0, 100), 100_005);
+}
+
+#[test]
+fn travel_is_the_larger_of_the_two_axes() {
+    assert_eq!(travel_degrees(&p(-90, 0), &p(90, 5)), 180);
+    assert_eq!(travel_degrees(&p(3, -90), &p(4, 90)), 180);
+    assert_eq!(travel_degrees(&p(7, 7), &p(7, 7)), 0);
+}
+
+#[test]
+fn the_reading_timeout_outlasts_the_longest_measurement() {
+    const LONGEST_TIMING_BUDGET_US: u64 = 500_000;
+    const { assert!(READING_TIMEOUT_US > 2 * LONGEST_TIMING_BUDGET_US) };
+}

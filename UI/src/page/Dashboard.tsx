@@ -5,6 +5,12 @@ import { DeviceSecurityCard } from "@/components/DeviceSecurityCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { useModuleFront } from "@/lib/Modulefront";
 import { RegisteredLedView } from "@/lib/Modules/Led";
+import { RegisteredImuView } from "@/lib/Modules/imu";
+import { RegisteredRangefinderView } from "@/lib/Modules/rangefinder";
+import { RegisteredRemoteReceiverView } from "@/lib/Modules/remote-receiver";
+import { RegisteredRfidView } from "@/lib/Modules/rfid";
+import { RegisteredServoView } from "@/lib/Modules/servo";
+import { RegisteredStepperView } from "@/lib/Modules/stepper";
 
 export default function Dashboard() {
   const registry = useModuleFront((state) => state.ModuleRegistry);
@@ -13,13 +19,11 @@ export default function Dashboard() {
   
 
  
-  const otherModules = Object.entries(registry).filter(([, store]) =>
-    [
-      "Button",
-      "Led",
-      
-    ].includes(store.getState().kind),
-  );
+  // The LiDAR has its own page, and modules with a parent are shown by that parent.
+  const otherModules = Object.entries(registry).filter(([, store]) => {
+    const module = store.getState();
+    return module.kind !== "Lidar" && !module.hasParent;
+  });
   const moduleCount = otherModules.length;
 
   return (
@@ -53,6 +57,18 @@ export default function Dashboard() {
                     return <RegisteredButtonView key={id} moduleId={id} />;
                   case "Led":
                     return <RegisteredLedView key={id} moduleId={id} />;
+                  case "Imu":
+                    return <RegisteredImuView key={id} moduleId={id} />;
+                  case "Rangefinder":
+                    return <RegisteredRangefinderView key={id} moduleId={id} />;
+                  case "RemoteReceiver":
+                    return <RegisteredRemoteReceiverView key={id} moduleId={id} />;
+                  case "Rfid":
+                    return <RegisteredRfidView key={id} moduleId={id} />;
+                  case "Servo":
+                    return <RegisteredServoView key={id} moduleId={id} />;
+                  case "StepperMotor":
+                    return <RegisteredStepperView key={id} moduleId={id} />;
                   default:
                     return null;
                 }

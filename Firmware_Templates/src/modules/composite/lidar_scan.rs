@@ -28,6 +28,25 @@ pub const POINTS_PER_CHUNK: usize = 100;
 pub const PIVOT_LIMIT: i32 = 90;
 /// Largest useful step: the full pivot span.
 pub const MAX_STEP: u32 = 2 * PIVOT_LIMIT as u32;
+/// Assumed servo travel time. Hobby servos are typically 2-3 ms per degree under light
+/// load; this is deliberately slower. Not measured on the LiDAR hardware.
+pub const SERVO_MS_PER_DEGREE: u64 = 4;
+/// A scan with no reading from the sensor for this long is ended. Longer than the
+/// sensor's largest timing budget (500 ms).
+pub const READING_TIMEOUT_US: u64 = 3_000_000;
+
+/// The earliest time a finished measurement can belong to a position the servos moved
+/// to at `moved_at_us`. A measurement takes `timing_budget_ms`, so one finishing sooner
+/// than that after the servos arrived began while they were still moving.
+pub fn reading_usable_from_us(moved_at_us: u64, travel_degrees: u32, timing_budget_ms: u16) -> u64 {
+    moved_at_us
+        + (u64::from(travel_degrees) * SERVO_MS_PER_DEGREE + u64::from(timing_budget_ms)) * 1_000
+}
+
+/// The largest single-axis travel of a move: both servos move at once.
+pub fn travel_degrees(from: &Point, to: &Point) -> u32 {
+    from.x.abs_diff(to.x).max(from.y.abs_diff(to.y))
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ScanError {

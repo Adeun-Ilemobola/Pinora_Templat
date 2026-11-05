@@ -7,11 +7,12 @@ type ServoInstance = {
   id: string;
   kind: "Servo";
   look_up_id: string;
+  /** `null` until the device reports it: a servo's position is unknown before its first move. */
   state: {
-    MinPivot: number;
-    MaxPivot: number;
-    Offset: number;
-    Angle: number;
+    MinPivot: number | null;
+    MaxPivot: number | null;
+    Offset: number | null;
+    Angle: number | null;
   };
 };
 
@@ -27,10 +28,10 @@ export function createServo(hasParent: boolean, id: string, look_up_id: string):
     hasParent,
     kind: "Servo",
     state: {
-      MinPivot: 0,
-      MaxPivot: 0,
-      Offset: 0,
-      Angle: 0,
+      MinPivot: null,
+      MaxPivot: null,
+      Offset: null,
+      Angle: null,
     },
     look_up_id,
     id,

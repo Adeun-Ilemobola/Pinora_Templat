@@ -8,7 +8,7 @@
 use crate::core::{
     hardware::{OutputPinCore, TimerState},
     module::{Module, ModuleCore, ModuleError},
-    transport::emitter::TransportEmitter,
+    transport::emitter::{EmitterError, TransportEmitter},
 };
 use crate::modules::sensors::rfid_record::{self, Block, WriteBuffer, USABLE_BLOCKS};
 use pinora_protocol::{
@@ -179,8 +179,16 @@ impl<'d> Rfid<'d> {
                         }
 
                         self.write_card(&uid)?;
-                        self.read_card(&uid)?;
-                        self.send_card_data(&uid)?;
+                        // A failed read-back must not skip the report or leave the
+                        // module in Write with the old data still queued.
+                        let read_back = match self.read_card(&uid) {
+                            Ok(()) => self.send_card_data(&uid),
+                            Err(()) => Err(()),
+                        };
+                        if read_back.is_err() && matches!(self.write_state, WriteState::Good) {
+                            self.write_state = WriteState::Bad;
+                            self.write_state_msg = "Card could not be read back".to_string();
+                        }
 
                         self.emit(ModuleEvent::Rfid(RfidEvent::GetWriteState {
                             state: self.write_state.clone(),
@@ -192,16 +200,17 @@ impl<'d> Rfid<'d> {
                                 if self.rgb_mode != RGBMode::Off {
                                     self.update_rgb(RGBMode::Off);
                                 }
-                                self.mode = MddeRfid::Read;
-                                self.temp_write_data.clear();
                             }
                             WriteState::Bad => {
                                 if self.rgb_mode != RGBMode::Red {
                                     self.update_rgb(RGBMode::Red);
                                 }
-                                self.mode = MddeRfid::Read;
                             }
                         }
+                        // This attempt is over, whatever its result: a retry sends the
+                        // data again, so it can never be joined onto the old data.
+                        self.mode = MddeRfid::Read;
+                        self.temp_write_data.clear();
                         self.emit(ModuleEvent::Rfid(RfidEvent::GetMode {
                             mode: self.mode.clone(),
                         }));
@@ -289,6 +298,9 @@ impl<'d> Rfid<'d> {
     }
     fn write_card(&mut self, uid: &mfrc522::Uid) -> Result<(), ()> {
         let key: MifareKey = [0xFF; 6];
+        // Each attempt reports its own result, not an earlier one's.
+        self.write_state = WriteState::Good;
+        self.write_state_msg = "All Good".to_string();
 
         let blocks = match rfid_record::encode(self.temp_write_data.as_slice()) {
             Ok(blocks) => blocks,
@@ -317,7 +329,7 @@ impl<'d> Rfid<'d> {
                                         priority: LogPriority::Critical,
                                         raw_err: Some(format!("{:?} ", e)),
                                     }));
-                                    // break;
+                                    break;
                                 }
                             }
                         }
@@ -384,14 +396,28 @@ impl<'d> Module for Rfid<'d> {
     fn core(&self) -> &ModuleCore {
         &self.core
     }
+    /// Replays the mode (at boot and on rediscovery).
+    fn first_emit(&mut self) -> Result<(), EmitterError> {
+        self.emit(ModuleEvent::Rfid(RfidEvent::GetMode {
+            mode: self.mode.clone(),
+        }));
+        Ok(())
+    }
     fn handle_command(&mut self, command: &ModuleCommand) -> anyhow::Result<()> {
         match command {
             ModuleCommand::Rfid(command) => match command {
                 RfidCommand::ReadMode {} => {
                     self.mode = MddeRfid::Read;
+                    self.temp_write_data.clear();
+                    self.emit(ModuleEvent::Rfid(RfidEvent::GetMode {
+                        mode: self.mode.clone(),
+                    }));
                 }
                 RfidCommand::WriteMode {} => {
                     self.mode = MddeRfid::Write;
+                    self.emit(ModuleEvent::Rfid(RfidEvent::GetMode {
+                        mode: self.mode.clone(),
+                    }));
                 }
                 RfidCommand::WritePayload { data } => {
                     // Bounded (PIN-TPL-019): an oversized payload is rejected, and the

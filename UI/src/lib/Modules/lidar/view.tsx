@@ -306,7 +306,7 @@ function MotorAngleConfig({
   const angle = useStore(store, (s) => s.state.Angle);
   return (
     <PivotSlider
-      value={angle}
+      value={angle ?? 0}
       label={label}
       min={-90}
       max={90}

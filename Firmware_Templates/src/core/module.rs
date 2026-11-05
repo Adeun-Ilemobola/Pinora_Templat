@@ -158,6 +158,8 @@ impl ModuleCore {
 pub enum ModuleError {
     OperationFailed,
     SensorNotReady,
+    /// The sensor answered, but says this measurement is not valid.
+    InvalidReading,
 }
 
 impl From<()> for ModuleError {

@@ -1,12 +1,20 @@
 // The module registry: what the device has told us (audit Phase 2D split).
 //
-// Protocol messages are routed by their top-level key. Only Led and Button
-// registrations create stores. Re-sent registrations (rediscovery) keep the existing
-// store; duplicate lookup names are recorded (PIN-TPL-017).
+// Protocol messages are routed by their top-level key. Every module family with a
+// desktop store gets one when it registers; a family's events go to stores of that
+// kind. Re-sent registrations (rediscovery) keep the existing store; duplicate lookup
+// names are recorded (PIN-TPL-017).
 import type { StoreApi } from "zustand/vanilla";
 
-import { createButton, type ButtonModule } from "../Modules/button";
-import { createLed, type LedModule } from "../Modules/Led";
+import { createButton } from "../Modules/button";
+import { createImu } from "../Modules/imu/store";
+import { createLed } from "../Modules/Led";
+import { createLidar } from "../Modules/lidar/store";
+import { createRangefinder } from "../Modules/rangefinder/store";
+import { createRemoteReceiver } from "../Modules/remote-receiver/store";
+import { createRfid } from "../Modules/rfid/store";
+import { createServo } from "../Modules/servo/store";
+import { createStepper } from "../Modules/stepper/store";
 import type { EventPackage } from "../protocol/event";
 import type { ProtocolMessage } from "../protocol/message";
 import type { Registration } from "../protocol/registration";
@@ -18,6 +26,13 @@ import type { AnyModule, RegistrySlice, Slice } from "./types";
 const factories = {
   Led: createLed,
   Button: createButton,
+  Imu: createImu,
+  Lidar: createLidar,
+  Rangefinder: createRangefinder,
+  RemoteReceiver: createRemoteReceiver,
+  Rfid: createRfid,
+  Servo: createServo,
+  StepperMotor: createStepper,
 };
 
 export const createRegistrySlice: Slice<RegistrySlice> = (set, get) => ({
@@ -77,14 +92,14 @@ export const createRegistrySlice: Slice<RegistrySlice> = (set, get) => ({
         console.error("Module store not found for ID:", data.id);
         return;
       }
-      const event = data.event;
-      if ("Led" in event && moduleStore.getState().kind === "Led") {
-        (moduleStore as StoreApi<LedModule>).getState().handleEvent(event.Led);
-      } else if ("Button" in event && moduleStore.getState().kind === "Button") {
-        (moduleStore as StoreApi<ButtonModule>).getState().handleEvent(event.Button);
-      } else {
-        console.error("Module event kind mismatch:", data.id, Object.keys(event)[0]);
+      // An event's family name is the same as the kind of store it belongs to.
+      const [family, payload] = Object.entries(data.event)[0];
+      const module = moduleStore.getState();
+      if (family !== module.kind) {
+        console.error("Module event kind mismatch:", data.id, family);
+        return;
       }
+      (module.handleEvent as (event: unknown) => void)(payload);
     } catch (error) {
       console.error("{ModuleEvent} Failed to handle module event:", error);
     }

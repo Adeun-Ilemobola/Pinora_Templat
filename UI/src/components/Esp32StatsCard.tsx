@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PROTOCOL_VERSION, protocolVersionOf, type SystemInfo } from "@/lib/protocol/system";
 const fields: [Exclude<keyof SystemInfo, "protocol_version">, string][] = [
   ["total_heap", "Total heap"],
-  ["current_free_heap", "Free heap"],
+  ["current_free_heap", "Free heap at connect"],
   ["lowest_free_heap", "Lowest free heap"],
   ["largest_allocation", "Largest allocation"],
   ["maximum_app_slot", "Maximum app slot"],

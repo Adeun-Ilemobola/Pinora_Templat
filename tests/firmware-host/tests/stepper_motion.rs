@@ -71,7 +71,17 @@ fn move_to_angle_reaches_the_target_then_idles_and_releases_the_coils() {
     assert_eq!(result.steps_taken, 1024);
     assert_eq!(motion.mode(), Mode::Idle);
     assert_eq!(result.releases, 1);
-    assert_eq!(result.events, vec![mode_event(StepperStateType::Idle)]);
+    assert_eq!(
+        result.events,
+        vec![
+            StepperMotorEvent::GetAngle {
+                angle: 90.0,
+                step: 1024.0
+            },
+            mode_event(StepperStateType::Idle)
+        ],
+        "the position is reported on arrival"
+    );
 }
 
 #[test]
@@ -247,4 +257,89 @@ fn half_step_sequence_wraps_in_both_directions() {
     assert_eq!(sequence_index(-1.0), 7);
     assert_eq!(angle_to_step(90.0), 1024.0);
     assert_eq!(step_to_angle(2048.0), 180.0);
+}
+
+#[test]
+fn a_pivot_move_finishes_reports_its_position_and_releases() {
+    let mut motion = StepperMotion::new();
+    motion.handle(&Cmd::MoveToPivotMin {}).unwrap();
+    assert_eq!(motion.pivot_point(), None);
+    let result = run(&mut motion, 5_000);
+    assert_eq!(motion.mode(), Mode::Idle);
+    assert_eq!(result.releases, 1);
+    assert_eq!(motion.pivot_point(), Some(PivotPoint::Min));
+    assert_eq!(
+        result.events,
+        vec![
+            StepperMotorEvent::GetPivotPoint {
+                pivot_point: PivotPoint::Min
+            },
+            StepperMotorEvent::GetAngle {
+                angle: -90.0,
+                step: -1024.0
+            },
+            mode_event(StepperStateType::Idle)
+        ]
+    );
+}
+
+#[test]
+fn stopping_a_move_reports_where_it_stopped() {
+    let mut motion = StepperMotion::new();
+    motion.handle(&Cmd::MoveToAngle { angle: 90.0 }).unwrap();
+    run(&mut motion, 100);
+    let output = motion
+        .handle(&Cmd::SetMode {
+            mode: StepperStateType::Idle,
+        })
+        .unwrap();
+    assert_eq!(
+        output.events[0],
+        StepperMotorEvent::GetAngle {
+            angle: step_to_angle(motion.step()),
+            step: motion.step()
+        }
+    );
+}
+
+#[test]
+fn a_position_off_the_pivot_point_is_not_reported_as_on_it() {
+    let mut motion = StepperMotion::new();
+    assert_eq!(motion.pivot_point(), None, "nothing reached yet");
+    motion.handle(&Cmd::MoveToPivotMax {}).unwrap();
+    run(&mut motion, 5_000);
+    assert_eq!(motion.pivot_point(), Some(PivotPoint::Max));
+    motion.handle(&Cmd::MoveToAngle { angle: 10.0 }).unwrap();
+    run(&mut motion, 5_000);
+    assert_eq!(motion.pivot_point(), None);
+}
+
+/// However the motor got to a limit, the first homing sweep goes to the other one.
+#[test]
+fn homing_starts_from_where_the_motor_is_and_every_sweep_moves() {
+    let moves: [(Cmd, PivotPoint, f32); 4] = [
+        (Cmd::MoveToPivotMin {}, PivotPoint::Max, -1024.0),
+        (Cmd::MoveToPivotMax {}, PivotPoint::Min, 1024.0),
+        (Cmd::MoveToAngle { angle: -90.0 }, PivotPoint::Max, -1024.0),
+        (Cmd::MoveToAngle { angle: 90.0 }, PivotPoint::Min, 1024.0),
+    ];
+    for (command, first, start) in moves {
+        let mut motion = StepperMotion::new();
+        motion.handle(&command).unwrap();
+        run(&mut motion, 5_000);
+        assert_eq!(motion.step(), start);
+        motion
+            .handle(&Cmd::SetMode {
+                mode: StepperStateType::Homing,
+            })
+            .unwrap();
+        let result = run(&mut motion, 20_000);
+        assert_eq!(motion.mode(), Mode::Idle);
+        assert_eq!(result.steps_taken, 3 * 2048, "three full sweeps");
+        let reached = result.events.iter().find_map(|e| match e {
+            StepperMotorEvent::GetPivotPoint { pivot_point } => Some(*pivot_point),
+            _ => None,
+        });
+        assert_eq!(reached, Some(first));
+    }
 }

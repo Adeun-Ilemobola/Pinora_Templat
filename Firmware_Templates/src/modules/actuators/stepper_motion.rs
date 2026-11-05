@@ -45,7 +45,7 @@ pub fn sequence_index(step: f32) -> usize {
 pub enum Mode {
     Idle,
     Moving,
-    Homing { cycle: u32 },
+    Homing { cycle: u32, toward: PivotPoint },
     Pivot { point: PivotPoint },
 }
 
@@ -103,8 +103,8 @@ pub struct StepperMotion {
     step: f32,
     target: f32,
     mode: Mode,
-    /// The pivot point last reached by homing (homing heads for the opposite one).
-    pivot_point: PivotPoint,
+    /// The pivot point the motor is resting on; `None` once it has moved off it.
+    pivot_point: Option<PivotPoint>,
     pivot_min: f32,
     pivot_max: f32,
     travel: f32,
@@ -124,7 +124,7 @@ impl StepperMotion {
             step: 0.0,
             target: 0.0,
             mode: Mode::Idle,
-            pivot_point: PivotPoint::Max,
+            pivot_point: None,
             pivot_min: DEFAULT_PIVOT_MIN_DEG,
             pivot_max: DEFAULT_PIVOT_MAX_DEG,
             travel: DEFAULT_TRAVEL_DEG,
@@ -145,6 +145,9 @@ impl StepperMotion {
     }
     pub fn mode(&self) -> Mode {
         self.mode
+    }
+    pub fn pivot_point(&self) -> Option<PivotPoint> {
+        self.pivot_point
     }
     pub fn pivot_limits(&self) -> (f32, f32) {
         (self.pivot_min, self.pivot_max)
@@ -174,12 +177,32 @@ impl StepperMotion {
         }
     }
 
-    /// Enters `Idle`: stop at the current position and release the coils unless
-    /// holding is enabled.
+    fn angle_event(&self) -> StepperMotorEvent {
+        StepperMotorEvent::GetAngle {
+            angle: step_to_angle(self.step),
+            step: self.step,
+        }
+    }
+
+    /// The pivot limit further from where the motor is now. Homing starts there, so its
+    /// first sweep always moves, wherever the motor was left.
+    fn farther_pivot(&self) -> PivotPoint {
+        let to_min = (self.step - angle_to_step(self.pivot_min)).abs();
+        let to_max = (self.step - angle_to_step(self.pivot_max)).abs();
+        if to_min >= to_max {
+            PivotPoint::Min
+        } else {
+            PivotPoint::Max
+        }
+    }
+
+    /// Enters `Idle`: stop at the current position, report it, and release the coils
+    /// unless holding is enabled.
     fn become_idle(&mut self, output: &mut Output) {
         self.mode = Mode::Idle;
         self.target = self.step;
         output.release_coils = !self.hold_when_idle;
+        output.events.push(self.angle_event());
         output.events.push(self.mode_event());
     }
 
@@ -238,7 +261,10 @@ impl StepperMotion {
             StepperMotorCommandPayload::SetMode { mode } => match mode {
                 StepperStateType::Idle => self.become_idle(&mut output),
                 StepperStateType::Homing => {
-                    self.mode = Mode::Homing { cycle: 1 };
+                    self.mode = Mode::Homing {
+                        cycle: 1,
+                        toward: self.farther_pivot(),
+                    };
                     output.events.push(self.mode_event());
                 }
                 StepperStateType::Pivot => {
@@ -272,34 +298,40 @@ impl StepperMotion {
                     self.become_idle(&mut output);
                 }
             }
-            Mode::Homing { cycle } => {
+            Mode::Homing { cycle, toward } => {
                 if cycle > HOMING_CYCLES {
                     self.become_idle(&mut output);
                     return Ok(output);
                 }
-                let next = match self.pivot_point {
-                    PivotPoint::Max => PivotPoint::Min,
-                    PivotPoint::Min => PivotPoint::Max,
-                };
-                self.target = angle_to_step(self.pivot_value(next));
+                self.target = angle_to_step(self.pivot_value(toward));
                 self.step_toward_target(&mut try_step)?;
                 if self.step == self.target {
-                    self.pivot_point = next;
+                    self.pivot_point = Some(toward);
                     log::info!("Stepper homing reached {:.2}°", step_to_angle(self.step));
-                    output.events.push(StepperMotorEvent::GetPivotPoint {
-                        pivot_point: self.pivot_point,
-                    });
-                    output.events.push(StepperMotorEvent::GetAngle {
-                        angle: step_to_angle(self.step),
-                        step: self.step,
-                    });
+                    output
+                        .events
+                        .push(StepperMotorEvent::GetPivotPoint { pivot_point: toward });
+                    output.events.push(self.angle_event());
                     output.events.push(self.mode_event());
-                    self.mode = Mode::Homing { cycle: cycle + 1 };
+                    self.mode = Mode::Homing {
+                        cycle: cycle + 1,
+                        toward: match toward {
+                            PivotPoint::Max => PivotPoint::Min,
+                            PivotPoint::Min => PivotPoint::Max,
+                        },
+                    };
                 }
             }
             Mode::Pivot { point } => {
                 self.target = angle_to_step(self.pivot_value(point));
                 self.step_toward_target(&mut try_step)?;
+                if self.step == self.target {
+                    self.pivot_point = Some(point);
+                    output
+                        .events
+                        .push(StepperMotorEvent::GetPivotPoint { pivot_point: point });
+                    self.become_idle(&mut output);
+                }
             }
         }
         Ok(output)
@@ -316,6 +348,7 @@ impl StepperMotion {
         let next = self.step + direction;
         if try_step(sequence_index(next))? {
             self.step = next;
+            self.pivot_point = None;
         }
         Ok(())
     }

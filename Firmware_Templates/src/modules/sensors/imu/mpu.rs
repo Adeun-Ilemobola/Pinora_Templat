@@ -75,7 +75,7 @@ impl<'d> MpuDevice<'d> {
                 id: core.id.clone(),
                 event: ModuleEvent::SysLog(SysLogEvent {
                     priority: LogPriority::Critical,
-                    text: "Accel error".to_string(),
+                    text: "MPU identification failed".to_string(),
                     raw_err: Some(format!("{:?}", err_data)),
                 }),
             }));

@@ -27,13 +27,16 @@ impl<'d> ButtonModule<'d> {
     where
         T: InputPin + 'd,
     {
+        let mut pin_driver = InputPinCore::new(pin, Pull::Up)?;
+        // Start from the real level, so a button held at boot is not a click.
+        let level = pin_driver.now()?;
         let buttonmodule = ButtonModule {
             core: ModuleCore::new(ModuleType::Button, &lookup_name, None, sender),
-            state: Level::High,
-            pin_driver: InputPinCore::new(pin, Pull::Up)?,
-            last_state: Level::High,
+            state: level,
+            pin_driver,
+            last_state: level,
             last_change_time: std::time::Instant::now(),
-            prev_state: Level::High,
+            prev_state: level,
         };
 
         Ok(buttonmodule)
@@ -57,7 +60,10 @@ impl<'d> ButtonModule<'d> {
         if self.state != self.prev_state {
             let pressed = self.state == Level::Low;
             self.prev_state = self.state;
-            self.emit(ModuleEvent::Button(ButtonEvent::Ckick {}));
+            // One click per press: releasing the button is not another click.
+            if pressed {
+                self.emit(ModuleEvent::Button(ButtonEvent::Ckick {}));
+            }
             return Ok(pressed);
         }
         Ok(false)

@@ -4,5 +4,6 @@
 pub mod led;
 pub mod led_mapping;
 pub mod servo;
+pub mod servo_position;
 pub mod stepper;
 pub mod stepper_motion;

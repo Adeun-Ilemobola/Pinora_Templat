@@ -85,7 +85,10 @@ export function createLidar(
           state: { ...get().state, Target: event.Target },
         });
       if ("ScanState" in event) {
-        const starting = event.ScanState.state === "Scanning";
+        // A replayed "Scanning" (after rediscovery) is the same scan, not a new one.
+        const starting =
+          event.ScanState.state === "Scanning" &&
+          get().state.ScanState.state !== "Scanning";
         if (starting) chunks.clear();
         set({
           state: {

@@ -9,15 +9,20 @@
 //!   values are rejected, and the dispatcher reports the error as a `SysLog`.
 //! * Each next scan position is worked out by the pure [`super::lidar_scan`] planner
 //!   from the position read back from the servos, so a scan follows a clamped or moved
-//!   servo and always terminates. The point buffer is flushed every 100 points.
+//!   servo. The point buffer is flushed every 100 points.
+//! * A distance is recorded only if its measurement began after the servos arrived.
+//! * A scan always ends: a position the sensor cannot measure is skipped (no point, an
+//!   `InvalidMeasurement` event), and a failed servo move or a sensor that stops
+//!   answering ends the scan with a report.
 //!
 //! Children are routable directly by their ids (Phase 2A, PIN-TPL-017) and through
 //! `ChangeMotorAngle`. Not instantiated in the current image.
 
-use crate::core::hardware::{now_us, RangefinderI2c, TimerState};
+use crate::core::hardware::{now_us, RangefinderI2c};
 use crate::core::transport::emitter::{EmitterError, TransportEmitter};
 use crate::modules::composite::lidar_scan::{
-    chunk_count, validate_roi, validate_step, ScanAdvance, ScanPlan, POINTS_PER_CHUNK,
+    chunk_count, reading_usable_from_us, travel_degrees, validate_roi, validate_step, ScanAdvance,
+    ScanPlan, POINTS_PER_CHUNK, READING_TIMEOUT_US,
 };
 use crate::utilities::rate_limit::{with_suppressed, Admission, RateLimiter};
 use pinora_protocol::module::lidar::{LidarEvent, RangPoint, ScanState};
@@ -49,13 +54,17 @@ pub struct Lidar<'d> {
     /// ROI start corner (the scan begins here).
     max_point: Point,
 
-    curr_point_bottom: Point,
     step: u32,
     curr_scan_mode: ScanState,
     scan: Option<ScanPlan>,
 
     scan_time: std::time::Instant,
-    step_timer: TimerState,
+    /// How long the last finished scan took, for replay.
+    last_scan_secs: f32,
+    /// Measurements finishing before this time began while the servos were moving.
+    reading_usable_from_us: u64,
+    /// When the sensor last answered during this scan.
+    last_reading_us: u64,
     point_map: Vec<RangPoint>,
 
     current_chunk: u32,
@@ -107,35 +116,25 @@ impl<'d> Lidar<'d> {
             sender.clone(),
         )?;
 
-        let mut new_lidar = Lidar {
+        let new_lidar = Lidar {
             core: mc,
             servo_x,
             servo_y,
             min_point: Point { x: 90, y: -90 },
             max_point: Point { x: -90, y: 90 },
-            curr_point_bottom: Point { x: 0, y: 0 },
             step: 1,
             curr_scan_mode: ScanState::Idol,
             scan: None,
             scan_time: std::time::Instant::now(),
-            step_timer: TimerState::from_ms(30.0),
+            last_scan_secs: 0.0,
+            reading_usable_from_us: 0,
+            last_reading_us: 0,
             rangefinder,
             point_map: vec![],
             current_chunk: 1,
             total_chunks: 0,
             step_log_limit: RateLimiter::per_second(1),
         };
-
-        match new_lidar.rangefinder.start_ranging() {
-            Ok(_) => {}
-            Err(err) => {
-                new_lidar.emit(ModuleEvent::SysLog(SysLogEvent {
-                    text: format!("start_ranging in lidar has fail : {:?}", err),
-                    raw_err: None,
-                    priority: LogPriority::High,
-                }));
-            }
-        }
 
         Ok(new_lidar)
     }
@@ -156,14 +155,25 @@ impl<'d> Lidar<'d> {
         self.current_chunk += 1;
     }
 
-    pub fn move_to_point(&mut self) {
-        let _ = self
+    /// Moves both servos. On an error the position read back stays where the servos
+    /// really are. Later readings count only once the servos have arrived.
+    pub fn move_to_point(&mut self, target: &Point) -> anyhow::Result<()> {
+        let from = self.servo_position();
+        let result = self
             .servo_x
-            .set_angle_silent(self.curr_point_bottom.x.clone());
-        let _ = self
-            .servo_y
-            .set_angle_silent(self.curr_point_bottom.y.clone());
-        self.curr_point_bottom = self.servo_position();
+            .set_angle_silent(target.x)
+            .and_then(|()| self.servo_y.set_angle_silent(target.y));
+        self.note_moved_from(&from);
+        result
+    }
+
+    fn note_moved_from(&mut self, from: &Point) {
+        let travel = travel_degrees(from, &self.servo_position());
+        self.reading_usable_from_us = reading_usable_from_us(
+            now_us() as u64,
+            travel,
+            self.rangefinder.timing_budget_ms(),
+        );
     }
 
     /// Where the servos are, as far as can be known: hobby servos have no feedback, so
@@ -185,27 +195,41 @@ impl<'d> Lidar<'d> {
 
     /// Sweeps both servos to the ROI corners and back to centre. **Moves hardware.**
     /// Never called automatically (it ran from `first_emit` before Phase 1D).
-    pub fn run_self_test(&mut self) {
-        self.curr_point_bottom = self.max_point.clone();
-        self.move_to_point();
-        self.curr_point_bottom = self.min_point.clone();
-        self.move_to_point();
-        self.curr_point_bottom = Point { x: 0, y: 0 };
-        self.move_to_point();
-        self.curr_point_bottom = Point { x: 0, y: 0 };
-        self.move_to_point();
+    pub fn run_self_test(&mut self) -> anyhow::Result<()> {
+        self.move_to_point(&self.max_point.clone())?;
+        self.move_to_point(&self.min_point.clone())?;
+        self.move_to_point(&Point { x: 0, y: 0 })?;
+        self.sync_all();
+        Ok(())
     }
 
-    fn finish_scan(&mut self) {
+    /// Ends the scan: sends the points still buffered, then the final state and the
+    /// servos' position.
+    fn end_scan(&mut self, state: ScanState) {
         self.flush_point_map();
         self.scan = None;
-        self.curr_scan_mode = ScanState::Idol;
+        self.curr_scan_mode = state;
+        self.last_scan_secs = self.scan_time.elapsed().as_secs_f32();
 
         self.emit(ModuleEvent::Lidar(LidarEvent::ScanState {
             state: self.curr_scan_mode.clone(),
-            scan_time: self.scan_time.elapsed().as_secs_f32(),
+            scan_time: self.last_scan_secs,
         }));
         self.sync_all();
+    }
+
+    fn finish_scan(&mut self) {
+        self.end_scan(ScanState::Idol);
+    }
+
+    /// Ends a scan that cannot continue, and says why.
+    fn abort_scan(&mut self, text: String) {
+        self.emit(ModuleEvent::SysLog(SysLogEvent {
+            text,
+            raw_err: None,
+            priority: LogPriority::High,
+        }));
+        self.end_scan(ScanState::StopScan);
     }
 }
 
@@ -236,13 +260,24 @@ impl<'d> Module for Lidar<'d> {
         }
     }
 
-    /// Reports the configured ROI. Does not move the servos.
+    /// Replays the ROI, the scan state and the children's state. Does not move anything.
     fn first_emit(&mut self) -> Result<(), EmitterError> {
         self.emit(ModuleEvent::Lidar(LidarEvent::Roi {
             min: self.min_point.clone(),
             max: self.max_point.clone(),
         }));
-
+        let scan_time = if self.curr_scan_mode == ScanState::Scanning {
+            self.scan_time.elapsed().as_secs_f32()
+        } else {
+            self.last_scan_secs
+        };
+        self.emit(ModuleEvent::Lidar(LidarEvent::ScanState {
+            state: self.curr_scan_mode.clone(),
+            scan_time,
+        }));
+        self.servo_x.first_emit()?;
+        self.servo_y.first_emit()?;
+        self.rangefinder.first_emit()?;
         Ok(())
     }
     fn tick(&mut self) -> Result<(), ModuleError> {
@@ -250,31 +285,39 @@ impl<'d> Module for Lidar<'d> {
             return Ok(());
         }
 
-        let range_bottom = match self.rangefinder.update_range() {
-            Ok(()) => self.rangefinder.range(),
-
-            Err(ModuleError::SensorNotReady) => {
-                return Ok(());
-            }
-
+        let now = now_us() as u64;
+        let reading = match self.rangefinder.update_range() {
+            Ok(()) => Some(self.rangefinder.range()),
+            // Nothing measurable here: no point, and the scan moves on.
+            Err(ModuleError::InvalidReading) => None,
             Err(error) => {
-                self.emit(ModuleEvent::SysLog(SysLogEvent {
-                    text: format!("Rangefinder error: {:?}", error),
-                    priority: LogPriority::High,
-                    raw_err: Some(format!("{:?}", error)),
-                }));
-
-                return Err(error);
+                if now.saturating_sub(self.last_reading_us) > READING_TIMEOUT_US {
+                    self.abort_scan(format!(
+                        "LiDAR scan ended: no reading from the rangefinder ({error:?})"
+                    ));
+                    return Ok(());
+                }
+                return match error {
+                    ModuleError::SensorNotReady => Ok(()),
+                    other => Err(other),
+                };
             }
         };
+        self.last_reading_us = now;
 
-        // Record the position where the servos have been resting, and continue from it.
-        self.curr_point_bottom = self.servo_position();
-        self.point_map.push(RangPoint {
-            x: self.curr_point_bottom.x,
-            y: self.curr_point_bottom.y,
-            distant: range_bottom,
-        });
+        // This measurement began before the servos arrived, so it is not for this position.
+        if now < self.reading_usable_from_us {
+            return Ok(());
+        }
+
+        let position = self.servo_position();
+        if let Some(distant) = reading {
+            self.point_map.push(RangPoint {
+                x: position.x,
+                y: position.y,
+                distant,
+            });
+        }
         // Bounded buffer: flush every full chunk, not only at row ends.
         if self.point_map.len() >= POINTS_PER_CHUNK {
             self.flush_point_map();
@@ -285,7 +328,7 @@ impl<'d> Module for Lidar<'d> {
             return Ok(());
         };
 
-        let (next, text) = match scan.advance(&self.curr_point_bottom) {
+        let (next, text) = match scan.advance(&position) {
             ScanAdvance::Done => {
                 self.finish_scan();
                 return Ok(());
@@ -307,9 +350,9 @@ impl<'d> Module for Lidar<'d> {
             }));
         }
 
-        self.curr_point_bottom = next;
-        self.move_to_point();
-        self.step_timer.reset();
+        if let Err(error) = self.move_to_point(&next) {
+            self.abort_scan(format!("LiDAR scan ended: servo move failed: {error}"));
+        }
 
         Ok(())
     }
@@ -317,15 +360,20 @@ impl<'d> Module for Lidar<'d> {
         match command {
             ModuleCommand::Lidar(lidar_command) => match lidar_command {
                 LidarCommandPayload::ChangeMotorAngle { id, step } => {
-                    if self.servo_x.id() == id {
-                        let _ = self.servo_x.set_angle(*step);
-                        self.curr_point_bottom.x = self.servo_x.pivot_angle();
+                    let from = self.servo_position();
+                    let result = if self.servo_x.id() == id {
+                        self.servo_x.set_angle(*step)
                     } else if self.servo_y.id() == id {
-                        let _ = self.servo_y.set_angle(*step);
-                        self.curr_point_bottom.y = self.servo_y.pivot_angle();
-                    }
+                        self.servo_y.set_angle(*step)
+                    } else {
+                        Ok(())
+                    };
+                    self.note_moved_from(&from);
+                    result?;
                 }
                 LidarCommandPayload::Roi { min, max } => {
+                    // The plan in progress keeps its own corners; do not report others.
+                    anyhow::ensure!(self.scan.is_none(), "LiDAR ROI cannot change during a scan");
                     validate_roi(min, max)?;
                     self.min_point = min.clone();
                     self.max_point = max.clone();
@@ -336,20 +384,21 @@ impl<'d> Module for Lidar<'d> {
                     }));
                 }
                 LidarCommandPayload::SetStep { step } => {
+                    anyhow::ensure!(self.scan.is_none(), "LiDAR step cannot change during a scan");
                     validate_step(*step)?;
                     self.step = *step;
                 }
                 LidarCommandPayload::StartScan {} => {
                     let plan = ScanPlan::new(&self.max_point, &self.min_point, self.step)?;
+                    self.rangefinder.start_ranging()?;
+                    self.move_to_point(&plan.start())?;
                     self.scan_time = std::time::Instant::now();
+                    self.last_reading_us = now_us() as u64;
                     self.point_map.clear();
                     self.current_chunk = 1;
                     self.total_chunks = chunk_count(plan.total_points());
 
-                    self.curr_point_bottom = plan.start();
                     self.scan = Some(plan);
-                    self.step_timer.reset();
-                    self.move_to_point();
                     self.curr_scan_mode = ScanState::Scanning;
                     self.emit(ModuleEvent::Lidar(LidarEvent::ScanState {
                         state: self.curr_scan_mode.clone(),
@@ -358,17 +407,13 @@ impl<'d> Module for Lidar<'d> {
                 }
 
                 LidarCommandPayload::StopScan {} => {
-                    self.scan = None;
-                    self.curr_scan_mode = ScanState::StopScan;
-                    self.emit(ModuleEvent::Lidar(LidarEvent::ScanState {
-                        state: self.curr_scan_mode.clone(),
-                        scan_time: self.scan_time.elapsed().as_secs_f32(),
-                    }));
+                    self.end_scan(ScanState::StopScan);
                 }
                 LidarCommandPayload::Test {} => {}
                 LidarCommandPayload::MovePos { p } => {
-                    self.curr_point_bottom = p.clone();
-                    self.move_to_point();
+                    let result = self.move_to_point(p);
+                    self.sync_all();
+                    result?;
                 }
             },
             _ => {}

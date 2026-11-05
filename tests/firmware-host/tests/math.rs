@@ -197,3 +197,45 @@ fn pulse_us_to_tick_assumes_a_60_hz_pca9685_and_clamps() {
     assert_eq!(pulse_us_to_tick(i32::MAX), 4095);
     assert_eq!(pulse_us_to_tick(i32::MIN), 0);
 }
+
+const X_CENTRE: u16 = 2610;
+const DEADZONE: u16 = 200;
+fn axis(raw: u16) -> i16 {
+    centred_axis(raw, X_CENTRE, DEADZONE, 4095, 30)
+}
+
+#[test]
+fn a_joystick_axis_is_zero_at_its_centre_and_inside_the_dead_zone() {
+    for raw in [X_CENTRE, X_CENTRE - DEADZONE, X_CENTRE + DEADZONE] {
+        assert_eq!(axis(raw), 0, "raw {raw}");
+    }
+}
+
+#[test]
+fn a_joystick_axis_follows_the_side_of_its_centre() {
+    // 2400 is below the centre: before the fix it reported +5.
+    assert!(axis(2400) <= 0);
+    assert!(axis(2811) >= 0);
+    for raw in 0..=4095u16 {
+        let value = axis(raw);
+        if raw < X_CENTRE {
+            assert!(value <= 0, "raw {raw} gave {value}");
+        } else {
+            assert!(value >= 0, "raw {raw} gave {value}");
+        }
+    }
+}
+
+#[test]
+fn a_joystick_axis_reaches_both_ends_and_does_not_jump_at_the_dead_zone() {
+    assert_eq!(axis(0), -30);
+    assert_eq!(axis(4095), 30);
+    assert!(axis(X_CENTRE - DEADZONE - 1) >= -1);
+    assert!(axis(X_CENTRE + DEADZONE + 1) <= 1);
+    let mut previous = axis(0);
+    for raw in 1..=4095u16 {
+        let value = axis(raw);
+        assert!(value >= previous, "not monotonic at raw {raw}");
+        previous = value;
+    }
+}

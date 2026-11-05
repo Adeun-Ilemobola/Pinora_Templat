@@ -26,17 +26,9 @@ export function createImu(
     look_up_id,
     kind: "Imu",
     state: {
-      Gyro: {
-        event_type: "Gyro",
-        raw_axes: { x: 0, y: 0, z: 0 },
-        axes: { x: 0, y: 0, z: 0 },
-      },
-      Accel: {
-        event_type: "Accel",
-        raw_axes: { x: 0, y: 0, z: 0 },
-        axes: { x: 0, y: 0, z: 0 },
-      },
-      Mode: "Off",
+      Gyro: null,
+      Accel: null,
+      Mode: null,
     },
     handleEvent: (event) => {
       switch (event.event_type) {

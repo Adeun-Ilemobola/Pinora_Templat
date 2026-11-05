@@ -19,7 +19,6 @@ pub struct Rangefinder<'d> {
     pub range_mm: u16,
     pub is_ranging: bool,
     pub timing_budget_ms: u16,
-    pub inter_measurement_ms: u16,
     pub distance_mode: DistanceMode,
     /// At most one "Failed to update range" SysLog per second (Phase 2B,
     /// PIN-TPL-010); before, one was sent on every failed tick.
@@ -61,7 +60,6 @@ impl<'d> Rangefinder<'d> {
             range_mm: 0,
             is_ranging: false,
             timing_budget_ms: 50,
-            inter_measurement_ms: 60,
             distance_mode: DistanceMode::Long,
             error_limit: RateLimiter::per_second(1),
         };
@@ -109,12 +107,7 @@ impl<'d> Rangefinder<'d> {
         let ready = match self.sensor.is_data_ready() {
             Ok(ready) => ready,
             Err(error) => {
-                self.emit(ModuleEvent::SysLog(SysLogEvent {
-                    text: "VL53L1X data-ready check failed".to_string(),
-                    raw_err: Some(format!("{error:?}")),
-                    priority: LogPriority::Critical,
-                }));
-
+                self.report_failure("VL53L1X data-ready check failed", format!("{error:?}"));
                 return Err(ModuleError::OperationFailed);
             }
         };
@@ -126,11 +119,7 @@ impl<'d> Rangefinder<'d> {
         let status = match self.sensor.get_range_status() {
             Ok(status) => status,
             Err(error) => {
-                self.emit(ModuleEvent::SysLog(SysLogEvent {
-                    text: "VL53L1X range-status read failed".to_string(),
-                    raw_err: Some(format!("{error:?}")),
-                    priority: LogPriority::Critical,
-                }));
+                self.report_failure("VL53L1X range-status read failed", format!("{error:?}"));
                 return Err(ModuleError::OperationFailed);
             }
         };
@@ -138,33 +127,24 @@ impl<'d> Rangefinder<'d> {
         let distance = match self.sensor.get_distance() {
             Ok(distance) => distance,
             Err(error) => {
-                self.emit(ModuleEvent::SysLog(SysLogEvent {
-                    text: "VL53L1X distance read failed".to_string(),
-                    raw_err: Some(format!("{error:?}")),
-                    priority: LogPriority::Critical,
-                }));
-
+                self.report_failure("VL53L1X distance read failed", format!("{error:?}"));
                 return Err(ModuleError::OperationFailed);
             }
         };
 
         if let Err(error) = self.sensor.clear_interrupt() {
-            self.emit(ModuleEvent::SysLog(SysLogEvent {
-                text: "VL53L1X interrupt clear failed".to_string(),
-                raw_err: Some(format!("{error:?}")),
-                priority: LogPriority::Critical,
-            }));
-
+            self.report_failure("VL53L1X interrupt clear failed", format!("{error:?}"));
             return Err(ModuleError::OperationFailed);
         }
 
         if status != RangeStatus::Valid {
-            self.emit(ModuleEvent::SysLog(SysLogEvent {
-                text: "VL53L1X RangeStatus is Valid failed".to_string(),
-                raw_err: None,
-                priority: LogPriority::Critical,
-            }));
-            return Err(ModuleError::OperationFailed);
+            // Normal when nothing is in range, so an event rather than an error log.
+            self.emit(ModuleEvent::Rangefinder(
+                RangefinderEvent::InvalidMeasurement {
+                    status: format!("{status:?}"),
+                },
+            ));
+            return Err(ModuleError::InvalidReading);
         }
         self.range_mm = distance;
 
@@ -174,6 +154,21 @@ impl<'d> Rangefinder<'d> {
     pub fn range(&self) -> u16 {
         self.range_mm
     }
+
+    pub fn timing_budget_ms(&self) -> u16 {
+        self.timing_budget_ms
+    }
+
+    /// At most one failure SysLog per second: a broken bus fails on every tick.
+    fn report_failure(&mut self, text: &str, raw_err: String) {
+        if let Admission::Admit { suppressed } = self.error_limit.admit(now_us() as u64) {
+            self.emit(ModuleEvent::SysLog(SysLogEvent {
+                text: with_suppressed(text, suppressed),
+                raw_err: Some(raw_err),
+                priority: LogPriority::Critical,
+            }));
+        }
+    }
 }
 
 impl<'d> Module for Rangefinder<'d> {
@@ -181,32 +176,33 @@ impl<'d> Module for Rangefinder<'d> {
         if !self.is_ranging {
             return Ok(());
         }
-        let data = self.update_range();
-        match data {
-            Ok(_) => {
+        match self.update_range() {
+            Ok(()) => {
                 self.emit(ModuleEvent::Rangefinder(RangefinderEvent::Range {
                     millimeters: self.range(),
                 }));
+                Ok(())
             }
-            Err(_) => {
-                if let Admission::Admit { suppressed } = self.error_limit.admit(now_us() as u64) {
-                    self.emit(ModuleEvent::SysLog(SysLogEvent {
-                        text: with_suppressed("Failed to update range", suppressed),
-                        raw_err: None,
-                        priority: LogPriority::Critical,
-                    }));
-                }
-                return Err(ModuleError::OperationFailed);
-            }
+            // Between measurements, and already reported: neither is a failure.
+            Err(ModuleError::SensorNotReady | ModuleError::InvalidReading) => Ok(()),
+            Err(error) => Err(error),
         }
-        Ok(())
     }
     fn core(&self) -> &ModuleCore {
         &self.core
     }
     fn first_emit(&mut self) -> Result<(), EmitterError> {
         self.emit(ModuleEvent::Rangefinder(RangefinderEvent::TimingBudget {
-            milliseconds: self.timing_budget_ms.clone(),
+            milliseconds: self.timing_budget_ms,
+        }));
+        self.emit(ModuleEvent::Rangefinder(RangefinderEvent::DistanceMode {
+            mode: match self.distance_mode {
+                DistanceMode::Short => RangefinderDistanceMode::Short,
+                DistanceMode::Long => RangefinderDistanceMode::Long,
+            },
+        }));
+        self.emit(ModuleEvent::Rangefinder(RangefinderEvent::RangingState {
+            is_ranging: self.is_ranging,
         }));
         Ok(())
     }

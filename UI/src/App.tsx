@@ -3,7 +3,7 @@ import { RouterProvider } from "react-router/dom";
 import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "@/page/Dashboard";
 import "./index.css";
-//import LidarPage from "@/page/LidarPage";
+import LidarPage from "@/page/LidarPage";
 import LogsPage from "@/page/LogsPage";
 import { RouteError } from "@/components/RouteError";
 
@@ -20,10 +20,11 @@ const router = createHashRouter([{
     Component: Dashboard,
     ErrorBoundary: RouteError
   }, 
-  // {
-  //   path: "lidar",
-  //   Component: LidarPage
-  // }, 
+  {
+    path: "lidar",
+    Component: LidarPage,
+    ErrorBoundary: RouteError
+  },
   {
     path: "logs",
     Component: LogsPage,

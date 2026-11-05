@@ -195,3 +195,79 @@ describe("authentication and loss", () => {
     expect(store().PortStat).toBe("Disconnected");
   });
 });
+
+describe("every module family reaches its store", () => {
+  const register = (id: string, module_type: string, name: string, parent_id = "") =>
+    emit("espState", line({ Registration: { id, module_type, lool_up_id: name, parent_id } }));
+  const event = (id: string, family: string, payload: unknown) =>
+    emit("espState", line({ ModuleEvent: { id, event: { [family]: payload } } }));
+  const state = (id: string) =>
+    (store().ModuleRegistry[id].getState() as unknown as { state: Record<string, unknown> }).state;
+
+  test("a LiDAR and its children get stores, and scan data arrives", async () => {
+    await store().ConnectBluetooth("COM7");
+    register("l", "Lidar", "lidar");
+    register("x", "Servo", "servo_x", "l");
+    register("r", "Rangefinder", "rangefinder", "l");
+    expect(store().ModuleRegistry["x"].getState().hasParent).toBe(true);
+    event("l", "Lidar", { ScanState: { state: "Scanning", scan_time: 0 } });
+    event("l", "Lidar", {
+      PointMap: { curr_chunk: 1, max_chunk: 1, map: [{ x: 1, y: 2, distant: 300 }] },
+    });
+    event("x", "Servo", { GetAngle: { angle: 45 } });
+    event("r", "Rangefinder", { InvalidMeasurement: { status: "SignalFail" } });
+    await flush();
+    expect((state("l").PointMap as { map: unknown[] }).map).toHaveLength(1);
+    expect(state("x").Angle).toBe(45);
+    expect(state("r").InvalidMeasurement).toEqual({ status: "SignalFail" });
+  });
+
+  test("a replayed Scanning state keeps the points already received", async () => {
+    await store().ConnectBluetooth("COM7");
+    register("l", "Lidar", "lidar");
+    event("l", "Lidar", { ScanState: { state: "Scanning", scan_time: 0 } });
+    event("l", "Lidar", {
+      PointMap: { curr_chunk: 1, max_chunk: 2, map: [{ x: 1, y: 2, distant: 300 }] },
+    });
+    event("l", "Lidar", { ScanState: { state: "Scanning", scan_time: 4 } });
+    await flush();
+    expect((state("l").PointMap as { map: unknown[] }).map).toHaveLength(1);
+    expect((state("l").ScanState as { scan_time: number }).scan_time).toBe(4);
+  });
+
+  test("a servo reports nothing until the device has told us", async () => {
+    await store().ConnectBluetooth("COM7");
+    register("s", "Servo", "servo");
+    expect(state("s").Angle).toBeNull();
+    expect(state("s").MinPivot).toBeNull();
+  });
+
+  test("an IMU store does not claim a mode or a reading before the device reports", async () => {
+    await store().ConnectBluetooth("COM7");
+    register("i", "Imu", "imu");
+    expect(state("i")).toEqual({ Gyro: null, Accel: null, Mode: null });
+  });
+
+  test("the other families reach their stores", async () => {
+    await store().ConnectBluetooth("COM7");
+    register("t", "StepperMotor", "stepper");
+    register("f", "Rfid", "rfid");
+    register("c", "RemoteReceiver", "remote");
+    event("t", "StepperMotor", { GetAngle: { angle: 90, step: 1024 } });
+    event("f", "Rfid", { GetMode: { mode: "Write" } });
+    event("c", "RemoteReceiver", { Click: { key: "Power" } });
+    await flush();
+    expect(state("t").GetAngle).toEqual({ angle: 90, step: 1024 });
+    expect(state("f").GetMode).toEqual({ mode: "Write" });
+    expect(state("c").clickCount).toBe(1);
+  });
+
+  test("an event of another family does not reach a store", async () => {
+    await store().ConnectBluetooth("COM7");
+    // Both families have a GetMode, so only the family check keeps this one out.
+    register("t", "StepperMotor", "stepper");
+    event("t", "Rfid", { GetMode: { mode: "Write" } });
+    await flush();
+    expect(state("t").GetMode).toBeNull();
+  });
+});

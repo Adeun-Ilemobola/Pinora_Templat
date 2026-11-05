@@ -37,6 +37,9 @@ pub mod transport_pairing_window;
 #[path = "../../../Firmware_Templates/src/modules/actuators/led_mapping.rs"]
 #[doc(hidden)]
 pub mod actuators_led_mapping;
+#[path = "../../../Firmware_Templates/src/modules/actuators/servo_position.rs"]
+#[doc(hidden)]
+pub mod actuators_servo_position;
 #[path = "../../../Firmware_Templates/src/modules/actuators/stepper_motion.rs"]
 #[doc(hidden)]
 pub mod actuators_stepper_motion;
@@ -86,6 +89,7 @@ pub mod core {
 pub mod modules {
     pub mod actuators {
         pub use crate::actuators_led_mapping as led_mapping;
+        pub use crate::actuators_servo_position as servo_position;
         pub use crate::actuators_stepper_motion as stepper_motion;
     }
 

@@ -37,12 +37,12 @@ function ServoControls({ servo }: { servo: StoreApi<ServoModule> }) {
             Reported angle
           </p>
           <p className="mt-2 font-heading text-4xl font-semibold tabular-nums">
-            {state.Angle.toFixed(1)}
+            {state.Angle === null ? "Not reported" : state.Angle.toFixed(1)}
             <span className="ml-1 text-xl text-muted-foreground">Â°</span>
           </p>
         </div>
         <PivotSlider
-          value={state.Angle}
+          value={state.Angle ?? 0}
           label="Set angle"
           min={-90}
           max={90}

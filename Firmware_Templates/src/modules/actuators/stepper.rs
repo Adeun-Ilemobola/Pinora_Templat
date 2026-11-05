@@ -182,6 +182,11 @@ impl<'d> Module for StepperMotor<'d> {
         self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetPivotMax {
             pivot_max,
         }));
+        if let Some(pivot_point) = self.motion.pivot_point() {
+            self.emit(ModuleEvent::StepperMotor(StepperMotorEvent::GetPivotPoint {
+                pivot_point,
+            }));
+        }
         Ok(())
     }
 
