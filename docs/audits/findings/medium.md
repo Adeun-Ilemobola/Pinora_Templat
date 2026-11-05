@@ -345,3 +345,107 @@ Re-rated **Medium → Low** in the post-Phase-0 reassessment (2026-10-31). The f
 **Risk of changing it.** Low for file splits if import paths are updated and behavior is unchanged. The store-shape redesign is behavioral and goes in a later phase.
 
 **How we will verify the fix.** `tsc` and Vite build pass. Bundle contents compared before and after. A manual smoke test in `tauri dev`, when authorized.
+
+---
+
+## PIN-TPL-032 — Reported module state goes stale, and the desktop shows values the device never sent
+
+| Field | Value |
+|---|---|
+| Severity | Medium |
+| Affected files (at `ca8eede`) | `modules/composite/lidar.rs:240,360,369`; `actuators/servo.rs` (no `first_emit`); `sensors/rangefinder.rs:207`; `sensors/rfid.rs` (no `first_emit`); `UI/src/lib/Modules/{servo,imu}/store.ts` |
+| Confidence | Confirmed (static) |
+| Status | **Resolved** 2026-11-05. Desktop parts are tested in `UI/tests/store.test.ts`. Not run on hardware: this module is not in the current image, and only the LEDs are attached. |
+| Proposed phase | Floating-state audit (2026-11-05, after Phase 3A) |
+
+**What is wrong.** The LiDAR replayed only its ROI, so after a reconnect a running scan looked idle. Servos replayed nothing, and the LiDAR did not replay its children. The rangefinder replayed only its budget. `ReadMode` and `WriteMode` were silent. Stop Scan dropped up to 99 measured points, and `MovePos` left the servo angles unreported. The ROI and step could change during a scan while the plan kept the old ones. The desktop started servos at 0° and the IMU at "Off" with zeros.
+
+**Why this is a problem.** The desktop showed things that were not true, including "Reported angle 0.0°".
+
+**How it could affect Pinora.** After a reconnect the app can show a scanning device as idle, and a servo at 45° as 0°.
+
+**Evidence.** `first_emit` in `lidar.rs` sent only `LidarEvent::Roi`; `Angle: 0` in the servo store.
+
+**Fix.** Every module with state replays it in `first_emit`, and the LiDAR replays its children. A servo reports no position before its first move, because it is unknown. The desktop stores start at `null`. Stop Scan flushes and reports. The ROI and step are rejected during a scan. A replayed `Scanning` no longer clears the points already received. The LiDAR starts ranging at scan start, not during construction, where the event preceded registration.
+
+**Risk of changing it.** The sensor no longer runs before the first scan.
+
+**How it was verified.** Desktop tests and mutations (default values, replay clearing the map). Firmware replay is compiled, not exercised.
+
+---
+
+## PIN-TPL-033 — The desktop drops all data from every module family except LED and Button
+
+| Field | Value |
+|---|---|
+| Severity | Medium |
+| Affected files (at `ca8eede`) | `UI/src/lib/store/registry.ts:18-21,81-87`; `UI/src/App.tsx:6,19-20`; `UI/src/page/LidarPage.tsx` |
+| Confidence | Confirmed (static) |
+| Status | **Resolved** 2026-11-05. Tested with the IPC mocked. The window itself was not opened. |
+| Proposed phase | Floating-state audit (2026-11-05, after Phase 3A) |
+
+**What is wrong.** Only LED and Button registrations created stores, so other events ended at "Module store not found". The LiDAR route was commented out, and the page looked for the exact name `lidar`. This was recorded as later work in the Phase 2D notes and the final report.
+
+**Why this is a problem.** Stores and views exist for the other families, but nothing connects them.
+
+**How it could affect Pinora.** The LiDAR would scan correctly and show nothing.
+
+**Evidence.** `const factories = { Led: createLed, Button: createButton }`.
+
+**Fix.** All families with a store are wired, and each event goes only to a store of its own family. The Dashboard shows top-level modules, the LiDAR page and sidebar link are restored, and the page finds the LiDAR by kind.
+
+**Risk of changing it.** A family failing inside its store now reaches the existing `catch`, not a mismatch log.
+
+**How it was verified.** Tests for every family, plus mutations (LiDAR unwired, family check removed).
+
+---
+
+## PIN-TPL-034 — The stepper does not report its position on arrival, and homing depends on a stale side
+
+| Field | Value |
+|---|---|
+| Severity | Medium |
+| Affected files (at `ca8eede`) | `modules/actuators/stepper_motion.rs:179,271-273,280-287,300-303` |
+| Confidence | Confirmed (static and host tests) |
+| Status | **Resolved** 2026-11-05. Host-tested. Not run on hardware: this module is not in the current image, and only the LEDs are attached. |
+| Proposed phase | Floating-state audit (2026-11-05, after Phase 3A) |
+
+**What is wrong.** `GetAngle` was sent only by homing and at registration, so the desktop angle was stale after every move. Pivot mode never finished, so its coils stayed energized. `pivot_point` was updated only by homing, so after a move to Min, homing targeted Min and spent a cycle without moving. It also started as Max before anything was reached.
+
+**Why this is a problem.** The reported angle and the next homing move did not follow where the motor was.
+
+**How it could affect Pinora.** The app shows a wrong angle, a Pivot mode that never ends, and a homing sweep that does nothing.
+
+**Evidence.** `become_idle` pushed only `mode_event()`.
+
+**Fix.** Becoming idle reports the angle first. A Pivot move finishes on arrival. Homing starts toward the limit further from the current position. `pivot_point` is `None` until a limit is reached and again after moving off it.
+
+**Risk of changing it.** Pivot now releases the coils on arrival unless holding is enabled.
+
+**How it was verified.** Host tests in `stepper_motion.rs`; mutations caught. A position counted from 0 can still slip while coils are released: no feedback exists.
+
+---
+
+## PIN-TPL-035 — The button counts each click twice, and the joystick can report the wrong direction
+
+| Field | Value |
+|---|---|
+| Severity | Medium |
+| Affected files (at `ca8eede`) | `modules/sensors/button.rs:33-37,60`; `modules/sensors/joystick.rs:78` |
+| Confidence | Confirmed (static; joystick by arithmetic and host tests) |
+| Status | **Resolved** 2026-11-05. Joystick host-tested; button compiled. Not run on hardware: this module is not in the current image, and only the LEDs are attached. |
+| Proposed phase | Floating-state audit (2026-11-05, after Phase 3A) |
+
+**What is wrong.** `Ckick` was sent on press and on release, and the button assumed it was up at boot. The joystick scaled around raw 2047 although its centres are 2610 and 2750, so raw 2400 (below centre) gave +5, with a jump at the edge of the dead zone.
+
+**Why this is a problem.** Reported values did not match what the hand did.
+
+**How it could affect Pinora.** The desktop click count doubles. Joystick control would move the wrong way near the centre.
+
+**Evidence.** `range_i16(raw as i16, 0, 4095, -30, 30)`.
+
+**Fix.** One click per press, and the initial level is read from the pin. New `math::centred_axis` scales each side from its measured centre.
+
+**Risk of changing it.** Anything counting two events per click would now see one; the desktop does not.
+
+**How it was verified.** Every raw value tested for sign and order in `tests/math.rs`; mutation caught. Joystick values are still only logged, because the protocol has no joystick event; adding one is a protocol change.

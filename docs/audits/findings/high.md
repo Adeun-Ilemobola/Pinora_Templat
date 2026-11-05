@@ -238,3 +238,109 @@ ModuleEvent with empty event: THROWS TypeError: undefined is not an object (eval
 **Risk of changing it.** Messages that are currently shown might be dropped, because the TypeScript schemas cover fewer variants than Rust (PIN-TPL-007). Validation must use the complete schema, or log unknown variants instead of discarding them.
 
 **How we will verify the fix.** Unit tests of the receive and describe pipeline with valid, unknown-variant and malformed inputs. A component test rendering `LogViewer` with a malformed entry. A Tauri test feeding raw lines into the COM line handler.
+
+---
+
+## PIN-TPL-028 — A servo records a move before the write, and the LiDAR ignores failed moves
+
+| Field | Value |
+|---|---|
+| Severity | High |
+| Affected files (at `ca8eede`) | `Firmware_Templates/src/modules/actuators/servo.rs:101,106,133,138`; `modules/composite/lidar.rs:160-165,321-324` |
+| Confidence | Confirmed (static) |
+| Status | **Resolved** 2026-11-05. Host-tested through `ServoPosition`. Not run on hardware: this module is not in the current image, and only the LEDs are attached. |
+| Proposed phase | Floating-state audit (2026-11-05, after Phase 3A) |
+
+**What is wrong.** `set_angle` and `set_angle_silent` stored `pivot` and `angle` before the PWM write. The LiDAR discarded the error with `let _ =`. The servo also kept two positions (`pivot` and `angle`): `GetAngle` reported the pre-clamp `pivot`, and `set_offset` moved the hardware without updating either.
+
+**Why this is a problem.** After a failed I²C write the module claims a position the servo never reached, and that claim is what the scan planner reads back.
+
+**How it could affect Pinora.** A scan map can contain points labelled with angles the head never pointed at, with nothing reported.
+
+**Evidence.** Compare `led.rs::set_state`, which writes first and stores afterwards.
+
+**Fix.** New pure `servo_position.rs`: `angle` is the only stored position, and a move saves it only after the write succeeds. `GetAngle` reports that position. Narrowing a limit moves a servo left outside it back inside. A failed move during a scan ends the scan with a report; a failed `ChangeMotorAngle` or `MovePos` returns the error to the dispatcher.
+
+**Risk of changing it.** A limit change can now move a commanded servo, which it did not before; that is what the limit means.
+
+**How it was verified.** Host tests `tests/firmware-host/tests/servo_position.rs`; mutations (save before write, limit check) caught. The wiring in `servo.rs` and `lidar.rs` is compiled, not host-tested.
+
+---
+
+## PIN-TPL-029 — A LiDAR distance can be recorded against a position it was not measured at
+
+| Field | Value |
+|---|---|
+| Severity | High |
+| Affected files (at `ca8eede`) | `modules/composite/lidar.rs:121,312` (`step_timer` reset but never checked), `tick` |
+| Confidence | Confirmed (static). The size of the error was not measured |
+| Status | **Resolved** 2026-11-05. Host-tested through `reading_usable_from_us`. Not run on hardware: this module is not in the current image, and only the LEDs are attached. |
+| Proposed phase | Floating-state audit (2026-11-05, after Phase 3A) |
+
+**What is wrong.** After each move, `tick` recorded the next finished measurement with the new position, although that measurement could have begun before or during the move. The settling check was already commented out at baseline.
+
+**Why this is a problem.** The distance and the position in a point are meant to describe the same moment.
+
+**How it could affect Pinora.** Edges in a scan can smear or shift, most on large steps and at the start of a scan.
+
+**Evidence.** At baseline: `// if !self.step_timer.ready() { return Ok(()); }`. The comment above the recording said the servo "has already been resting", which the code did not ensure.
+
+**Fix.** A reading counts only if it finishes at least one whole timing budget after the servos arrived: `moved_at + travel × 4 ms/° + timing budget`. Earlier readings are dropped. The unused `step_timer` and the extra `curr_point_bottom` copy of the position are gone. `SERVO_MS_PER_DEGREE` (4) is a deliberately slow assumption, not a measurement.
+
+**Risk of changing it.** Scans take longer: about twice as many readings per recorded point.
+
+**How it was verified.** Host tests in `lidar_scan.rs`; one mutation caught. The check in `Lidar::tick` is compiled, not host-tested.
+
+---
+
+## PIN-TPL-030 — A LiDAR scan can stall forever, contradicting the Phase 1D claim that scans terminate
+
+| Field | Value |
+|---|---|
+| Severity | High |
+| Affected files (at `ca8eede`) | `modules/sensors/rangefinder.rs:161`; `modules/composite/lidar.rs` `tick` |
+| Confidence | Confirmed (static). Which positions give an invalid status was not observed on hardware |
+| Status | **Resolved** 2026-11-05. Compiled; the planner underneath is host-tested. Not run on hardware: this module is not in the current image, and only the LEDs are attached. |
+| Proposed phase | Floating-state audit (2026-11-05, after Phase 3A) |
+
+**What is wrong.** Any range status other than valid returned an error before the scan advanced, so the servos stayed put and the same position was retried. A sensor that stopped answering did the same. PIN-TPL-005 said "scans always terminate", which was true only of the plan.
+
+**Why this is a problem.** One unmeasurable position, for example open space beyond range, stops a scan until someone presses Stop, and logged at Critical and High on every reading.
+
+**How it could affect Pinora.** A scan of a real room may never finish.
+
+**Evidence.** `return Err(ModuleError::OperationFailed)` for `status != RangeStatus::Valid`, and `return Err(error)` in `Lidar::tick`.
+
+**Fix.** New `ModuleError::InvalidReading`. The rangefinder sends the existing `InvalidMeasurement` event, and the scan leaves a gap and moves on. With no reading for 3 s (`READING_TIMEOUT_US`), the scan ends with a report. Rangefinder failure logs are limited to one per second.
+
+**Risk of changing it.** A map can now contain gaps, which the desktop already draws as empty cells.
+
+**How it was verified.** Constant test in `lidar_scan.rs`. The stall paths need a sensor, so they are not exercised.
+
+---
+
+## PIN-TPL-031 — After one failed RFID write, every result is wrong and old data is written to the next card
+
+| Field | Value |
+|---|---|
+| Severity | High |
+| Affected files (at `ca8eede`) | `modules/sensors/rfid.rs:185-205,296-336,391-399` |
+| Confidence | Confirmed (static) |
+| Status | **Resolved** 2026-11-05. Compiled; the card format underneath is host-tested. Not run on hardware: this module is not in the current image, and only the LEDs are attached. |
+| Proposed phase | Floating-state audit (2026-11-05, after Phase 3A) |
+
+**What is wrong.** `write_state` was never set back to Good. A failed attempt also kept its data in the buffer, and the next `WritePayload` appended to it. After `mf_write` failed, the loop carried on with later blocks. A failed read-back skipped the result report and left the module in Write.
+
+**Why this is a problem.** The reported result stopped describing the current attempt, and the data on the card stopped being what was sent.
+
+**How it could affect Pinora.** A retry after a failure writes old and new data joined together, and reports Bad even if it worked.
+
+**Evidence.** Only assignments: `write_state: WriteState::Good` in `new`, and four `self.write_state = WriteState::Bad`.
+
+**Fix.** Each attempt starts Good, stops at the first failed block, always reports, then returns to Read with the buffer cleared. `ReadMode` also clears it. A retry means sending the data again.
+
+**Risk of changing it.** A desktop that relied on the module keeping a failed payload must send it again; the current desktop sends it per request.
+
+**How it was verified.** Not host-testable as it stands (needs the MFRC522 driver).
+
+> **Further correction to PIN-TPL-005 (2026-11-05).** Even after the first correction, "scans terminate" held only for the plan: a position the sensor could not measure stalled a scan. See PIN-TPL-030.

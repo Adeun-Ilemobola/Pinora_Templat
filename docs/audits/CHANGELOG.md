@@ -2,6 +2,11 @@
 
 Newest entries first. Each entry is tagged **[AUDIT]** (documentation only, no source change) or **[SOURCE]** (template source, build or config changed).
 
+## 2026-11-05 — Floating-state audit (PIN-TPL-028 to -036) **[SOURCE]**
+
+- The maintainer asked for a search for values kept apart from what really happened. Nine findings, all fixed: servo state and LiDAR scans (028-030), RFID writes (031), replay and invented desktop values (032), desktop stores and the LiDAR page (033), stepper reports and homing (034), button and joystick (035), misleading logs (036).
+- Host tests 146 (18 new), frontend 173 (6 new), mutations caught, firmware builds with no warnings. Only the LED image has run on hardware; none of the changed modules has.
+
 ## 2026-11-05 — LiDAR scan follows the servos (PIN-TPL-005 corrected) **[SOURCE]**
 
 - Found by the maintainer: the 1D `ScanPlan` kept its own position and never read the servos, so a clamped or moved servo disagreed with the plan.

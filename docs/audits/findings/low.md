@@ -206,3 +206,29 @@ Part of the [issue register](README.md). Paths are repository-relative to the `P
 **Risk of changing it.** Behavior change: tick and registration order become fixed. This is low risk but must not happen in a structure-only phase.
 
 **How we will verify the fix.** Host test: registration and tick order equal construction order across repeated runs.
+
+---
+
+## PIN-TPL-036 — Misleading sensor logs and values
+
+| Field | Value |
+|---|---|
+| Severity | Low |
+| Affected files (at `ca8eede`) | `modules/sensors/rangefinder.rs:64,123,194`; `modules/sensors/imu/mpu.rs` (`new`); `UI/src/components/Esp32StatsCard.tsx:14` |
+| Confidence | Confirmed (static) |
+| Status | **Resolved** 2026-11-05. Compiled. Not run on hardware: this module is not in the current image, and only the LEDs are attached. |
+| Proposed phase | Floating-state audit (2026-11-05, after Phase 3A) |
+
+**What is wrong.** A standalone rangefinder treated "not ready yet", which is normal between measurements, as a failure and logged Critical about once a second. `inter_measurement_ms: 60` was stored but never sent to the sensor. An MPU identification failure was logged as "Accel error". "Free heap" is a snapshot, shown as if live.
+
+**Why this is a problem.** Logs and values claimed things that were not so.
+
+**How it could affect Pinora.** A healthy sensor looks broken in the log.
+
+**Evidence.** `Err(_) =>` in `Rangefinder::tick` also caught `SensorNotReady`.
+
+**Fix.** Not-ready and invalid readings are no longer failures. The unused field is gone, without changing what the sensor does. The label and log text say what they mean.
+
+**Risk of changing it.** None known.
+
+**How it was verified.** Review and compile.

@@ -27,7 +27,7 @@ impl<'d> ButtonModule<'d> {
     where
         T: InputPin + 'd,
     {
-        let mut pin_driver = InputPinCore::new(pin, Pull::Up)?;
+        let pin_driver = InputPinCore::new(pin, Pull::Up)?;
         // Start from the real level, so a button held at boot is not a click.
         let level = pin_driver.now()?;
         let buttonmodule = ButtonModule {

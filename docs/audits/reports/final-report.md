@@ -4,9 +4,9 @@
 
 | | Baseline (`main` @ `5b5c8ed4`) | Now (`phase-3a/cleanup`) |
 |---|---|---|
-| Findings | 27: 0 Critical, 6 High, 13 Medium, 8 Low, all Open | **25 Resolved, 2 Blocked** (both wire-breaking renames, waiting for a protocol v3) |
+| Findings | 27: 0 Critical, 6 High, 13 Medium, 8 Low, all Open | **34 Resolved, 2 Blocked** of 36 (both wire-breaking renames, waiting for a protocol v3). 9 were added on 2026-11-05 |
 | Critical watch-list | 4 High findings that became Critical once actuators were enabled | Empty, on condition that actuators run only on a paired device |
-| Tests | None | protocol 31, firmware host 122, Tauri 21, frontend 167, on-device `just hw-test` 23 + 5; mutation-checked at every phase |
+| Tests | None | protocol 31, firmware host 146, Tauri 21, frontend 173, on-device `just hw-test` 23 + 5; mutation-checked at every phase |
 | Warnings | 17 firmware, 3 clippy | 0 everywhere; CI denies clippy warnings |
 | CI | None | `.github/workflows/ci.yml`, **green on GitHub** (run 41532290661, 2026-11-02) |
 | Fresh clone | Every Rust build failed without a hand-made `wifi_config.rs` | Builds and passes all host suites as is |
@@ -53,7 +53,6 @@ All work was done on **11 chained local branches**, each cut from the previous o
 2. Later work:
    - Protocol v3, which removes the 2 Blocked findings (`parent_id` `""` → `null`; output spellings). Do it together with the sibling projects.
    - Audits of `pinora_cli`, `pinora_studio`, `2dLidar` and `UI`. These are out of scope here; contract C-10 waits on them.
-   - Desktop stores for the latent module families.
 
 ## After the push (2026-11-02)
 
@@ -64,3 +63,8 @@ The first CI runs found two problems that the Windows machine could not show. Bo
 
 Before the first push, 6 399 Cargo build files committed by mistake in Phase 3A, including a generated copy of the local `wifi_config.rs`, were removed from the six unpushed commits. After the push, the local backups, `refs/original` and the affected reflogs were deleted and the objects pruned, so no copy of that file remains in the local repository either. Your pre-existing stash was left untouched. The build folder is now ignored.
 
+## Floating-state audit (2026-11-05)
+
+Requested by the maintainer after finding that the LiDAR planner ignored the servos. Nine more findings (PIN-TPL-028 to -036), all fixed. Two earlier claims were wrong and are corrected: "LiDAR scans always terminate" held only for the plan, and "stores for the latent module families" was left as later work although it meant a scan could not be seen at all.
+
+Not verified: none of the changed modules has run on hardware (only LEDs are attached), the desktop window has not been opened with them, and `SERVO_MS_PER_DEGREE` is an assumption. Servos and the stepper have no position feedback, so "position" still means the last command that succeeded.

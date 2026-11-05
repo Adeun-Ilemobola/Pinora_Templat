@@ -147,3 +147,5 @@ The firmware's only input validation is Serde's type check. There are no semanti
 The aggregate schemas (`UI/src/lib/protocol/*.ts`) are not used on the receive path, so these per-file schemas are documentation in practice (PIN-TPL-007).
 
 **2A.** The aggregate schemas now include every family above plus `System` commands, and are used on both paths: `ProtocolMessageSchema` on receive, `IncomingCommandSchema` on send. `UI/tests/protocol-fixtures.test.ts` parses every line of the Rust golden fixture and checks family coverage, so drift on either side fails a test. The schemas are still hand-written (code generation deferred). Stores and dispatch exist only for Led and Button.
+
+**Floating-state audit (2026-11-05).** Stores and dispatch now exist for every family with a desktop module (PIN-TPL-033). Each module with state replays it in `first_emit`, and values start as `null` on the desktop until reported (PIN-TPL-032).

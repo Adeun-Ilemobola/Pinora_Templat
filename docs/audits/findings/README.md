@@ -15,10 +15,10 @@ Baseline: commit `5b5c8ed4` (branch `main`), audited 2026-10-31. Line references
 | Severity | Count | File |
 |---|---|---|
 | Critical | 0 | [critical.md](critical.md) (includes an escalation watch-list) |
-| High | 6 | [high.md](high.md) |
-| Medium | 13 | [medium.md](medium.md) |
-| Low | 8 | [low.md](low.md) |
-| **Total** | **27** | |
+| High | 10 | [high.md](high.md) |
+| Medium | 17 | [medium.md](medium.md) |
+| Low | 9 | [low.md](low.md) |
+| **Total** | **36** | |
 
 ## Register
 
@@ -51,6 +51,15 @@ Baseline: commit `5b5c8ed4` (branch `main`), audited 2026-10-31. Line references
 | PIN-TPL-025 | Low | Events report requested rather than applied values | Firmware modules | No (latent) | Confirmed | Resolved | 1B |
 | PIN-TPL-026 | Low | UART0 driver installed bypassing HAL ownership | Firmware | Yes | Confirmed | Resolved | 3A |
 | PIN-TPL-027 | Low | Module tick/registration order changes every boot (HashMap) | Firmware runtime | Yes | Probable | Resolved | 2C |
+| PIN-TPL-028 | High | A servo records a move before the write; the LiDAR ignores failed moves | Firmware modules | No (latent) | Confirmed (static) | Resolved | Floating-state audit |
+| PIN-TPL-029 | High | A LiDAR distance can be recorded against a position it was not measured at | Firmware modules | No (latent) | Confirmed (static) | Resolved | Floating-state audit |
+| PIN-TPL-030 | High | A LiDAR scan can stall forever | Firmware modules | No (latent) | Confirmed (static) | Resolved | Floating-state audit |
+| PIN-TPL-031 | High | After a failed RFID write, results are wrong and old data reaches the next card | Firmware modules | No (latent) | Confirmed (static) | Resolved | Floating-state audit |
+| PIN-TPL-032 | Medium | Reported state goes stale; the desktop shows values the device never sent | Firmware and desktop | No (latent) | Confirmed (static) | Resolved | Floating-state audit |
+| PIN-TPL-033 | Medium | The desktop drops data from every family except LED and Button | Desktop | No (latent) | Confirmed (static) | Resolved | Floating-state audit |
+| PIN-TPL-034 | Medium | Stepper position not reported on arrival; homing depends on a stale side | Firmware modules | No (latent) | Confirmed (static) | Resolved | Floating-state audit |
+| PIN-TPL-035 | Medium | Button counts each click twice; joystick can report the wrong direction | Firmware modules | No (latent) | Confirmed (static) | Resolved | Floating-state audit |
+| PIN-TPL-036 | Low | Misleading sensor logs and values | Firmware and desktop | No (latent) | Confirmed (static) | Resolved | Floating-state audit |
 
 "Active image?" means the defect is reachable in the firmware and desktop as currently built (LEDs over Bluetooth). "Latent" code is compiled but not instantiated by `main.rs`.
 
@@ -79,3 +88,4 @@ Baseline: commit `5b5c8ed4` (branch `main`), audited 2026-10-31. Line references
 | 2026-11-02 | Phase 2E (build reproducibility, hardware configuration): PIN-TPL-015 and -018 **Resolved**. Correction: `embassy-time`, recorded as unused since the initial audit, is required at link time. Totals 2 Open, 4 In Progress, 21 Resolved. |
 | 2026-11-02 | Phase 3A (cleanup and hardening): PIN-TPL-022, -023, -024, -026 **Resolved**; PIN-TPL-017 and -021 **Blocked** on a major protocol version. Final totals 0 Open, 0 In Progress, 2 Blocked, 25 Resolved. |
 | 2026-11-05 | PIN-TPL-005 corrected: the scan planner now works from the position read back from the servos instead of its own copy (found by the maintainer). Status unchanged; totals unchanged. |
+| 2026-11-05 | Floating-state audit, after the maintainer found the LiDAR planner ignoring the servos: new findings PIN-TPL-028 to -036 (4 High, 4 Medium, 1 Low), all **Resolved**; none has run on hardware. PIN-TPL-005 corrected again: scans now really always end (see -030). Final totals 0 Open, 2 Blocked, 34 Resolved. |
