@@ -1,0 +1,46 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - `__dirname` (vite.config.ts:14:25). Use `import.meta.dirname` instead
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 6988 modules transformed.
+
+(!) outDir C:\Dev\Pinora\Pinora_Templat\test\build\ui-audit-2026-11-05 is not inside project root and will not be emptied.
+Use --emptyOutDir to override.
+
+rendering chunks...
+computing gzip size...
+../test/build/ui-audit-2026-11-05/index.html                                                      0.39 kB │ gzip:   0.26 kB
+../test/build/ui-audit-2026-11-05/assets/space-grotesk-vietnamese-wght-normal-D0rl6rjA.woff2      6.71 kB
+../test/build/ui-audit-2026-11-05/assets/geist-cyrillic-ext-wght-normal-DjL33-gN.woff2            7.42 kB
+../test/build/ui-audit-2026-11-05/assets/jetbrains-mono-vietnamese-wght-normal-Bt-aOZkq.woff2     7.50 kB
+../test/build/ui-audit-2026-11-05/assets/geist-vietnamese-wght-normal-6IgcOCM7.woff2              8.00 kB
+../test/build/ui-audit-2026-11-05/assets/jetbrains-mono-greek-wght-normal-Bw9x6K1M.woff2          9.00 kB
+../test/build/ui-audit-2026-11-05/assets/raleway-vietnamese-wght-normal-wikBsL6_.woff2           11.38 kB
+../test/build/ui-audit-2026-11-05/assets/jetbrains-mono-cyrillic-wght-normal-D73BlboJ.woff2      12.10 kB
+../test/build/ui-audit-2026-11-05/assets/ibm-plex-sans-vietnamese-wght-normal-Dg1JeJN0.woff2     13.16 kB
+../test/build/ui-audit-2026-11-05/assets/geist-cyrillic-wght-normal-BEAKL7Jp.woff2               15.08 kB
+../test/build/ui-audit-2026-11-05/assets/jetbrains-mono-latin-ext-wght-normal-DBQx-q_a.woff2     15.19 kB
+../test/build/ui-audit-2026-11-05/assets/geist-latin-ext-wght-normal-DC-KSUi6.woff2              16.51 kB
+../test/build/ui-audit-2026-11-05/assets/space-grotesk-latin-ext-wght-normal-D9tNdqV9.woff2      18.94 kB
+../test/build/ui-audit-2026-11-05/assets/ibm-plex-sans-greek-wght-normal-CmyJS8uq.woff2          19.50 kB
+../test/build/ui-audit-2026-11-05/assets/space-grotesk-latin-wght-normal-BhU9QXUp.woff2          22.28 kB
+../test/build/ui-audit-2026-11-05/assets/ibm-plex-sans-cyrillic-ext-wght-normal-d45eAU9y.woff2   23.56 kB
+../test/build/ui-audit-2026-11-05/assets/raleway-cyrillic-wght-normal-B0Yo_ULV.woff2             25.86 kB
+../test/build/ui-audit-2026-11-05/assets/raleway-cyrillic-ext-wght-normal-Dc5xu4We.woff2         26.98 kB
+../test/build/ui-audit-2026-11-05/assets/geist-latin-wght-normal-BgDaEnEv.woff2                  29.40 kB
+../test/build/ui-audit-2026-11-05/assets/ibm-plex-sans-cyrillic-wght-normal-BAAhND-U.woff2       29.51 kB
+../test/build/ui-audit-2026-11-05/assets/ibm-plex-sans-latin-ext-wght-normal-CIII54If.woff2      30.96 kB
+../test/build/ui-audit-2026-11-05/assets/raleway-latin-ext-wght-normal-CwtNDoQR.woff2            31.48 kB
+../test/build/ui-audit-2026-11-05/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2         40.40 kB
+../test/build/ui-audit-2026-11-05/assets/ibm-plex-sans-latin-wght-normal-IvpUvPa2.woff2          45.71 kB
+../test/build/ui-audit-2026-11-05/assets/raleway-latin-wght-normal-CSF1BaNN.woff2                48.26 kB
+../test/build/ui-audit-2026-11-05/assets/index-BR9vnIt0.css                                      96.96 kB │ gzip:  17.85 kB
+../test/build/ui-audit-2026-11-05/assets/index-Bb8biZxd.js                                      751.52 kB │ gzip: 238.63 kB
+
+✓ built in 1.93s
+[plugin builtin:vite-reporter]
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.

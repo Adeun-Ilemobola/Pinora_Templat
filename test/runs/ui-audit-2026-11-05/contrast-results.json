@@ -1,0 +1,27 @@
+[
+  {
+    "pair": "light muted text / card",
+    "ratio": 4.26,
+    "normal_text_4_5": false
+  },
+  {
+    "pair": "light muted text / muted surface",
+    "ratio": 3.862,
+    "normal_text_4_5": false
+  },
+  {
+    "pair": "light primary text / primary",
+    "ratio": 4.928,
+    "normal_text_4_5": true
+  },
+  {
+    "pair": "dark muted text / card",
+    "ratio": 7.295,
+    "normal_text_4_5": true
+  },
+  {
+    "pair": "dark primary text / primary",
+    "ratio": 6.932,
+    "normal_text_4_5": true
+  }
+]

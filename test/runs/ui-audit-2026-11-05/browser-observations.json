@@ -1,0 +1,64 @@
+{
+  "date": "2026-11-05",
+  "scope": "Browser previews; synthetic hardware states; no native device verification",
+  "defaultViewport": {
+    "width": 800,
+    "height": 600,
+    "sidebar": 256,
+    "transport": {
+      "top": 168,
+      "height": 397
+    },
+    "statistics": {
+      "top": 589,
+      "height": 288
+    },
+    "modulesEmptyCardTop": 945,
+    "includesBrowserOnlyMissingIpcError": true
+  },
+  "wideViewport": {
+    "width": 1440,
+    "height": 900,
+    "overviewCardHeight": 397
+  },
+  "narrowLogs": {
+    "width": 390,
+    "height": 844,
+    "documentScrollWidth": 375,
+    "logPanelTop": 423,
+    "logPanelHeight": 506.390625
+  },
+  "readOnlyFixture": {
+    "auth": "NoKey",
+    "transport": "Bluetooth",
+    "enabledCommands": [
+      "Toggle LED",
+      "Start ranging",
+      "Read mode"
+    ]
+  },
+  "ledRangeInput": {
+    "accessibleName": null,
+    "labelledby": null
+  },
+  "partialLidar": {
+    "headerVisible": false,
+    "pageContentVisible": false,
+    "shellVisible": true
+  },
+  "lightSelect": {
+    "documentTheme": "light",
+    "popupTheme": "dark",
+    "background": "oklch(0.228 0.013 107.4)"
+  },
+  "sidebar": {
+    "afterToggle": "collapsed",
+    "afterReload": "expanded"
+  },
+  "logInteraction": {
+    "query": "event 1:",
+    "visibleEntries": 1,
+    "totalEntries": 30,
+    "detailsOpened": true
+  }
+}

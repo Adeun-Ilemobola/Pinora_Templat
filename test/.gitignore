@@ -1,0 +1,3 @@
+# Disposable diagnostic output; retain source fixtures and evidence separately.
+/build/
+/runs/**/vite-cache/
